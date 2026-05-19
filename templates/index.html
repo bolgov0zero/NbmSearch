@@ -62,9 +62,16 @@ nav a:hover { background: var(--surface2); color: var(--text); }
 .rc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
 .rc-name { font-weight: 600; font-size: .95rem; word-break: break-all; }
 .rc-badge { flex-shrink: 0; font-size: .7rem; padding: 2px 8px; border-radius: 12px; border: 1px solid var(--border); color: var(--text-dim); background: var(--surface2); white-space: nowrap; }
-.rc-path { margin-bottom: 10px; }
-.rc-path a { font-size: .78rem; color: var(--accent); text-decoration: none; word-break: break-all; opacity: .85; }
-.rc-path a:hover { opacity: 1; text-decoration: underline; }
+.rc-path { margin-bottom: 10px; display: flex; align-items: flex-start; gap: 8px; }
+.rc-path-text { font-size: .78rem; color: var(--text-dim); word-break: break-all; flex: 1; user-select: text; }
+.rc-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
+.btn-copy { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface2); color: var(--text-dim); font-size: .75rem; cursor: pointer; transition: border-color .15s, color .15s; white-space: nowrap; text-decoration: none; }
+.btn-copy:hover { border-color: var(--accent); color: var(--text); }
+.btn-copy.copied { border-color: var(--green, #2ecc71); color: var(--green, #2ecc71); }
+
+/* Toast */
+#toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px; border-radius: var(--radius); font-size: .875rem; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 999; white-space: nowrap; }
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .rc-snippet { font-size: .855rem; color: var(--text-dim); line-height: 1.65; background: var(--surface2); border-left: 2px solid var(--accent); padding: 8px 12px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
 .rc-snippet mark { background: var(--mark-bg); color: var(--mark-fg); border-radius: 3px; padding: 0 3px; font-style: normal; }
 .rc-meta { margin-top: 8px; font-size: .75rem; color: var(--text-dim); display: flex; gap: 16px; }
@@ -183,7 +190,14 @@ async function doSearch() {
       const date = r.modified_at ? new Date(r.modified_at*1000).toLocaleDateString('ru-RU',{day:'2-digit',month:'short',year:'numeric'}) : '';
       return `<div class="result-card">
         <div class="rc-top"><div class="rc-name">${esc(r.name)}</div><span class="rc-badge ext-${ext}">.${ext}</span></div>
-        <div class="rc-path"><a href="#" class="file-link" data-path="${esc(r.path)}" title="${esc(r.path)}">${esc(r.path)}</a></div>
+        <div class="rc-path">
+          <span class="rc-path-text">${esc(r.path)}</span>
+          <div class="rc-actions">
+            <a class="btn-copy" href="nbmsearch://open/${encodeURIComponent(r.path)}" title="Открыть файл">▶ Открыть</a>
+            <a class="btn-copy" href="nbmsearch://folder/${encodeURIComponent(r.path)}" title="Открыть папку с файлом">📁 Папка</a>
+            <button class="btn-copy" data-path="${esc(r.path)}" title="Копировать путь">📋 Копировать</button>
+          </div>
+        </div>
         ${r.snippet?`<div class="rc-snippet">${r.snippet}</div>`:''}
         <div class="rc-meta">
           ${r.folder_name?`<span>📁 ${esc(r.folder_name)}</span>`:''}
@@ -194,16 +208,17 @@ async function doSearch() {
   } catch(e) { spinner.classList.remove('visible'); statusText.textContent = 'Ошибка соединения'; }
 }
 
-// Use event delegation — path lives in data-path, never inside onclick=""
+// Copy path button
 document.addEventListener('click', async e => {
-  const link = e.target.closest('.file-link');
-  if (!link) return;
-  e.preventDefault();
-  const path = link.dataset.path;
+  const btn = e.target.closest('.btn-copy[data-path]');
+  if (!btn) return;
+  const path = btn.dataset.path;
   try {
-    const res = await fetch('/open?path=' + encodeURIComponent(path));
-    if (!res.ok) { const d = await res.json(); alert('Не удалось открыть файл:\n' + (d.error || res.status)); }
-  } catch(e) { alert('Ошибка соединения'); }
+    await navigator.clipboard.writeText(path);
+    btn.classList.add('copied');
+    btn.textContent = '✓ Скопировано';
+    setTimeout(() => { btn.classList.remove('copied'); btn.textContent = '📋 Копировать'; }, 1800);
+  } catch(e) {}
 });
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }

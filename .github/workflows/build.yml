@@ -34,9 +34,12 @@ jobs:
             --hidden-import "app.indexer" `
             --hidden-import "app.config" `
             launcher.py
+          pyinstaller --onefile --windowed --name NbmSearchOpen open_handler.py
 
-      - name: Rename artifact
-        run: mv dist/NbmSearch.exe dist/NbmSearch-windows.exe
+      - name: Rename artifacts
+        run: |
+          mv dist/NbmSearch.exe dist/NbmSearch-windows.exe
+          mv dist/NbmSearchOpen.exe dist/NbmSearchOpen-windows.exe
 
       - name: Generate release tag
         id: tag
@@ -47,6 +50,8 @@ jobs:
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: NbmSearch ${{ steps.tag.outputs.tag }}
-          files: dist/NbmSearch-windows.exe
+          files: |
+            dist/NbmSearch-windows.exe
+            dist/NbmSearchOpen-windows.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

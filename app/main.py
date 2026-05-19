@@ -13,7 +13,7 @@ else:
     BASE_DIR = Path(__file__).resolve().parent.parent
 
 from fastapi import FastAPI, Request, Query
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 import uvicorn
@@ -166,6 +166,52 @@ async def open_file(path: str = ""):
     except Exception as e:
         logger.error("open_file error: %s", e)
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ── Client setup ──────────────────────────────────────────────────────────────
+
+@app.get("/client/NbmSearchOpen.exe")
+async def client_exe(request: Request):
+    exe_path = BASE_DIR / "NbmSearchOpen.exe"
+    if not exe_path.exists():
+        return JSONResponse({"error": "NbmSearchOpen.exe not found on server"}, status_code=404)
+    return FileResponse(str(exe_path), media_type="application/octet-stream", filename="NbmSearchOpen.exe")
+
+
+@app.get("/client/setup.ps1")
+async def client_setup(request: Request):
+    host = request.headers.get("host", f"localhost:{PORT}")
+    scheme = "https" if request.headers.get("x-forwarded-proto") == "https" else "http"
+    server_url = f"{scheme}://{host}"
+    script = f"""# NbmSearch — установка клиентского обработчика протокола nbmsearch://
+# Запустите этот скрипт один раз на каждом клиентском компьютере.
+# Требуются права администратора для записи в реестр.
+
+$ErrorActionPreference = "Stop"
+$serverUrl = "{server_url}"
+$exeName   = "NbmSearchOpen.exe"
+$installDir = "$env:LOCALAPPDATA\\NbmSearch"
+$exePath   = "$installDir\\$exeName"
+
+Write-Host "Создаю папку $installDir..."
+New-Item -ItemType Directory -Force -Path $installDir | Out-Null
+
+Write-Host "Загружаю $exeName с $serverUrl/client/$exeName ..."
+Invoke-WebRequest -Uri "$serverUrl/client/$exeName" -OutFile $exePath -UseBasicParsing
+
+Write-Host "Регистрирую протокол nbmsearch:// в реестре..."
+$regBase = "HKCU:\\Software\\Classes\\nbmsearch"
+New-Item -Path $regBase -Force | Out-Null
+Set-ItemProperty -Path $regBase -Name "(Default)"     -Value "URL:NbmSearch Protocol"
+Set-ItemProperty -Path $regBase -Name "URL Protocol"  -Value ""
+New-Item -Path "$regBase\\shell\\open\\command" -Force | Out-Null
+Set-ItemProperty -Path "$regBase\\shell\\open\\command" -Name "(Default)" -Value "`"$exePath`" `"%1`""
+
+Write-Host ""
+Write-Host "Готово! Протокол nbmsearch:// зарегистрирован." -ForegroundColor Green
+Write-Host "Теперь ссылки 'Открыть файл' и 'Открыть папку' в NbmSearch будут работать на этом компьютере."
+"""
+    return PlainTextResponse(script, media_type="text/plain; charset=utf-8")
 
 
 @app.delete("/api/folders/{folder_id}")

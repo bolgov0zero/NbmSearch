@@ -182,6 +182,29 @@ tbody tr:hover td { background: var(--surface2); }
     </div>
   </div>
 
+  <!-- Client setup -->
+  <div class="card">
+    <div class="card-title">Настройка клиентов</div>
+    <p style="font-size:.875rem;color:var(--text-dim);line-height:1.6;margin-bottom:16px;">
+      Чтобы кнопки <strong style="color:var(--text)">«Открыть»</strong> и <strong style="color:var(--text)">«Папка»</strong> работали в браузере на компьютере пользователя,
+      нужно один раз запустить скрипт установки на каждом клиентском ПК.<br>
+      Скрипт загрузит <code style="background:var(--surface2);padding:1px 6px;border-radius:4px;font-size:.82rem;">NbmSearchOpen.exe</code> и зарегистрирует протокол <code style="background:var(--surface2);padding:1px 6px;border-radius:4px;font-size:.82rem;">nbmsearch://</code> в реестре Windows.
+    </p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a class="btn btn-primary" href="/client/setup.ps1" download="setup.ps1">⬇ Скачать setup.ps1</a>
+      <a class="btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);" href="/client/NbmSearchOpen.exe" download="NbmSearchOpen.exe">⬇ NbmSearchOpen.exe</a>
+    </div>
+    <div style="margin-top:16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;">
+      <div style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text-dim);margin-bottom:10px;">Инструкция</div>
+      <ol style="font-size:.83rem;color:var(--text-dim);line-height:1.9;padding-left:18px;">
+        <li>Скачайте <strong style="color:var(--text)">setup.ps1</strong> и запустите на клиентском ПК:<br>
+          <code style="background:var(--bg);padding:2px 8px;border-radius:4px;font-size:.8rem;display:inline-block;margin-top:3px;">PowerShell -ExecutionPolicy Bypass -File setup.ps1</code></li>
+        <li>После успешной установки кнопки «Открыть» и «Папка» заработают в браузере.</li>
+        <li>Установка нужна только один раз. <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:.8rem;">NbmSearchOpen.exe</code> сохраняется в <code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:.8rem;">%LOCALAPPDATA%\NbmSearch\</code></li>
+      </ol>
+    </div>
+  </div>
+
   <!-- Reindex -->
   <div class="card">
     <div class="card-title">Управление индексом</div>
