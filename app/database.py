@@ -291,6 +291,12 @@ def delete_folder(folder_id: int) -> str | None:
         conn.commit()
         conn.close()
     # Delete the folder's index DB file
+    # Also delete all schedules for this folder
+    with _main_lock:
+        conn = _get_main_conn()
+        conn.execute("DELETE FROM schedules WHERE folder_id=?", (folder_id,))
+        conn.commit()
+        conn.close()
     db_file = _folder_db_path(folder_id)
     try:
         db_file.unlink(missing_ok=True)

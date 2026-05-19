@@ -118,6 +118,7 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
   font-size:.8rem;font-family:inherit;flex-shrink:0;
   transition:border-color .15s,color .15s,background .15s}
 .btn-icon:hover{border-color:var(--red);color:var(--red);background:var(--red-bg)}
+.btn-icon.reindex:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
 
 /* ── Progress ── */
 .prog-wrap{margin-top:8px}
@@ -239,6 +240,7 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
           </div>
           <div class="item-right">
             <span class="badge" id="cnt-{{ f.id }}">{{ f.file_count }} файлов</span>
+            <button class="btn-icon reindex" title="Переиндексировать" onclick="reindexFolder({{ f.id }})">↻</button>
             <button class="btn-icon" title="Удалить индекс" onclick="confirmDeleteFolder({{ f.id }}, '{{ f.name }}')">✕</button>
           </div>
         </div>
@@ -406,6 +408,7 @@ function appendFolderRow(id, name, path) {
     </div>
     <div class="item-right">
       <span class="badge" id="cnt-${id}">0 файлов</span>
+      <button class="btn-icon reindex" title="Переиндексировать" onclick="reindexFolder(${id})">↻</button>
       <button class="btn-icon" title="Удалить" onclick="confirmDeleteFolder(${id},'${esc(name)}')">✕</button>
     </div>`;
   list.appendChild(div);
@@ -416,6 +419,13 @@ function addFolderOption(id, name) {
   const opt = document.createElement('option');
   opt.value = id; opt.textContent = name;
   sel.appendChild(opt);
+}
+
+// ── Reindex folder ───────────────────────────────────────────────────────────
+async function reindexFolder(id) {
+  const res = await fetch(`/admin/reindex/${id}`, {method:'POST'}).catch(()=>null);
+  if (!res || !res.ok) { alert('Ошибка запуска переиндексации'); return; }
+  startPolling(id);
 }
 
 // ── Delete folder ────────────────────────────────────────────────────────────
