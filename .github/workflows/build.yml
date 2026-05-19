@@ -29,7 +29,11 @@ jobs:
         run: |
           pyinstaller --onefile --windowed --name NbmSearch `
             --add-data "templates;templates" `
-            app/main.py
+            --hidden-import "app.main" `
+            --hidden-import "app.database" `
+            --hidden-import "app.indexer" `
+            --hidden-import "app.config" `
+            launcher.py
 
       - name: Rename artifact
         run: mv dist/NbmSearch.exe dist/NbmSearch-windows.exe

@@ -70,18 +70,23 @@ def init_db():
 # ── FTS5 query sanitizer ──────────────────────────────────────────────────────
 
 def _fts_query(raw: str) -> str:
-    """Convert a plain user query into a safe FTS5 MATCH expression.
+    """Convert a user query into a safe FTS5 MATCH expression.
 
-    Each whitespace-separated token is wrapped in double quotes so FTS5
-    treats it as a literal phrase rather than a syntax expression.
-    This prevents SQL logic errors from special chars like - * ( ) " ^
+    - Query wrapped in quotes → exact phrase search: pass as single FTS5 phrase
+    - Otherwise → each word wrapped in quotes, all words must appear (AND logic)
     """
-    tokens = raw.split()
-    if not tokens:
+    stripped = raw.strip()
+    if not stripped:
         return '""'
-    # Escape any double-quotes inside a token by doubling them
-    safe = " ".join(f'"{t.replace(chr(34), chr(34)+chr(34))}"' for t in tokens)
-    return safe
+
+    # Exact phrase: user typed "Иванов Иван" — search as FTS5 phrase
+    if stripped.startswith('"') and stripped.endswith('"') and len(stripped) > 2:
+        inner = stripped[1:-1].replace('"', '""')  # escape inner quotes
+        return f'"{inner}"'
+
+    # Regular: wrap each token so special chars are safe
+    tokens = stripped.split()
+    return " ".join(f'"{t.replace(chr(34), chr(34)*2)}"' for t in tokens)
 
 
 # ── Folders CRUD ─────────────────────────────────────────────────────────────

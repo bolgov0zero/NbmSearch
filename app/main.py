@@ -9,10 +9,6 @@ from typing import List, Optional
 
 if getattr(sys, "frozen", False):
     BASE_DIR = Path(sys._MEIPASS)
-    _log_path = Path(sys.executable).parent / "nbmsearch.log"
-    _log_file = open(_log_path, "a", encoding="utf-8", buffering=1)
-    sys.stdout = _log_file
-    sys.stderr = _log_file
 else:
     BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -146,6 +142,20 @@ async def api_add_folder(data: FolderIn):
 
     threading.Thread(target=_init, daemon=True).start()
     return folder
+
+
+@app.get("/open")
+async def open_file(path: str = ""):
+    """Open a file with the default OS application (Windows: os.startfile)."""
+    if not path:
+        return JSONResponse({"error": "path required"}, status_code=400)
+    if not os.path.exists(path):
+        return JSONResponse({"error": "file not found"}, status_code=404)
+    try:
+        os.startfile(path)  # Windows built-in — opens with default app
+        return {"status": "ok"}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 @app.delete("/api/folders/{folder_id}")

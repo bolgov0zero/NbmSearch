@@ -183,7 +183,7 @@ async function doSearch() {
       const date = r.modified_at ? new Date(r.modified_at*1000).toLocaleDateString('ru-RU',{day:'2-digit',month:'short',year:'numeric'}) : '';
       return `<div class="result-card">
         <div class="rc-top"><div class="rc-name">${esc(r.name)}</div><span class="rc-badge ext-${ext}">.${ext}</span></div>
-        <div class="rc-path"><a href="file:///${r.path.replace(/\\/g,'/')}" title="${esc(r.path)}">${esc(r.path)}</a></div>
+        <div class="rc-path"><a href="#" onclick="openFile(${JSON.stringify(r.path)});return false;" title="${esc(r.path)}">${esc(r.path)}</a></div>
         ${r.snippet?`<div class="rc-snippet">${r.snippet}</div>`:''}
         <div class="rc-meta">
           ${r.folder_name?`<span>📁 ${esc(r.folder_name)}</span>`:''}
@@ -192,6 +192,13 @@ async function doSearch() {
       </div>`;
     }).join('');
   } catch(e) { spinner.classList.remove('visible'); statusText.textContent = 'Ошибка соединения'; }
+}
+
+async function openFile(path) {
+  try {
+    const res = await fetch('/open?path=' + encodeURIComponent(path));
+    if (!res.ok) { const d = await res.json(); alert('Не удалось открыть файл:\n' + (d.error || res.status)); }
+  } catch(e) { alert('Ошибка соединения'); }
 }
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
