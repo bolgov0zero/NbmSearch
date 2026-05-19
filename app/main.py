@@ -8,9 +8,13 @@ from pathlib import Path
 from typing import List, Optional
 
 if getattr(sys, "frozen", False):
+    # _MEIPASS — временная папка куда PyInstaller распаковывает бандл (шаблоны, иконка)
+    BUNDLE_DIR = Path(sys._MEIPASS)
+    # рядом с exe — пользовательские данные (БД, настройки)
     BASE_DIR = Path(sys.executable).parent
 else:
-    BASE_DIR = Path(__file__).resolve().parent.parent
+    BUNDLE_DIR = Path(__file__).resolve().parent.parent
+    BASE_DIR = BUNDLE_DIR
 
 from fastapi import FastAPI, Request, Query, Response, Cookie
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, PlainTextResponse, RedirectResponse
@@ -43,7 +47,7 @@ def _startup():
 
 
 app = FastAPI(title="NbmSearch", lifespan=lifespan)
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+templates = Jinja2Templates(directory=str(BUNDLE_DIR / "templates"))
 
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
@@ -297,7 +301,7 @@ Write-Host "Перезапустите браузер."
 
 @app.get("/favicon.ico")
 async def favicon():
-    icon = BASE_DIR / "icon.png"
+    icon = BUNDLE_DIR / "icon.png"
     if icon.exists():
         return FileResponse(str(icon), media_type="image/png")
     return Response(status_code=204)
@@ -305,7 +309,7 @@ async def favicon():
 
 @app.get("/icon.png")
 async def icon_png():
-    icon = BASE_DIR / "icon.png"
+    icon = BUNDLE_DIR / "icon.png"
     if icon.exists():
         return FileResponse(str(icon), media_type="image/png")
     return Response(status_code=204)
