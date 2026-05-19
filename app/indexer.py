@@ -108,7 +108,7 @@ def index_file(path: str, folder_name: str = ""):
         return
     try:
         stat = os.stat(path)
-        content = extract_text(path)
+        content = extract_text(path)[:200_000]
         name = os.path.basename(path)
         if not folder_name:
             folder_name = _folder_name_for_path(path, db.get_folders())
