@@ -8,17 +8,17 @@ from pathlib import Path
 from typing import List, Optional
 
 if getattr(sys, "frozen", False):
-    BASE_DIR = Path(sys._MEIPASS)
+    BASE_DIR = Path(sys.executable).parent
 else:
     BASE_DIR = Path(__file__).resolve().parent.parent
 
-from fastapi import FastAPI, Request, Query
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, PlainTextResponse
+from fastapi import FastAPI, Request, Query, Response, Cookie
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, PlainTextResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 import uvicorn
 
-from app.config import PORT
+from app.settings import PORT, verify_password
 from app import database as db
 from app import indexer
 
@@ -29,21 +29,28 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     db.init_db()
-    threading.Thread(target=_initial_and_scheduler, daemon=True).start()
+    threading.Thread(target=_startup, daemon=True).start()
     try:
         indexer.restart_watchdog()
     except Exception as e:
-        logger.error("Watchdog failed to start: %s", e)
+        logger.error("Watchdog failed: %s", e)
     yield
 
 
-def _initial_and_scheduler():
+def _startup():
     indexer.full_reindex()
     indexer.reindex_scheduler()
 
 
 app = FastAPI(title="NbmSearch", lifespan=lifespan)
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+
+# ── Auth helpers ──────────────────────────────────────────────────────────────
+
+def _is_auth(request: Request) -> bool:
+    token = request.cookies.get("nbm_session")
+    return db.session_valid(token)
 
 
 # ── Search ────────────────────────────────────────────────────────────────────
@@ -69,45 +76,90 @@ async def search(
     return {"results": results}
 
 
+# ── Admin auth ────────────────────────────────────────────────────────────────
+
+@app.get("/admin/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    if _is_auth(request):
+        return RedirectResponse("/admin")
+    return templates.TemplateResponse("login.html", {"request": request, "error": ""})
+
+
+@app.post("/admin/login")
+async def do_login(request: Request):
+    form = await request.form()
+    password = form.get("password", "")
+    if verify_password(password):
+        token = db.create_session()
+        response = RedirectResponse("/admin", status_code=303)
+        response.set_cookie("nbm_session", token, httponly=True, samesite="lax", max_age=86400 * 30)
+        return response
+    return templates.TemplateResponse("login.html", {"request": request, "error": "Неверный пароль"})
+
+
+@app.post("/admin/logout")
+async def do_logout(request: Request):
+    token = request.cookies.get("nbm_session")
+    if token:
+        db.delete_session(token)
+    response = RedirectResponse("/admin/login", status_code=303)
+    response.delete_cookie("nbm_session")
+    return response
+
+
 # ── Admin ─────────────────────────────────────────────────────────────────────
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin(request: Request):
-    count, by_folder, recent = db.stats()
-    last_ts = indexer.last_reindex_time
-    next_ts = indexer.next_reindex_time
-    last_str = datetime.fromtimestamp(last_ts).strftime("%Y-%m-%d %H:%M:%S") if last_ts else "—"
-    next_str = datetime.fromtimestamp(next_ts).strftime("%Y-%m-%d %H:%M:%S") if next_ts else "—"
-    for r in recent:
-        r["indexed_at_str"] = datetime.fromtimestamp(r["indexed_at"]).strftime("%Y-%m-%d %H:%M:%S")
+    if not _is_auth(request):
+        return RedirectResponse("/admin/login")
+    count, by_folder = db.stats()
     folders = db.get_folders()
+    # Attach file counts and progress to each folder
+    counts_map = {b["folder_name"]: b["cnt"] for b in by_folder}
+    for f in folders:
+        f["file_count"] = counts_map.get(f["name"], 0)
+        prog = indexer.get_progress(f["id"])
+        f["progress"] = prog
+        nxt = indexer.get_next_reindex(f["id"])
+        f["next_reindex"] = datetime.fromtimestamp(nxt).strftime("%H:%M %d.%m.%Y") if nxt else "—"
     return templates.TemplateResponse("admin.html", {
         "request": request,
         "count": count,
-        "by_folder": by_folder,
-        "last_reindex": last_str,
-        "next_reindex": next_str,
-        "recent": recent,
         "folders": folders,
     })
 
 
 @app.get("/admin/stats")
-async def admin_stats():
-    count, by_folder, _ = db.stats()
-    last_ts = indexer.last_reindex_time
-    next_ts = indexer.next_reindex_time
-    return {
-        "count": count,
-        "by_folder": by_folder,
-        "last_reindex": datetime.fromtimestamp(last_ts).strftime("%Y-%m-%d %H:%M:%S") if last_ts else "—",
-        "next_reindex": datetime.fromtimestamp(next_ts).strftime("%Y-%m-%d %H:%M:%S") if next_ts else "—",
-    }
+async def admin_stats(request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    count, by_folder = db.stats()
+    folders = db.get_folders()
+    counts_map = {b["folder_name"]: b["cnt"] for b in by_folder}
+    result = []
+    for f in folders:
+        prog = indexer.get_progress(f["id"])
+        nxt = indexer.get_next_reindex(f["id"])
+        result.append({
+            "id": f["id"],
+            "name": f["name"],
+            "file_count": counts_map.get(f["name"], 0),
+            "progress": prog,
+            "next_reindex": datetime.fromtimestamp(nxt).strftime("%H:%M %d.%m.%Y") if nxt else "—",
+        })
+    return {"count": count, "folders": result}
 
 
-@app.post("/admin/reindex")
-async def trigger_reindex():
-    threading.Thread(target=indexer.full_reindex, daemon=True).start()
+@app.post("/admin/reindex/{folder_id}")
+async def trigger_reindex(folder_id: int, request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    folders = db.get_folders()
+    folder = next((f for f in folders if f["id"] == folder_id), None)
+    if not folder:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    threading.Thread(target=indexer.index_folder, args=(folder,), daemon=True).start()
     return {"status": "started"}
 
 
@@ -116,6 +168,11 @@ async def trigger_reindex():
 class FolderIn(BaseModel):
     name: str
     path: str
+    reindex_minutes: int = 60
+
+
+class FolderSchedule(BaseModel):
+    reindex_minutes: int
 
 
 @app.get("/api/folders")
@@ -124,7 +181,9 @@ async def api_get_folders():
 
 
 @app.post("/api/folders")
-async def api_add_folder(data: FolderIn):
+async def api_add_folder(data: FolderIn, request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
     name = data.name.strip()
     path = data.path.strip()
     if not name or not path:
@@ -132,46 +191,46 @@ async def api_add_folder(data: FolderIn):
     if not os.path.isdir(path):
         return JSONResponse({"error": f"Папка не найдена: {path}"}, status_code=400)
     try:
-        folder = db.add_folder(name, path)
+        folder = db.add_folder(name, path, data.reindex_minutes)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=400)
 
     def _init():
-        indexer.index_folder({"name": name, "path": path})
+        indexer.index_folder(folder)
         indexer.restart_watchdog()
 
     threading.Thread(target=_init, daemon=True).start()
     return folder
 
 
-@app.get("/open")
-async def open_file(path: str = ""):
-    """Open a file with the default OS application.
+@app.patch("/api/folders/{folder_id}/schedule")
+async def api_update_schedule(folder_id: int, data: FolderSchedule, request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    db.update_folder_schedule(folder_id, data.reindex_minutes)
+    return {"status": "ok"}
 
-    Uses 'start' shell command — more reliable than os.startfile for UNC paths
-    (\\\\server\\share\\...) because it doesn't require os.path.exists to work.
-    """
-    if not path:
-        return JSONResponse({"error": "path required"}, status_code=400)
-    try:
-        import subprocess
-        # 'start "" "path"' — first arg is window title (empty), second is path.
-        # shell=True required for the start builtin; path is quoted to handle spaces.
-        subprocess.Popen(
-            f'start "" "{path}"',
-            shell=True,
-            creationflags=subprocess.CREATE_NO_WINDOW,
-        )
-        return {"status": "ok"}
-    except Exception as e:
-        logger.error("open_file error: %s", e)
-        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.delete("/api/folders/{folder_id}")
+async def api_delete_folder(folder_id: int, request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    folder_name = db.delete_folder(folder_id)
+    if folder_name is None:
+        return JSONResponse({"error": "Папка не найдена"}, status_code=404)
+    threading.Thread(target=indexer.restart_watchdog, daemon=True).start()
+    return {"status": "deleted", "name": folder_name}
+
+
+@app.get("/api/folders/{folder_id}/progress")
+async def api_folder_progress(folder_id: int):
+    return indexer.get_progress(folder_id)
 
 
 # ── Client setup ──────────────────────────────────────────────────────────────
 
 @app.get("/client/NbmSearchOpen.exe")
-async def client_exe(request: Request):
+async def client_exe():
     if getattr(sys, "frozen", False):
         exe_path = Path(sys.executable).parent / "NbmSearchOpen.exe"
     else:
@@ -186,15 +245,17 @@ async def client_setup(request: Request):
     host = request.headers.get("host", f"localhost:{PORT}")
     scheme = "https" if request.headers.get("x-forwarded-proto") == "https" else "http"
     server_url = f"{scheme}://{host}"
-    script = f"""# NbmSearch — установка клиентского обработчика протокола nbmsearch://
-# Запустите этот скрипт один раз на каждом клиентском компьютере.
-# Требуются права администратора для записи в реестр.
+    script = f"""# NbmSearch — установка обработчика протокола nbmsearch://
+# Устанавливается в ProgramData — работает для всех пользователей компьютера.
+# Запускать от имени администратора!
 
+#Requires -RunAsAdministrator
 $ErrorActionPreference = "Stop"
-$serverUrl = "{server_url}"
-$exeName   = "NbmSearchOpen.exe"
-$installDir = "$env:LOCALAPPDATA\\NbmSearch"
-$exePath   = "$installDir\\$exeName"
+
+$serverUrl  = "{server_url}"
+$exeName    = "NbmSearchOpen.exe"
+$installDir = "$env:ProgramData\\NbmSearch"
+$exePath    = "$installDir\\$exeName"
 
 Write-Host "Создаю папку $installDir..."
 New-Item -ItemType Directory -Force -Path $installDir | Out-Null
@@ -202,57 +263,53 @@ New-Item -ItemType Directory -Force -Path $installDir | Out-Null
 Write-Host "Загружаю $exeName с $serverUrl/client/$exeName ..."
 Invoke-WebRequest -Uri "$serverUrl/client/$exeName" -OutFile $exePath -UseBasicParsing
 
-Write-Host "Регистрирую протокол nbmsearch:// в реестре..."
-$regBase = "HKCU:\\Software\\Classes\\nbmsearch"
+Write-Host "Регистрирую протокол nbmsearch:// для всех пользователей (HKLM)..."
+$regBase = "HKLM:\\Software\\Classes\\nbmsearch"
 New-Item -Path $regBase -Force | Out-Null
-Set-ItemProperty -Path $regBase -Name "(Default)"     -Value "URL:NbmSearch Protocol"
-Set-ItemProperty -Path $regBase -Name "URL Protocol"  -Value ""
+Set-ItemProperty -Path $regBase -Name "(Default)"    -Value "URL:NbmSearch Protocol"
+Set-ItemProperty -Path $regBase -Name "URL Protocol" -Value ""
 New-Item -Path "$regBase\\shell\\open\\command" -Force | Out-Null
-Set-ItemProperty -Path "$regBase\\shell\\open\\command" -Name "(Default)" -Value "`"$exePath`" `"%1`""
+Set-ItemProperty -Path "$regBase\\shell\\open\\command" -Name "(Default)" `
+    -Value "`"$exePath`" `"%1`""
 
 Write-Host "Отключаю диалог подтверждения в Chrome и Edge..."
-# Chrome
-$chromePol = "HKLM:\\SOFTWARE\\Policies\\Google\\Chrome\\AutoOpenProtocolHandlerAllowlist"
-try {{
-    New-Item -Path $chromePol -Force | Out-Null
-    $idx = (Get-Item $chromePol -ErrorAction SilentlyContinue).Property.Count + 1
-    Set-ItemProperty -Path $chromePol -Name "$idx" -Value "nbmsearch"
-}} catch {{
-    Write-Host "  Chrome: нет прав на запись политики (нужен администратор)" -ForegroundColor Yellow
-}}
-# Edge
-$edgePol = "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge\\AutoOpenProtocolHandlerAllowlist"
-try {{
-    New-Item -Path $edgePol -Force | Out-Null
-    $idx = (Get-Item $edgePol -ErrorAction SilentlyContinue).Property.Count + 1
-    Set-ItemProperty -Path $edgePol -Name "$idx" -Value "nbmsearch"
-}} catch {{
-    Write-Host "  Edge: нет прав на запись политики (нужен администратор)" -ForegroundColor Yellow
+foreach ($browser in @(
+    "HKLM:\\SOFTWARE\\Policies\\Google\\Chrome\\AutoOpenProtocolHandlerAllowlist",
+    "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge\\AutoOpenProtocolHandlerAllowlist"
+)) {{
+    try {{
+        New-Item -Path $browser -Force | Out-Null
+        $idx = ((Get-Item $browser).Property.Count + 1).ToString()
+        Set-ItemProperty -Path $browser -Name $idx -Value "nbmsearch"
+    }} catch {{
+        Write-Host "  Пропущено: $browser" -ForegroundColor Yellow
+    }}
 }}
 
 Write-Host ""
-Write-Host "Готово! Протокол nbmsearch:// зарегистрирован." -ForegroundColor Green
-Write-Host "Теперь ссылки 'Открыть файл' и 'Открыть папку' в NbmSearch будут работать на этом компьютере."
-Write-Host "Если диалог подтверждения всё ещё появляется — перезапустите браузер."
+Write-Host "Готово! Протокол nbmsearch:// зарегистрирован для всех пользователей." -ForegroundColor Green
+Write-Host "Перезапустите браузер."
 """
     return PlainTextResponse(script, media_type="text/plain; charset=utf-8")
 
 
-@app.delete("/api/folders/{folder_id}")
-async def api_delete_folder(folder_id: int):
-    folder_name = db.delete_folder(folder_id)
-    if folder_name is None:
-        return JSONResponse({"error": "Папка не найдена"}, status_code=404)
-    db.delete_files_by_folder(folder_name)
-    threading.Thread(target=indexer.restart_watchdog, daemon=True).start()
-    return {"status": "deleted", "name": folder_name}
+# ── Favicon / icon ────────────────────────────────────────────────────────────
+
+@app.get("/favicon.ico")
+async def favicon():
+    icon = BASE_DIR / "icon.png"
+    if icon.exists():
+        return FileResponse(str(icon), media_type="image/png")
+    return Response(status_code=204)
+
+
+@app.get("/icon.png")
+async def icon_png():
+    icon = BASE_DIR / "icon.png"
+    if icon.exists():
+        return FileResponse(str(icon), media_type="image/png")
+    return Response(status_code=204)
 
 
 if __name__ == "__main__":
-    uvicorn.run(
-        app,          # передаём объект напрямую — строка "app.main:app" не работает в PyInstaller
-        host="0.0.0.0",
-        port=PORT,
-        reload=False,
-        log_config=None,
-    )
+    uvicorn.run(app, host="0.0.0.0", port=PORT, reload=False, log_config=None)

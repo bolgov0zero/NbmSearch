@@ -4,87 +4,108 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NbmSearch</title>
+<link rel="icon" type="image/png" href="/icon.png">
 <style>
 :root {
-  --bg:        #0f1117;
-  --surface:   #1a1d27;
-  --surface2:  #22263a;
-  --border:    #2d3148;
-  --accent:    #5b6af0;
-  --accent-dim:#3d4ab0;
-  --text:      #e8eaf6;
-  --text-dim:  #8b90b8;
-  --mark-bg:   #f0c040;
-  --mark-fg:   #1a1d27;
-  --radius:    10px;
-  --radius-sm: 6px;
+  --bg:       #0f1117; --surface:  #1a1d27; --surface2: #22263a;
+  --border:   #2d3148; --accent:   #5b6af0; --accent-dim:#3d4ab0;
+  --text:     #e8eaf6; --text-dim: #8b90b8;
+  --mark-bg:  #f0c040; --mark-fg:  #1a1d27;
+  --green:    #2ecc71; --radius: 10px; --radius-sm: 6px;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh; }
 
-header { position: sticky; top: 0; z-index: 100; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 32px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
-.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.1rem; color: var(--text); text-decoration: none; }
-.logo-icon { width: 28px; height: 28px; background: var(--accent); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: .9rem; }
-nav a { color: var(--text-dim); text-decoration: none; font-size: .875rem; padding: 6px 12px; border-radius: var(--radius-sm); transition: background .15s, color .15s; }
+header { position: sticky; top: 0; z-index: 100; background: var(--surface);
+  border-bottom: 1px solid var(--border); padding: 0 28px; height: 52px;
+  display: flex; align-items: center; justify-content: space-between; }
+.logo { display: flex; align-items: center; gap: 9px; font-weight: 700;
+  font-size: 1rem; color: var(--text); text-decoration: none; }
+.logo-icon { width: 26px; height: 26px; border-radius: 6px; overflow: hidden; }
+.logo-icon img { width: 100%; height: 100%; object-fit: cover; }
+nav a { color: var(--text-dim); text-decoration: none; font-size: .82rem;
+  padding: 5px 10px; border-radius: var(--radius-sm); transition: background .15s, color .15s; }
 nav a:hover { background: var(--surface2); color: var(--text); }
 
-.hero { padding: 48px 32px 0; max-width: 780px; margin: 0 auto; }
-.hero-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 6px; }
-.hero-sub { color: var(--text-dim); font-size: .9rem; margin-bottom: 24px; }
+.hero { padding: 36px 28px 0; max-width: 760px; margin: 0 auto; }
+.hero-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
+.hero-sub { color: var(--text-dim); font-size: .85rem; margin-bottom: 20px; }
 
-.search-wrap { display: flex; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 6px 6px 16px; transition: border-color .2s; }
+.search-wrap { display: flex; gap: 8px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 5px 5px 5px 14px; transition: border-color .2s; }
 .search-wrap:focus-within { border-color: var(--accent); }
-.search-wrap input { flex: 1; background: none; border: none; outline: none; font-size: .975rem; color: var(--text); min-width: 0; }
+.search-wrap input { flex: 1; background: none; border: none; outline: none;
+  font-size: .95rem; color: var(--text); min-width: 0; }
 .search-wrap input::placeholder { color: var(--text-dim); }
-.btn-search { background: var(--accent); color: #fff; border: none; border-radius: 7px; padding: 9px 20px; font-size: .9rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .15s; }
+.btn-search { background: var(--accent); color: #fff; border: none;
+  border-radius: 7px; padding: 8px 18px; font-size: .875rem; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: background .15s; }
 .btn-search:hover { background: var(--accent-dim); }
 
-.folder-bar { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.folder-label { font-size: .78rem; color: var(--text-dim); margin-right: 4px; }
-.folder-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-dim); font-size: .82rem; cursor: pointer; user-select: none; transition: border-color .15s, color .15s, background .15s; }
+.folder-bar { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+.folder-label { font-size: .75rem; color: var(--text-dim); margin-right: 2px; }
+.folder-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px;
+  border-radius: 20px; border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text-dim); font-size: .8rem; cursor: pointer; user-select: none;
+  transition: border-color .15s, color .15s, background .15s; }
 .folder-chip:hover { border-color: var(--accent); color: var(--text); }
 .folder-chip.active { border-color: var(--accent); background: rgba(91,106,240,.15); color: var(--text); }
-.folder-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); transition: background .15s; }
+.folder-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: background .15s; }
 .folder-chip.active .dot { background: var(--accent); }
-.no-folders { font-size: .8rem; color: var(--text-dim); font-style: italic; }
 
-.status-bar { max-width: 780px; margin: 20px auto 0; padding: 0 32px; min-height: 20px; font-size: .8rem; color: var(--text-dim); display: flex; align-items: center; gap: 8px; }
-.spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; display: none; }
+.status-bar { max-width: 760px; margin: 14px auto 0; padding: 0 28px;
+  min-height: 18px; font-size: .78rem; color: var(--text-dim); display: flex; align-items: center; gap: 7px; }
+.spinner { width: 13px; height: 13px; border: 2px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; display: none; }
 .spinner.visible { display: block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-#results { max-width: 780px; margin: 16px auto 60px; padding: 0 32px; }
-.no-results { text-align: center; padding: 60px 0; color: var(--text-dim); }
-.no-results svg { opacity: .3; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto; }
+#results { max-width: 760px; margin: 12px auto 60px; padding: 0 28px; }
+.no-results { text-align: center; padding: 50px 0; color: var(--text-dim); }
+.no-results svg { opacity: .3; margin-bottom: 10px; display: block; margin-left: auto; margin-right: auto; }
 
-.result-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 10px; transition: border-color .15s; }
+/* ── Result card ── */
+.result-card { background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 13px 16px; margin-bottom: 8px; transition: border-color .15s; }
 .result-card:hover { border-color: #3d4168; }
-.rc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
-.rc-name { font-weight: 600; font-size: .95rem; word-break: break-all; }
-.rc-badge { flex-shrink: 0; font-size: .7rem; padding: 2px 8px; border-radius: 12px; border: 1px solid var(--border); color: var(--text-dim); background: var(--surface2); white-space: nowrap; }
-.rc-path { margin-bottom: 10px; display: flex; align-items: flex-start; gap: 8px; }
-.rc-path-text { font-size: .78rem; color: var(--text-dim); word-break: break-all; flex: 1; user-select: text; }
-.rc-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
-.btn-copy { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface2); color: var(--text-dim); font-size: .75rem; cursor: pointer; transition: border-color .15s, color .15s; white-space: nowrap; text-decoration: none; }
-.btn-copy:hover { border-color: var(--accent); color: var(--text); }
-.btn-copy.copied { border-color: var(--green, #2ecc71); color: var(--green, #2ecc71); }
 
-/* Toast */
-#toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 10px 20px; border-radius: var(--radius); font-size: .875rem; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 999; white-space: nowrap; }
-#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-.rc-snippet { font-size: .855rem; color: var(--text-dim); line-height: 1.65; background: var(--surface2); border-left: 2px solid var(--accent); padding: 8px 12px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-.rc-snippet mark { background: var(--mark-bg); color: var(--mark-fg); border-radius: 3px; padding: 0 3px; font-style: normal; }
-.rc-meta { margin-top: 8px; font-size: .75rem; color: var(--text-dim); display: flex; gap: 16px; }
+.rc-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.rc-name { font-weight: 600; font-size: .9rem; flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-badge { flex-shrink: 0; font-size: .68rem; padding: 2px 7px; border-radius: 10px;
+  border: 1px solid var(--border); color: var(--text-dim); background: var(--surface2); }
 .ext-pdf  { border-color: #c0392b44; color: #e74c3c; }
-.ext-docx { border-color: #2980b944; color: #3498db; }
-.ext-xlsx { border-color: #27ae6044; color: #2ecc71; }
+.ext-docx,.ext-doc { border-color: #2980b944; color: #3498db; }
+.ext-xlsx,.ext-xls { border-color: #27ae6044; color: #2ecc71; }
 .ext-txt  { border-color: #7f8c8d44; color: #95a5a6; }
+.ext-rtf  { border-color: #8e44ad44; color: #9b59b6; }
+
+.rc-snippet { font-size: .82rem; color: var(--text-dim); line-height: 1.6;
+  background: var(--surface2); border-left: 2px solid var(--accent);
+  padding: 6px 10px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-bottom: 8px; }
+.rc-snippet mark { background: var(--mark-bg); color: var(--mark-fg);
+  border-radius: 2px; padding: 0 2px; font-style: normal; }
+
+.rc-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.rc-meta { display: flex; gap: 12px; font-size: .73rem; color: var(--text-dim); flex-wrap: wrap; }
+.rc-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+.btn-action { display: inline-flex; align-items: center; gap: 3px; padding: 3px 9px;
+  border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text-dim); font-size: .72rem; cursor: pointer; text-decoration: none;
+  transition: border-color .15s, color .15s; white-space: nowrap; }
+.btn-action:hover { border-color: var(--accent); color: var(--text); }
+.btn-action.copied { border-color: var(--green); color: var(--green); }
 </style>
 </head>
 <body>
 
 <header>
-  <a href="/" class="logo"><span class="logo-icon">⌕</span>NbmSearch</a>
+  <a href="/" class="logo">
+    <div class="logo-icon"><img src="/icon.png" alt=""></div>
+    NbmSearch
+  </a>
   <nav><a href="/admin">Администратор</a></nav>
 </header>
 
@@ -94,7 +115,7 @@ nav a:hover { background: var(--surface2); color: var(--text); }
 
   <form id="searchForm">
     <div class="search-wrap">
-      <input type="text" id="query" placeholder="Введите запрос…" autocomplete="off" autofocus>
+      <input type="text" id="query" placeholder='Запрос… или "точная фраза"' autocomplete="off" autofocus>
       <button type="submit" class="btn-search">Найти</button>
     </div>
   </form>
@@ -103,12 +124,14 @@ nav a:hover { background: var(--surface2); color: var(--text); }
     <span class="folder-label">Где искать:</span>
     <div id="chipContainer">
       {% if folders %}
-        <div class="folder-chip active" data-folder="__all__" style="display:inline-flex"><span class="dot"></span>Везде</div>
+        <div class="folder-chip active" data-folder="__all__"><span class="dot"></span>Везде</div>
         {% for f in folders %}
-        <div class="folder-chip" data-folder="{{ f.name }}" style="display:inline-flex"><span class="dot"></span>{{ f.name }}</div>
+        <div class="folder-chip" data-folder="{{ f.name }}"><span class="dot"></span>{{ f.name }}</div>
         {% endfor %}
       {% else %}
-        <span class="no-folders">Папки не добавлены — настройте в <a href="/admin" style="color:var(--accent)">администраторе</a></span>
+        <span style="font-size:.78rem;color:var(--text-dim);font-style:italic">
+          Папки не добавлены — <a href="/admin" style="color:var(--accent)">настройте</a>
+        </span>
       {% endif %}
     </div>
   </div>
@@ -121,7 +144,7 @@ nav a:hover { background: var(--surface2); color: var(--text); }
 <div id="results"></div>
 
 <script>
-// Chips
+// ── Chips ──
 const allChip = document.querySelector('[data-folder="__all__"]');
 document.querySelectorAll('.folder-chip').forEach(chip => {
   chip.addEventListener('click', () => {
@@ -136,7 +159,6 @@ document.querySelectorAll('.folder-chip').forEach(chip => {
         .some(c => c.dataset.folder !== '__all__' && c.classList.contains('active'));
       if (!any && allChip) allChip.classList.add('active');
     }
-    if (document.getElementById('query').value.trim()) doSearch();
   });
 });
 
@@ -147,6 +169,7 @@ function selectedFolders() {
     .map(c => c.dataset.folder);
 }
 
+// ── Search — only on submit/Enter ──
 const form = document.getElementById('searchForm');
 const input = document.getElementById('query');
 const spinner = document.getElementById('spinner');
@@ -154,11 +177,6 @@ const statusText = document.getElementById('statusText');
 const results = document.getElementById('results');
 
 form.addEventListener('submit', e => { e.preventDefault(); doSearch(); });
-let dbt;
-input.addEventListener('input', () => {
-  clearTimeout(dbt);
-  dbt = setTimeout(() => { if (input.value.trim()) doSearch(); }, 350);
-});
 
 async function doSearch() {
   const q = input.value.trim();
@@ -180,48 +198,56 @@ async function doSearch() {
       : 'Ничего не найдено';
     if (!items.length) {
       results.innerHTML = `<div class="no-results">
-        <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke-linecap="round"/>
         </svg><p>По запросу «${esc(q)}» ничего не найдено</p></div>`;
       return;
     }
     results.innerHTML = items.map(r => {
       const ext = r.name.split('.').pop().toLowerCase();
-      const date = r.modified_at ? new Date(r.modified_at*1000).toLocaleDateString('ru-RU',{day:'2-digit',month:'short',year:'numeric'}) : '';
+      const date = r.modified_at
+        ? new Date(r.modified_at * 1000).toLocaleDateString('ru-RU', {day:'2-digit', month:'short', year:'numeric'})
+        : '';
+      const encPath = encodeURIComponent(r.path);
       return `<div class="result-card">
-        <div class="rc-top"><div class="rc-name">${esc(r.name)}</div><span class="rc-badge ext-${ext}">.${ext}</span></div>
-        <div class="rc-path">
-          <span class="rc-path-text">${esc(r.path)}</span>
-          <div class="rc-actions">
-            <a class="btn-copy" href="nbmsearch://open/${encodeURIComponent(r.path)}" title="Открыть файл">▶ Открыть</a>
-            <a class="btn-copy" href="nbmsearch://folder/${encodeURIComponent(r.path)}" title="Открыть папку с файлом">📁 Папка</a>
-            <button class="btn-copy" data-path="${esc(r.path)}" title="Копировать путь">📋 Копировать</button>
-          </div>
+        <div class="rc-top">
+          <div class="rc-name" title="${esc(r.path)}">${esc(r.name)}</div>
+          <span class="rc-badge ext-${ext}">.${ext}</span>
         </div>
-        ${r.snippet?`<div class="rc-snippet">${r.snippet}</div>`:''}
-        <div class="rc-meta">
-          ${r.folder_name?`<span>📁 ${esc(r.folder_name)}</span>`:''}
-          ${date?`<span>Изменён ${date}</span>`:''}
+        ${r.snippet ? `<div class="rc-snippet">${r.snippet}</div>` : ''}
+        <div class="rc-bottom">
+          <div class="rc-meta">
+            ${r.folder_name ? `<span>📁 ${esc(r.folder_name)}</span>` : ''}
+            ${date ? `<span>${date}</span>` : ''}
+          </div>
+          <div class="rc-actions">
+            <a class="btn-action" href="nbmsearch://open/${encPath}">▶ Открыть</a>
+            <a class="btn-action" href="nbmsearch://folder/${encPath}">📁 Папка</a>
+            <button class="btn-action" data-copy="${esc(r.path)}">📋 Копировать</button>
+          </div>
         </div>
       </div>`;
     }).join('');
-  } catch(e) { spinner.classList.remove('visible'); statusText.textContent = 'Ошибка соединения'; }
+  } catch(e) {
+    spinner.classList.remove('visible');
+    statusText.textContent = 'Ошибка соединения';
+  }
 }
 
-// Copy path button
+// ── Copy ──
 document.addEventListener('click', async e => {
-  const btn = e.target.closest('.btn-copy[data-path]');
+  const btn = e.target.closest('[data-copy]');
   if (!btn) return;
-  const path = btn.dataset.path;
   try {
-    await navigator.clipboard.writeText(path);
+    await navigator.clipboard.writeText(btn.dataset.copy);
     btn.classList.add('copied');
+    const orig = btn.textContent;
     btn.textContent = '✓ Скопировано';
-    setTimeout(() => { btn.classList.remove('copied'); btn.textContent = '📋 Копировать'; }, 1800);
+    setTimeout(() => { btn.classList.remove('copied'); btn.textContent = orig; }, 1800);
   } catch(e) {}
 });
 
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function plural(n,one,few,many){ const m=n%100; if(m>=11&&m<=14)return many; const r=n%10; if(r===1)return one; if(r>=2&&r<=4)return few; return many; }
 </script>
 </body>

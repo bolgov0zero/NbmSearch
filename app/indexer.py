@@ -7,21 +7,57 @@ from concurrent.futures import ThreadPoolExecutor
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-from app.config import REINDEX_INTERVAL_MINUTES, MAX_WORKERS
+from app.settings import MAX_WORKERS
 from app import database as db
 
 logger = logging.getLogger(__name__)
 
 SUPPORTED_EXTENSIONS = {".docx", ".doc", ".xlsx", ".xls", ".pdf", ".rtf", ".txt"}
 
-last_reindex_time: float = 0.0
-next_reindex_time: float = 0.0
-_lock = threading.Lock()
+# ── Progress tracking ─────────────────────────────────────────────────────────
+# folder_id → {"total": int, "done": int, "status": "idle"|"indexing"|"done"}
+_progress: dict[int, dict] = {}
+_progress_lock = threading.Lock()
 
-# Watchdog observer — пересоздаётся при изменении списка папок
-_observer: Observer | None = None
-_observer_lock = threading.Lock()
 
+def get_progress(folder_id: int) -> dict:
+    with _progress_lock:
+        return dict(_progress.get(folder_id, {"total": 0, "done": 0, "status": "idle"}))
+
+
+def _set_progress(folder_id: int, total: int, done: int, status: str):
+    with _progress_lock:
+        _progress[folder_id] = {"total": total, "done": done, "status": status}
+
+
+# ── Per-folder reindex scheduling ─────────────────────────────────────────────
+# folder_id → next scheduled reindex timestamp
+_next_reindex: dict[int, float] = {}
+_scheduler_running = False
+
+
+def _schedule_next(folder_id: int, reindex_minutes: int):
+    _next_reindex[folder_id] = time.time() + reindex_minutes * 60
+
+
+def get_next_reindex(folder_id: int) -> float | None:
+    return _next_reindex.get(folder_id)
+
+
+def reindex_scheduler():
+    global _scheduler_running
+    _scheduler_running = True
+    while True:
+        time.sleep(30)
+        now = time.time()
+        for folder in db.get_folders():
+            fid = folder["id"]
+            if fid in _next_reindex and now >= _next_reindex[fid]:
+                _schedule_next(fid, folder["reindex_minutes"])
+                threading.Thread(target=index_folder, args=(folder,), daemon=True).start()
+
+
+# ── Text extraction ───────────────────────────────────────────────────────────
 
 def extract_text(path: str) -> str:
     ext = os.path.splitext(path)[1].lower()
@@ -73,7 +109,6 @@ def extract_text(path: str) -> str:
 
 
 def _extract_doc(path: str) -> str:
-    """Extract text from legacy .doc (OLE/Word97) files using olefile."""
     import re
     import olefile
     try:
@@ -81,28 +116,21 @@ def _extract_doc(path: str) -> str:
             if not ole.exists("WordDocument"):
                 return ""
             stream = ole.openstream("WordDocument").read()
-            # The text in Word97 streams is UTF-16-LE starting at offset 0x900+
             text = stream.decode("utf-16-le", errors="ignore")
-            # Keep printable ASCII and Cyrillic, collapse garbage
             text = re.sub(r"[^\x20-\x7eЀ-ӿ\n\r\t]+", " ", text)
             return " ".join(text.split())
     except Exception:
-        # Fallback: scan raw bytes for UTF-16 strings (handles corrupt/unusual files)
         with open(path, "rb") as f:
             raw = f.read()
+        import re
         text = raw.decode("utf-16-le", errors="ignore")
         text = re.sub(r"[^\x20-\x7eЀ-ӿ\n\r\t]+", " ", text)
         return " ".join(text.split())
 
 
-def _folder_name_for_path(path: str, folders: list[dict]) -> str:
-    for folder in folders:
-        if os.path.normpath(path).startswith(os.path.normpath(folder["path"])):
-            return folder["name"]
-    return ""
+# ── Indexing ──────────────────────────────────────────────────────────────────
 
-
-def index_file(path: str, folder_name: str = ""):
+def index_file(folder_id: int, path: str):
     ext = os.path.splitext(path)[1].lower()
     if ext not in SUPPORTED_EXTENSIONS:
         return
@@ -110,12 +138,10 @@ def index_file(path: str, folder_name: str = ""):
         stat = os.stat(path)
         content = extract_text(path)
         name = os.path.basename(path)
-        if not folder_name:
-            folder_name = _folder_name_for_path(path, db.get_folders())
         db.upsert_file(
+            folder_id=folder_id,
             path=path,
             name=name,
-            folder_name=folder_name,
             size=stat.st_size,
             modified_at=stat.st_mtime,
             content=f"{name}\n{content}",
@@ -129,68 +155,65 @@ def index_file(path: str, folder_name: str = ""):
 
 
 def index_folder(folder: dict):
+    folder_id = folder["id"]
     folder_path = folder["path"]
     folder_name = folder["name"]
+
     if not os.path.isdir(folder_path):
         logger.warning("Folder does not exist: %s", folder_path)
         return
+
     files = []
     for root, _, filenames in os.walk(folder_path):
         for fname in filenames:
             if os.path.splitext(fname)[1].lower() in SUPPORTED_EXTENSIONS:
                 files.append(os.path.join(root, fname))
+
+    total = len(files)
+    _set_progress(folder_id, total, 0, "indexing")
+    logger.info("Indexing folder '%s': %d files", folder_name, total)
+
+    done = 0
+    def _index_and_count(path):
+        nonlocal done
+        index_file(folder_id, path)
+        done += 1
+        _set_progress(folder_id, total, done, "indexing")
+
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        executor.map(lambda p: index_file(p, folder_name), files)
-    logger.info("Indexed folder '%s': %d files", folder_name, len(files))
+        executor.map(_index_and_count, files)
+
+    # Remove deleted files
+    indexed_paths = db.get_all_paths_in_folder(folder_id)
+    current_paths = set(files)
+    for stale in indexed_paths - current_paths:
+        db.delete_file_from_folder(folder_id, stale)
+
+    _set_progress(folder_id, total, total, "done")
+    logger.info("Done indexing folder '%s'", folder_name)
 
 
 def full_reindex():
-    global last_reindex_time, next_reindex_time
-    folders = db.get_folders()
-    logger.info("Starting full reindex of %d folders", len(folders))
-    with _lock:
-        last_reindex_time = time.time()
-        next_reindex_time = last_reindex_time + REINDEX_INTERVAL_MINUTES * 60
-
-    all_paths: set[str] = set()
-    for folder in folders:
-        folder_path = folder["path"]
-        if not os.path.isdir(folder_path):
-            continue
-        for root, _, filenames in os.walk(folder_path):
-            for fname in filenames:
-                if os.path.splitext(fname)[1].lower() in SUPPORTED_EXTENSIONS:
-                    full_path = os.path.join(root, fname)
-                    all_paths.add(full_path)
-                    index_file(full_path, folder["name"])
-
-    import sqlite3
-    from app.config import DB_PATH
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("SELECT path FROM files")
-    db_paths = {row[0] for row in cur.fetchall()}
-    conn.close()
-    for path in db_paths - all_paths:
-        db.delete_file(path)
-
-    logger.info("Full reindex complete.")
-
-
-def reindex_scheduler():
-    while True:
-        time.sleep(REINDEX_INTERVAL_MINUTES * 60)
-        full_reindex()
+    for folder in db.get_folders():
+        index_folder(folder)
+        _schedule_next(folder["id"], folder["reindex_minutes"])
 
 
 # ── Watchdog ──────────────────────────────────────────────────────────────────
 
+_observer: Observer | None = None
+_observer_lock = threading.Lock()
+
+
 class FileEventHandler(FileSystemEventHandler):
+    def __init__(self, folder_id: int):
+        self.folder_id = folder_id
+
     def _handle(self, path: str, deleted: bool = False):
         if deleted:
-            db.delete_file(path)
+            db.delete_file_from_folder(self.folder_id, path)
         else:
-            index_file(path)
+            index_file(self.folder_id, path)
 
     def on_created(self, event):
         if not event.is_directory:
@@ -226,13 +249,10 @@ def restart_watchdog():
             return
 
         observer = Observer()
-        handler = FileEventHandler()
         for folder in folders:
-            folder_path = folder["path"]
-            if os.path.isdir(folder_path):
-                observer.schedule(handler, folder_path, recursive=True)
-                logger.info("Watchdog watching: %s", folder_path)
-            else:
-                logger.warning("Watchdog skipped (not found): %s", folder_path)
+            if os.path.isdir(folder["path"]):
+                handler = FileEventHandler(folder["id"])
+                observer.schedule(handler, folder["path"], recursive=True)
+                logger.info("Watchdog watching: %s", folder["path"])
         observer.start()
         _observer = observer

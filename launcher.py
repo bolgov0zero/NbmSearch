@@ -1,16 +1,15 @@
 """
 NbmSearch launcher — tkinter control window + embedded uvicorn server.
-This is the PyInstaller entry point.
+PyInstaller entry point.
 """
 import sys
 import os
 import asyncio
 import threading
-import time
 import webbrowser
 from pathlib import Path
 
-# Redirect stdout/stderr BEFORE any other imports that use logging
+# Redirect stdout/stderr BEFORE any other imports (windowed PyInstaller mode)
 if getattr(sys, "frozen", False):
     _log_path = Path(sys.executable).parent / "nbmsearch.log"
     _log_file = open(_log_path, "a", encoding="utf-8", buffering=1)
@@ -18,10 +17,10 @@ if getattr(sys, "frozen", False):
     sys.stderr = _log_file
 
 import tkinter as tk
-from tkinter import font as tkfont
+from tkinter import ttk
 import uvicorn
 
-from app.config import PORT
+from app.settings import PORT
 from app.main import app
 from app import database as db
 from app import indexer
@@ -62,15 +61,16 @@ def server_running() -> bool:
 # ── Tkinter UI ────────────────────────────────────────────────────────────────
 
 class LauncherWindow:
-    BG        = "#0f1117"
-    SURFACE   = "#1a1d27"
-    BORDER    = "#2d3148"
-    ACCENT    = "#5b6af0"
-    TEXT      = "#e8eaf6"
-    TEXT_DIM  = "#8b90b8"
-    GREEN     = "#2ecc71"
-    RED       = "#e74c3c"
-    ORANGE    = "#f39c12"
+    BG       = "#0f1117"
+    SURFACE  = "#1a1d27"
+    SURFACE2 = "#22263a"
+    BORDER   = "#2d3148"
+    ACCENT   = "#5b6af0"
+    TEXT     = "#e8eaf6"
+    DIM      = "#8b90b8"
+    GREEN    = "#2ecc71"
+    RED      = "#e74c3c"
+    ORANGE   = "#f39c12"
 
     def __init__(self):
         self.root = tk.Tk()
@@ -79,120 +79,135 @@ class LauncherWindow:
         self.root.configure(bg=self.BG)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        # Center on screen
-        w, h = 340, 220
-        sw = self.root.winfo_screenwidth()
-        sh = self.root.winfo_screenheight()
+        # Set window icon
+        self._set_icon()
+
+        w, h = 360, 240
+        sw, sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
         self.root.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
 
-        self._build_ui()
-        self._update_status()
-
-        # Auto-start server
+        self._build()
+        self._poll_status()
         server_start()
 
-    def _build_ui(self):
-        pad = dict(padx=20)
+    def _set_icon(self):
+        try:
+            if getattr(sys, "frozen", False):
+                icon_path = Path(sys.executable).parent / "icon.png"
+            else:
+                icon_path = Path(__file__).parent / "icon.png"
+            if icon_path.exists():
+                from PIL import Image, ImageTk
+                img = Image.open(icon_path).resize((32, 32), Image.LANCZOS)
+                self._icon_img = ImageTk.PhotoImage(img)
+                self.root.iconphoto(True, self._icon_img)
+        except Exception:
+            pass  # PIL not available — no icon, that's fine
 
-        # ── Header
-        hdr = tk.Frame(self.root, bg=self.SURFACE, height=52)
+    def _build(self):
+        # ── Header bar
+        hdr = tk.Frame(self.root, bg=self.SURFACE, height=56)
         hdr.pack(fill="x")
         hdr.pack_propagate(False)
 
-        logo_box = tk.Frame(hdr, bg=self.ACCENT, width=28, height=28)
-        logo_box.pack(side="left", padx=(16, 8), pady=12)
-        logo_box.pack_propagate(False)
-        tk.Label(logo_box, text="⌕", bg=self.ACCENT, fg="white",
-                 font=("Segoe UI", 12)).place(relx=.5, rely=.5, anchor="center")
+        # Logo icon
+        try:
+            if getattr(sys, "frozen", False):
+                icon_path = Path(sys.executable).parent / "icon.png"
+            else:
+                icon_path = Path(__file__).parent / "icon.png"
+            if icon_path.exists():
+                from PIL import Image, ImageTk
+                img = Image.open(icon_path).resize((28, 28), Image.LANCZOS)
+                self._header_icon = ImageTk.PhotoImage(img)
+                tk.Label(hdr, image=self._header_icon, bg=self.SURFACE).pack(side="left", padx=(16, 8), pady=14)
+            else:
+                raise FileNotFoundError
+        except Exception:
+            box = tk.Frame(hdr, bg=self.ACCENT, width=28, height=28)
+            box.pack(side="left", padx=(16, 8), pady=14)
+            box.pack_propagate(False)
+            tk.Label(box, text="⌕", bg=self.ACCENT, fg="white", font=("Segoe UI", 12)).place(relx=.5, rely=.5, anchor="center")
 
         tk.Label(hdr, text="NbmSearch", bg=self.SURFACE, fg=self.TEXT,
-                 font=("Segoe UI", 13, "bold")).pack(side="left", pady=12)
+                 font=("Segoe UI", 13, "bold")).pack(side="left", pady=14)
 
         # ── Body
         body = tk.Frame(self.root, bg=self.BG)
-        body.pack(fill="both", expand=True, padx=20, pady=16)
+        body.pack(fill="both", expand=True, padx=22, pady=18)
 
-        # Status row
-        row1 = tk.Frame(body, bg=self.BG)
-        row1.pack(fill="x", pady=(0, 8))
-        tk.Label(row1, text="Статус", bg=self.BG, fg=self.TEXT_DIM,
-                 font=("Segoe UI", 9), width=8, anchor="w").pack(side="left")
-        self._status_dot = tk.Label(row1, text="●", bg=self.BG,
-                                    font=("Segoe UI", 11))
-        self._status_dot.pack(side="left", padx=(0, 6))
-        self._status_label = tk.Label(row1, bg=self.BG, fg=self.TEXT,
-                                      font=("Segoe UI", 9))
-        self._status_label.pack(side="left")
+        def row(label_text):
+            f = tk.Frame(body, bg=self.BG)
+            f.pack(fill="x", pady=4)
+            tk.Label(f, text=label_text, bg=self.BG, fg=self.DIM,
+                     font=("Segoe UI", 9), width=9, anchor="w").pack(side="left")
+            return f
 
-        # Port row
-        row2 = tk.Frame(body, bg=self.BG)
-        row2.pack(fill="x", pady=(0, 8))
-        tk.Label(row2, text="Порт", bg=self.BG, fg=self.TEXT_DIM,
-                 font=("Segoe UI", 9), width=8, anchor="w").pack(side="left")
-        tk.Label(row2, text=str(PORT), bg=self.BG, fg=self.TEXT,
+        # Status
+        r1 = row("Статус")
+        self._dot = tk.Label(r1, text="●", bg=self.BG, font=("Segoe UI", 12))
+        self._dot.pack(side="left", padx=(0, 5))
+        self._status_lbl = tk.Label(r1, bg=self.BG, fg=self.TEXT, font=("Segoe UI", 9, "bold"))
+        self._status_lbl.pack(side="left")
+
+        # Port
+        r2 = row("Порт")
+        tk.Label(r2, text=str(PORT), bg=self.BG, fg=self.TEXT,
                  font=("Segoe UI", 9, "bold")).pack(side="left")
 
-        # URL row
-        row3 = tk.Frame(body, bg=self.BG)
-        row3.pack(fill="x", pady=(0, 16))
-        tk.Label(row3, text="Адрес", bg=self.BG, fg=self.TEXT_DIM,
-                 font=("Segoe UI", 9), width=8, anchor="w").pack(side="left")
-        url_lbl = tk.Label(row3, text=f"http://localhost:{PORT}",
-                           bg=self.BG, fg=self.ACCENT,
-                           font=("Segoe UI", 9, "underline"), cursor="hand2")
-        url_lbl.pack(side="left")
-        url_lbl.bind("<Button-1>", lambda e: webbrowser.open(f"http://localhost:{PORT}"))
+        # URL
+        r3 = row("Адрес")
+        url = f"http://localhost:{PORT}"
+        lnk = tk.Label(r3, text=url, bg=self.BG, fg=self.ACCENT,
+                        font=("Segoe UI", 9, "underline"), cursor="hand2")
+        lnk.pack(side="left")
+        lnk.bind("<Button-1>", lambda e: webbrowser.open(url))
+
+        # Divider
+        tk.Frame(body, bg=self.BORDER, height=1).pack(fill="x", pady=(14, 10))
 
         # ── Buttons
         btn_frame = tk.Frame(body, bg=self.BG)
         btn_frame.pack(fill="x")
 
-        btn_cfg = dict(font=("Segoe UI", 9, "bold"), relief="flat",
-                       bd=0, padx=14, pady=7, cursor="hand2")
+        def make_btn(parent, text, bg, fg, cmd, hover_bg=None):
+            b = tk.Button(parent, text=text, bg=bg, fg=fg, activebackground=hover_bg or bg,
+                          activeforeground=fg, command=cmd, relief="flat", bd=0,
+                          font=("Segoe UI", 9, "bold"), padx=14, pady=7, cursor="hand2")
+            return b
 
-        self._btn_stop = tk.Button(
-            btn_frame, text="Стоп", bg="#2d3148", fg=self.TEXT,
-            activebackground=self.RED, activeforeground="white",
-            command=self._do_stop, **btn_cfg)
-        self._btn_stop.pack(side="left", padx=(0, 8))
+        self._btn_stop  = make_btn(btn_frame, "Стоп",  self.SURFACE2, self.TEXT, self._do_stop,  "#3d3355")
+        self._btn_start = make_btn(btn_frame, "Старт", self.ACCENT,   "white",   self._do_start, "#3d4ab0")
+        btn_open        = make_btn(btn_frame, "Открыть", self.SURFACE, self.DIM, lambda: webbrowser.open(f"http://localhost:{PORT}"), self.SURFACE2)
 
-        self._btn_start = tk.Button(
-            btn_frame, text="Старт", bg=self.ACCENT, fg="white",
-            activebackground="#3d4ab0", activeforeground="white",
-            command=self._do_start, **btn_cfg)
-        self._btn_start.pack(side="left", padx=(0, 8))
-
-        tk.Button(
-            btn_frame, text="Открыть в браузере",
-            bg=self.SURFACE, fg=self.TEXT_DIM,
-            activebackground="#22263a", activeforeground=self.TEXT,
-            command=lambda: webbrowser.open(f"http://localhost:{PORT}"),
-            **btn_cfg).pack(side="left")
+        self._btn_stop.pack(side="left", padx=(0, 6))
+        self._btn_start.pack(side="left", padx=(0, 6))
+        btn_open.pack(side="left")
 
     def _do_start(self):
         server_start()
-        self._status_dot.config(fg=self.ORANGE)
-        self._status_label.config(text="Запускается…")
-        self.root.after(1500, self._update_status)
+        self._set_status(self.ORANGE, "Запускается…")
+        self.root.after(1500, self._poll_status)
 
     def _do_stop(self):
         server_stop()
-        self._status_dot.config(fg=self.ORANGE)
-        self._status_label.config(text="Останавливается…")
-        self.root.after(1500, self._update_status)
+        self._set_status(self.ORANGE, "Останавливается…")
+        self.root.after(1500, self._poll_status)
 
-    def _update_status(self):
+    def _set_status(self, color, text):
+        self._dot.config(fg=color)
+        self._status_lbl.config(text=text)
+
+    def _poll_status(self):
         if server_running():
-            self._status_dot.config(fg=self.GREEN)
-            self._status_label.config(text="Запущен")
-            self._btn_start.config(state="disabled", bg="#22263a", fg=self.TEXT_DIM)
-            self._btn_stop.config(state="normal", bg="#2d3148", fg=self.TEXT)
+            self._set_status(self.GREEN, "Запущен")
+            self._btn_start.config(state="disabled", bg=self.SURFACE2, fg=self.DIM)
+            self._btn_stop.config(state="normal", bg=self.SURFACE2, fg=self.TEXT)
         else:
-            self._status_dot.config(fg=self.RED)
-            self._status_label.config(text="Остановлен")
+            self._set_status(self.RED, "Остановлен")
             self._btn_start.config(state="normal", bg=self.ACCENT, fg="white")
-            self._btn_stop.config(state="disabled", bg="#1a1d27", fg=self.TEXT_DIM)
-        self.root.after(2000, self._update_status)
+            self._btn_stop.config(state="disabled", bg="#1a1d27", fg=self.DIM)
+        self.root.after(2000, self._poll_status)
 
     def _on_close(self):
         server_stop()

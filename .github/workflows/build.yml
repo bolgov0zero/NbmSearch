@@ -23,18 +23,38 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller pillow
 
-      - name: Build EXE
+      - name: Convert icon PNG → ICO
+        run: |
+          python -c "
+          from PIL import Image
+          img = Image.open('icon.png').convert('RGBA')
+          img.save('icon.ico', format='ICO', sizes=[(256,256),(128,128),(64,64),(32,32),(16,16)])
+          "
+
+      - name: Build main EXE
         run: |
           pyinstaller --onefile --windowed --name NbmSearch `
+            --icon icon.ico `
             --add-data "templates;templates" `
+            --add-data "icon.png;." `
             --hidden-import "app.main" `
             --hidden-import "app.database" `
             --hidden-import "app.indexer" `
             --hidden-import "app.config" `
+            --hidden-import "app.settings" `
+            --hidden-import "PIL" `
+            --hidden-import "PIL.Image" `
+            --hidden-import "PIL.ImageTk" `
             launcher.py
-          pyinstaller --onefile --windowed --name NbmSearchOpen open_handler.py
+
+      - name: Build opener EXE
+        run: |
+          pyinstaller --onefile --windowed --name NbmSearchOpen `
+            --icon icon.ico `
+            --add-data "icon.png;." `
+            open_handler.py
 
       - name: Rename artifacts
         run: |
