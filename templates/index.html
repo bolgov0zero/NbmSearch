@@ -19,278 +19,55 @@
   --radius:    10px;
   --radius-sm: 6px;
 }
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  line-height: 1.5;
-}
-
-/* ── Header ── */
-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 0 32px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 700;
-  font-size: 1.1rem;
-  letter-spacing: .3px;
-  color: var(--text);
-  text-decoration: none;
-}
-
-.logo-icon {
-  width: 28px;
-  height: 28px;
-  background: var(--accent);
-  border-radius: 7px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: .9rem;
-}
-
-nav a {
-  color: var(--text-dim);
-  text-decoration: none;
-  font-size: .875rem;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  transition: background .15s, color .15s;
-}
+header { position: sticky; top: 0; z-index: 100; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 32px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.1rem; color: var(--text); text-decoration: none; }
+.logo-icon { width: 28px; height: 28px; background: var(--accent); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: .9rem; }
+nav a { color: var(--text-dim); text-decoration: none; font-size: .875rem; padding: 6px 12px; border-radius: var(--radius-sm); transition: background .15s, color .15s; }
 nav a:hover { background: var(--surface2); color: var(--text); }
 
-/* ── Hero search area ── */
-.hero {
-  padding: 48px 32px 0;
-  max-width: 780px;
-  margin: 0 auto;
-}
+.hero { padding: 48px 32px 0; max-width: 780px; margin: 0 auto; }
+.hero-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 6px; }
+.hero-sub { color: var(--text-dim); font-size: .9rem; margin-bottom: 24px; }
 
-.hero-title {
-  font-size: 1.6rem;
-  font-weight: 700;
-  margin-bottom: 6px;
-  color: var(--text);
-}
-
-.hero-sub {
-  color: var(--text-dim);
-  font-size: .9rem;
-  margin-bottom: 24px;
-}
-
-/* ── Search form ── */
-.search-wrap {
-  display: flex;
-  gap: 8px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 6px 6px 6px 16px;
-  transition: border-color .2s;
-}
+.search-wrap { display: flex; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 6px 6px 16px; transition: border-color .2s; }
 .search-wrap:focus-within { border-color: var(--accent); }
-
-.search-wrap input {
-  flex: 1;
-  background: none;
-  border: none;
-  outline: none;
-  font-size: .975rem;
-  color: var(--text);
-  min-width: 0;
-}
+.search-wrap input { flex: 1; background: none; border: none; outline: none; font-size: .975rem; color: var(--text); min-width: 0; }
 .search-wrap input::placeholder { color: var(--text-dim); }
-
-.btn-search {
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 7px;
-  padding: 9px 20px;
-  font-size: .9rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background .15s;
-}
+.btn-search { background: var(--accent); color: #fff; border: none; border-radius: 7px; padding: 9px 20px; font-size: .9rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .15s; }
 .btn-search:hover { background: var(--accent-dim); }
 
-/* ── Folder filter ── */
-.folder-bar {
-  margin-top: 14px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.folder-label {
-  font-size: .78rem;
-  color: var(--text-dim);
-  margin-right: 4px;
-}
-
-.folder-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  background: var(--surface2);
-  color: var(--text-dim);
-  font-size: .82rem;
-  cursor: pointer;
-  user-select: none;
-  transition: border-color .15s, color .15s, background .15s;
-}
+.folder-bar { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.folder-label { font-size: .78rem; color: var(--text-dim); margin-right: 4px; }
+.folder-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-dim); font-size: .82rem; cursor: pointer; user-select: none; transition: border-color .15s, color .15s, background .15s; }
 .folder-chip:hover { border-color: var(--accent); color: var(--text); }
-.folder-chip.active {
-  border-color: var(--accent);
-  background: rgba(91,106,240,.15);
-  color: var(--text);
-}
-.folder-chip .dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--border);
-  transition: background .15s;
-}
+.folder-chip.active { border-color: var(--accent); background: rgba(91,106,240,.15); color: var(--text); }
+.folder-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); transition: background .15s; }
 .folder-chip.active .dot { background: var(--accent); }
+.no-folders { font-size: .8rem; color: var(--text-dim); font-style: italic; }
 
-/* ── Status bar ── */
-.status-bar {
-  max-width: 780px;
-  margin: 20px auto 0;
-  padding: 0 32px;
-  min-height: 20px;
-  font-size: .8rem;
-  color: var(--text-dim);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin .6s linear infinite;
-  display: none;
-}
+.status-bar { max-width: 780px; margin: 20px auto 0; padding: 0 32px; min-height: 20px; font-size: .8rem; color: var(--text-dim); display: flex; align-items: center; gap: 8px; }
+.spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; display: none; }
 .spinner.visible { display: block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Results ── */
-#results {
-  max-width: 780px;
-  margin: 16px auto 60px;
-  padding: 0 32px;
-}
+#results { max-width: 780px; margin: 16px auto 60px; padding: 0 32px; }
+.no-results { text-align: center; padding: 60px 0; color: var(--text-dim); }
+.no-results svg { opacity: .3; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto; }
 
-.no-results {
-  text-align: center;
-  padding: 60px 0;
-  color: var(--text-dim);
-}
-.no-results svg { opacity: .3; margin-bottom: 12px; }
-.no-results p { font-size: .95rem; }
-
-.result-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 18px 20px;
-  margin-bottom: 10px;
-  transition: border-color .15s;
-}
+.result-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 10px; transition: border-color .15s; }
 .result-card:hover { border-color: #3d4168; }
-
-.rc-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 6px;
-}
-
-.rc-name {
-  font-weight: 600;
-  font-size: .95rem;
-  color: var(--text);
-  word-break: break-all;
-}
-
-.rc-badge {
-  flex-shrink: 0;
-  font-size: .7rem;
-  padding: 2px 8px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  background: var(--surface2);
-  white-space: nowrap;
-}
-
-.rc-path {
-  margin-bottom: 10px;
-}
-.rc-path a {
-  font-size: .78rem;
-  color: var(--accent);
-  text-decoration: none;
-  word-break: break-all;
-  opacity: .85;
-}
+.rc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+.rc-name { font-weight: 600; font-size: .95rem; word-break: break-all; }
+.rc-badge { flex-shrink: 0; font-size: .7rem; padding: 2px 8px; border-radius: 12px; border: 1px solid var(--border); color: var(--text-dim); background: var(--surface2); white-space: nowrap; }
+.rc-path { margin-bottom: 10px; }
+.rc-path a { font-size: .78rem; color: var(--accent); text-decoration: none; word-break: break-all; opacity: .85; }
 .rc-path a:hover { opacity: 1; text-decoration: underline; }
-
-.rc-snippet {
-  font-size: .855rem;
-  color: var(--text-dim);
-  line-height: 1.65;
-  background: var(--surface2);
-  border-left: 2px solid var(--accent);
-  padding: 8px 12px;
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-}
-.rc-snippet mark {
-  background: var(--mark-bg);
-  color: var(--mark-fg);
-  border-radius: 3px;
-  padding: 0 3px;
-  font-style: normal;
-}
-
-.rc-meta {
-  margin-top: 8px;
-  font-size: .75rem;
-  color: var(--text-dim);
-  display: flex;
-  gap: 16px;
-}
-
-/* ── Ext badge colors ── */
+.rc-snippet { font-size: .855rem; color: var(--text-dim); line-height: 1.65; background: var(--surface2); border-left: 2px solid var(--accent); padding: 8px 12px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.rc-snippet mark { background: var(--mark-bg); color: var(--mark-fg); border-radius: 3px; padding: 0 3px; font-style: normal; }
+.rc-meta { margin-top: 8px; font-size: .75rem; color: var(--text-dim); display: flex; gap: 16px; }
 .ext-pdf  { border-color: #c0392b44; color: #e74c3c; }
 .ext-docx { border-color: #2980b944; color: #3498db; }
 .ext-xlsx { border-color: #27ae6044; color: #2ecc71; }
@@ -300,13 +77,8 @@ nav a:hover { background: var(--surface2); color: var(--text); }
 <body>
 
 <header>
-  <a href="/" class="logo">
-    <span class="logo-icon">⌕</span>
-    NbmSearch
-  </a>
-  <nav>
-    <a href="/admin">Администратор</a>
-  </nav>
+  <a href="/" class="logo"><span class="logo-icon">⌕</span>NbmSearch</a>
+  <nav><a href="/admin">Администратор</a></nav>
 </header>
 
 <div class="hero">
@@ -322,16 +94,16 @@ nav a:hover { background: var(--surface2); color: var(--text); }
 
   <div class="folder-bar">
     <span class="folder-label">Где искать:</span>
-    <div class="folder-chip active" data-folder="__all__">
-      <span class="dot"></span>
-      Везде
+    <div id="chipContainer">
+      {% if folders %}
+        <div class="folder-chip active" data-folder="__all__" style="display:inline-flex"><span class="dot"></span>Везде</div>
+        {% for f in folders %}
+        <div class="folder-chip" data-folder="{{ f.name }}" style="display:inline-flex"><span class="dot"></span>{{ f.name }}</div>
+        {% endfor %}
+      {% else %}
+        <span class="no-folders">Папки не добавлены — настройте в <a href="/admin" style="color:var(--accent)">администраторе</a></span>
+      {% endif %}
     </div>
-    {% for f in folders %}
-    <div class="folder-chip" data-folder="{{ f.name }}">
-      <span class="dot"></span>
-      {{ f.name }}
-    </div>
-    {% endfor %}
   </div>
 </div>
 
@@ -339,37 +111,31 @@ nav a:hover { background: var(--surface2); color: var(--text); }
   <div class="spinner" id="spinner"></div>
   <span id="statusText"></span>
 </div>
-
 <div id="results"></div>
 
 <script>
-const folders = {{ folders | tojson }};
-const folderNames = folders.map(f => f.name);
-
-// Chip logic
-const chips = document.querySelectorAll('.folder-chip');
+// Chips
 const allChip = document.querySelector('[data-folder="__all__"]');
-
-chips.forEach(chip => {
+document.querySelectorAll('.folder-chip').forEach(chip => {
   chip.addEventListener('click', () => {
     const f = chip.dataset.folder;
     if (f === '__all__') {
-      chips.forEach(c => c.classList.remove('active'));
-      allChip.classList.add('active');
+      document.querySelectorAll('.folder-chip').forEach(c => c.classList.remove('active'));
+      allChip && allChip.classList.add('active');
     } else {
-      allChip.classList.remove('active');
+      allChip && allChip.classList.remove('active');
       chip.classList.toggle('active');
-      if (![...chips].some(c => c !== allChip && c.classList.contains('active'))) {
-        allChip.classList.add('active');
-      }
+      const any = [...document.querySelectorAll('.folder-chip')]
+        .some(c => c.dataset.folder !== '__all__' && c.classList.contains('active'));
+      if (!any && allChip) allChip.classList.add('active');
     }
     if (document.getElementById('query').value.trim()) doSearch();
   });
 });
 
 function selectedFolders() {
-  if (allChip.classList.contains('active')) return [];
-  return [...chips]
+  if (!allChip || allChip.classList.contains('active')) return [];
+  return [...document.querySelectorAll('.folder-chip')]
     .filter(c => c.dataset.folder !== '__all__' && c.classList.contains('active'))
     .map(c => c.dataset.folder);
 }
@@ -381,89 +147,55 @@ const statusText = document.getElementById('statusText');
 const results = document.getElementById('results');
 
 form.addEventListener('submit', e => { e.preventDefault(); doSearch(); });
-
-let debounceTimer;
+let dbt;
 input.addEventListener('input', () => {
-  clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => { if (input.value.trim()) doSearch(); }, 350);
+  clearTimeout(dbt);
+  dbt = setTimeout(() => { if (input.value.trim()) doSearch(); }, 350);
 });
 
 async function doSearch() {
   const q = input.value.trim();
   if (!q) { results.innerHTML = ''; statusText.textContent = ''; return; }
-
   spinner.classList.add('visible');
   statusText.textContent = 'Поиск…';
   results.innerHTML = '';
-
   const sel = selectedFolders();
   const params = new URLSearchParams({ q });
   sel.forEach(f => params.append('folders', f));
-
   try {
     const res = await fetch('/search?' + params);
     const data = await res.json();
     spinner.classList.remove('visible');
-
     if (data.error) { statusText.textContent = 'Ошибка: ' + data.error; return; }
-
     const items = data.results;
     statusText.textContent = items.length
-      ? `Найдено: ${items.length} ${plural(items.length, 'результат', 'результата', 'результатов')}`
+      ? `Найдено: ${items.length} ${plural(items.length,'результат','результата','результатов')}`
       : 'Ничего не найдено';
-
     if (!items.length) {
       results.innerHTML = `<div class="no-results">
-        <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <circle cx="11" cy="11" r="8" stroke-width="2"/>
-          <line x1="21" y1="21" x2="16.65" y2="16.65" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-        <p>По запросу «${esc(q)}» ничего не найдено</p>
-      </div>`;
+        <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke-linecap="round"/>
+        </svg><p>По запросу «${esc(q)}» ничего не найдено</p></div>`;
       return;
     }
-
     results.innerHTML = items.map(r => {
       const ext = r.name.split('.').pop().toLowerCase();
-      const date = r.modified_at
-        ? new Date(r.modified_at * 1000).toLocaleDateString('ru-RU', { day:'2-digit', month:'short', year:'numeric' })
-        : '';
-      const filePath = r.path.replace(/\\/g, '/');
+      const date = r.modified_at ? new Date(r.modified_at*1000).toLocaleDateString('ru-RU',{day:'2-digit',month:'short',year:'numeric'}) : '';
       return `<div class="result-card">
-        <div class="rc-top">
-          <div class="rc-name">${esc(r.name)}</div>
-          <span class="rc-badge ext-${ext}">.${ext}</span>
-        </div>
-        <div class="rc-path">
-          <a href="file:///${filePath}" title="${esc(r.path)}">${esc(r.path)}</a>
-        </div>
-        ${r.snippet ? `<div class="rc-snippet">${r.snippet}</div>` : ''}
+        <div class="rc-top"><div class="rc-name">${esc(r.name)}</div><span class="rc-badge ext-${ext}">.${ext}</span></div>
+        <div class="rc-path"><a href="file:///${r.path.replace(/\\/g,'/')}" title="${esc(r.path)}">${esc(r.path)}</a></div>
+        ${r.snippet?`<div class="rc-snippet">${r.snippet}</div>`:''}
         <div class="rc-meta">
-          ${r.folder_name ? `<span>📁 ${esc(r.folder_name)}</span>` : ''}
-          ${date ? `<span>Изменён ${date}</span>` : ''}
+          ${r.folder_name?`<span>📁 ${esc(r.folder_name)}</span>`:''}
+          ${date?`<span>Изменён ${date}</span>`:''}
         </div>
       </div>`;
     }).join('');
-  } catch(e) {
-    spinner.classList.remove('visible');
-    statusText.textContent = 'Ошибка соединения';
-  }
+  } catch(e) { spinner.classList.remove('visible'); statusText.textContent = 'Ошибка соединения'; }
 }
 
-function esc(s) {
-  return String(s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function plural(n, one, few, many) {
-  const m = n % 100;
-  if (m >= 11 && m <= 14) return many;
-  const r = n % 10;
-  if (r === 1) return one;
-  if (r >= 2 && r <= 4) return few;
-  return many;
-}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function plural(n,one,few,many){ const m=n%100; if(m>=11&&m<=14)return many; const r=n%10; if(r===1)return one; if(r>=2&&r<=4)return few; return many; }
 </script>
 </body>
 </html>

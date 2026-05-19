@@ -14,240 +14,103 @@
   --accent-dim:#3d4ab0;
   --text:      #e8eaf6;
   --text-dim:  #8b90b8;
-  --green:     #2ecc71;
+  --green:     #27ae60;
   --red:       #e74c3c;
+  --red-dim:   #a93226;
   --radius:    10px;
   --radius-sm: 6px;
 }
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-}
-
-/* ── Header ── */
-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 0 32px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: var(--text);
-  text-decoration: none;
-}
-.logo-icon {
-  width: 28px;
-  height: 28px;
-  background: var(--accent);
-  border-radius: 7px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: .9rem;
-}
-
-nav a {
-  color: var(--text-dim);
-  text-decoration: none;
-  font-size: .875rem;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  transition: background .15s, color .15s;
-}
+header { position: sticky; top: 0; z-index: 100; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 32px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.1rem; color: var(--text); text-decoration: none; }
+.logo-icon { width: 28px; height: 28px; background: var(--accent); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: .9rem; }
+nav a { color: var(--text-dim); text-decoration: none; font-size: .875rem; padding: 6px 12px; border-radius: var(--radius-sm); transition: background .15s, color .15s; }
 nav a:hover { background: var(--surface2); color: var(--text); }
 
-/* ── Layout ── */
-.container {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 36px 32px 60px;
-}
+.container { max-width: 860px; margin: 0 auto; padding: 36px 32px 60px; }
+.page-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 28px; }
 
-.page-title {
-  font-size: 1.4rem;
-  font-weight: 700;
-  margin-bottom: 28px;
-}
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 24px; margin-bottom: 16px; }
+.card-title { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: var(--text-dim); margin-bottom: 18px; }
 
-/* ── Cards ── */
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 22px 24px;
-  margin-bottom: 16px;
-}
-
-.card-title {
-  font-size: .72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .8px;
-  color: var(--text-dim);
-  margin-bottom: 18px;
-}
-
-/* ── Stat grid ── */
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 14px;
-}
-
-.stat-box {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 16px 18px;
-}
+/* Stats */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+.stat-box { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px 18px; }
 .stat-box .s-label { font-size: .78rem; color: var(--text-dim); margin-bottom: 6px; }
-.stat-box .s-value { font-size: 1.35rem; font-weight: 700; color: var(--text); }
+.stat-box .s-value { font-size: 1.35rem; font-weight: 700; }
 .stat-box .s-value.accent { color: var(--accent); }
+.stat-box .s-value.normal { font-size: .92rem; }
 
-/* ── Folder rows ── */
-.folder-rows { display: flex; flex-direction: column; gap: 10px; }
+/* Folder list */
+.folder-list { display: flex; flex-direction: column; gap: 10px; }
+.folder-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 13px 16px; transition: border-color .15s; }
+.folder-item:hover { border-color: #3d4168; }
+.fi-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.fi-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.fi-info { min-width: 0; }
+.fi-name { font-weight: 600; font-size: .9rem; margin-bottom: 3px; }
+.fi-path { font-size: .75rem; color: var(--text-dim); word-break: break-all; }
+.fi-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.fi-count { font-size: .78rem; font-weight: 600; color: var(--accent); background: rgba(91,106,240,.12); border: 1px solid rgba(91,106,240,.25); padding: 3px 10px; border-radius: 12px; white-space: nowrap; }
+.btn-icon { background: none; border: 1px solid var(--border); color: var(--text-dim); width: 30px; height: 30px; border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: .85rem; transition: border-color .15s, color .15s, background .15s; }
+.btn-icon:hover { border-color: var(--red); color: var(--red); background: rgba(231,76,60,.08); }
 
-.folder-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 12px 16px;
-  gap: 12px;
-}
+.empty-folders { text-align: center; padding: 28px; color: var(--text-dim); font-size: .875rem; }
 
-.fr-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+/* Add folder form */
+.add-form { display: flex; gap: 10px; flex-wrap: wrap; }
+.add-form .field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 160px; }
+.add-form label { font-size: .75rem; color: var(--text-dim); font-weight: 500; }
+.add-form input { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; font-size: .875rem; color: var(--text); outline: none; transition: border-color .2s; width: 100%; }
+.add-form input::placeholder { color: var(--text-dim); }
+.add-form input:focus { border-color: var(--accent); }
+.add-form .btn-add { align-self: flex-end; padding: 9px 20px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); font-size: .875rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .15s; height: 38px; }
+.add-form .btn-add:hover { background: var(--accent-dim); }
+.add-form .btn-add:disabled { opacity: .5; cursor: not-allowed; }
+.form-error { font-size: .8rem; color: var(--red); margin-top: 8px; min-height: 18px; }
+.form-ok { font-size: .8rem; color: var(--green); margin-top: 8px; min-height: 18px; }
 
-.fr-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
-  flex-shrink: 0;
-}
-
-.fr-name { font-weight: 600; font-size: .9rem; }
-.fr-path { font-size: .75rem; color: var(--text-dim); margin-top: 2px; word-break: break-all; }
-
-.fr-count {
-  flex-shrink: 0;
-  font-size: .8rem;
-  font-weight: 600;
-  color: var(--accent);
-  background: rgba(91,106,240,.12);
-  border: 1px solid rgba(91,106,240,.25);
-  padding: 3px 10px;
-  border-radius: 12px;
-  white-space: nowrap;
-}
-
-/* ── Reindex button ── */
+/* Reindex */
 .action-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-
-.btn {
-  padding: 10px 22px;
-  border-radius: var(--radius-sm);
-  font-size: .875rem;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  transition: background .15s, opacity .15s;
-}
+.btn { padding: 10px 22px; border-radius: var(--radius-sm); font-size: .875rem; font-weight: 600; cursor: pointer; border: none; transition: background .15s, opacity .15s; }
 .btn-primary { background: var(--accent); color: #fff; }
 .btn-primary:hover { background: var(--accent-dim); }
 .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
-
-.action-msg {
-  font-size: .85rem;
-  color: var(--green);
-  opacity: 0;
-  transition: opacity .3s;
-}
+.action-msg { font-size: .85rem; color: var(--green); opacity: 0; transition: opacity .3s; }
 .action-msg.visible { opacity: 1; }
 
-/* ── Schedule info ── */
-.schedule-row {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
-}
-
-.sched-item { }
-.sched-item .si-label { font-size: .75rem; color: var(--text-dim); margin-bottom: 4px; }
-.sched-item .si-value { font-size: .9rem; font-weight: 600; }
-
-/* ── Recent files table ── */
+/* Recent table */
 .table-wrap { overflow-x: auto; }
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: .83rem;
-}
-thead th {
-  text-align: left;
-  padding: 9px 12px;
-  font-size: .72rem;
-  text-transform: uppercase;
-  letter-spacing: .6px;
-  color: var(--text-dim);
-  border-bottom: 1px solid var(--border);
-  font-weight: 600;
-}
-tbody td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}
+table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+thead th { text-align: left; padding: 9px 12px; font-size: .72rem; text-transform: uppercase; letter-spacing: .6px; color: var(--text-dim); border-bottom: 1px solid var(--border); font-weight: 600; }
+tbody td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover td { background: var(--surface2); }
-
-.td-name { font-weight: 500; color: var(--text); }
-.td-folder {
-  white-space: nowrap;
-  font-size: .75rem;
-  padding: 2px 8px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  background: var(--surface2);
-  display: inline-block;
-}
+.td-name { font-weight: 500; }
+.td-folder { font-size: .75rem; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--border); color: var(--text-dim); background: var(--surface2); display: inline-block; white-space: nowrap; }
 .td-date { color: var(--text-dim); white-space: nowrap; }
 .td-path { color: var(--text-dim); font-size: .78rem; word-break: break-all; max-width: 280px; }
-
 .empty-row { text-align: center; color: var(--text-dim); padding: 28px !important; }
+
+/* Delete confirm overlay */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.overlay.visible { opacity: 1; pointer-events: all; }
+.dialog { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px 32px; max-width: 380px; width: 90%; }
+.dialog h3 { font-size: 1rem; margin-bottom: 10px; }
+.dialog p { font-size: .875rem; color: var(--text-dim); margin-bottom: 22px; line-height: 1.55; }
+.dialog-btns { display: flex; gap: 10px; justify-content: flex-end; }
+.btn-cancel { background: var(--surface2); color: var(--text); border: 1px solid var(--border); padding: 8px 18px; border-radius: var(--radius-sm); font-size: .875rem; cursor: pointer; }
+.btn-danger { background: var(--red); color: #fff; border: none; padding: 8px 18px; border-radius: var(--radius-sm); font-size: .875rem; font-weight: 600; cursor: pointer; transition: background .15s; }
+.btn-danger:hover { background: var(--red-dim); }
 </style>
 </head>
 <body>
 
 <header>
-  <a href="/" class="logo">
-    <span class="logo-icon">⌕</span>
-    NbmSearch
-  </a>
-  <nav>
-    <a href="/">← Поиск</a>
-  </nav>
+  <a href="/" class="logo"><span class="logo-icon">⌕</span>NbmSearch</a>
+  <nav><a href="/">← Поиск</a></nav>
 </header>
 
 <div class="container">
@@ -263,11 +126,11 @@ tbody tr:hover td { background: var(--surface2); }
       </div>
       <div class="stat-box">
         <div class="s-label">Последняя переиндексация</div>
-        <div class="s-value" id="lastReindex" style="font-size:.95rem">{{ last_reindex }}</div>
+        <div class="s-value normal" id="lastReindex">{{ last_reindex }}</div>
       </div>
       <div class="stat-box">
         <div class="s-label">Следующая переиндексация</div>
-        <div class="s-value" id="nextReindex" style="font-size:.95rem">{{ next_reindex }}</div>
+        <div class="s-value normal" id="nextReindex">{{ next_reindex }}</div>
       </div>
     </div>
   </div>
@@ -275,28 +138,47 @@ tbody tr:hover td { background: var(--surface2); }
   <!-- Folders -->
   <div class="card">
     <div class="card-title">Папки индексации</div>
-    <div class="folder-rows" id="folderRows">
-      {% for fc in folders_config %}
-      <div class="folder-row">
-        <div class="fr-left">
-          <div class="fr-dot"></div>
-          <div>
-            <div class="fr-name">{{ fc.name }}</div>
-            <div class="fr-path">{{ fc.path }}</div>
+    <div class="folder-list" id="folderList">
+      {% if folders %}
+        {% for f in folders %}
+        <div class="folder-item" data-id="{{ f.id }}" data-name="{{ f.name }}">
+          <div class="fi-left">
+            <div class="fi-dot"></div>
+            <div class="fi-info">
+              <div class="fi-name">{{ f.name }}</div>
+              <div class="fi-path">{{ f.path }}</div>
+            </div>
+          </div>
+          <div class="fi-right">
+            <span class="fi-count">
+              {% set ns = namespace(cnt=0) %}
+              {% for bf in by_folder %}{% if bf.folder_name == f.name %}{% set ns.cnt = bf.cnt %}{% endif %}{% endfor %}
+              {{ ns.cnt }} файлов
+            </span>
+            <button class="btn-icon" title="Удалить папку" onclick="confirmDelete({{ f.id }}, '{{ f.name }}')">✕</button>
           </div>
         </div>
-        <div class="fr-count" id="fc-{{ loop.index0 }}">
-          {% set ns = namespace(found=false) %}
-          {% for bf in by_folder %}
-            {% if bf.folder_name == fc.name %}
-              {{ bf.cnt }} файлов
-              {% set ns.found = true %}
-            {% endif %}
-          {% endfor %}
-          {% if not ns.found %}0 файлов{% endif %}
+        {% endfor %}
+      {% else %}
+        <div class="empty-folders" id="emptyMsg">Папки не добавлены. Добавьте первую папку ниже.</div>
+      {% endif %}
+    </div>
+
+    <!-- Add folder form -->
+    <div style="margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border);">
+      <div class="add-form" id="addForm">
+        <div class="field">
+          <label>Название</label>
+          <input type="text" id="newName" placeholder="Документы" maxlength="64">
         </div>
+        <div class="field" style="flex: 2">
+          <label>Путь к папке</label>
+          <input type="text" id="newPath" placeholder="C:\Files или /mnt/data">
+        </div>
+        <button class="btn-add" id="addBtn" onclick="addFolder()">Добавить</button>
       </div>
-      {% endfor %}
+      <div class="form-error" id="formError"></div>
+      <div class="form-ok" id="formOk"></div>
     </div>
   </div>
 
@@ -304,32 +186,21 @@ tbody tr:hover td { background: var(--surface2); }
   <div class="card">
     <div class="card-title">Управление индексом</div>
     <div class="action-row">
-      <button class="btn btn-primary" id="reindexBtn" onclick="triggerReindex()">
-        Переиндексировать сейчас
-      </button>
+      <button class="btn btn-primary" id="reindexBtn" onclick="triggerReindex()">Переиндексировать сейчас</button>
       <span class="action-msg" id="reindexMsg">Запущено</span>
     </div>
   </div>
 
-  <!-- Recent files -->
+  <!-- Recent -->
   <div class="card">
     <div class="card-title">Последние 20 проиндексированных файлов</div>
     <div class="table-wrap">
       <table>
-        <thead>
-          <tr>
-            <th>Файл</th>
-            <th>Папка</th>
-            <th>Проиндексирован</th>
-          </tr>
-        </thead>
+        <thead><tr><th>Файл</th><th>Папка</th><th>Проиндексирован</th></tr></thead>
         <tbody>
           {% for r in recent %}
           <tr>
-            <td>
-              <div class="td-name">{{ r.name }}</div>
-              <div class="td-path">{{ r.path }}</div>
-            </td>
+            <td><div class="td-name">{{ r.name }}</div><div class="td-path">{{ r.path }}</div></td>
             <td><span class="td-folder">{{ r.folder_name or '—' }}</span></td>
             <td class="td-date">{{ r.indexed_at_str }}</td>
           </tr>
@@ -342,7 +213,116 @@ tbody tr:hover td { background: var(--surface2); }
   </div>
 </div>
 
+<!-- Delete confirmation dialog -->
+<div class="overlay" id="overlay">
+  <div class="dialog">
+    <h3>Удалить папку?</h3>
+    <p id="dialogMsg"></p>
+    <div class="dialog-btns">
+      <button class="btn-cancel" onclick="closeDialog()">Отмена</button>
+      <button class="btn-danger" id="confirmBtn">Удалить</button>
+    </div>
+  </div>
+</div>
+
 <script>
+// ── Add folder ────────────────────────────────────────────────────────────────
+async function addFolder() {
+  const name = document.getElementById('newName').value.trim();
+  const path = document.getElementById('newPath').value.trim();
+  const errEl = document.getElementById('formError');
+  const okEl  = document.getElementById('formOk');
+  const btn   = document.getElementById('addBtn');
+
+  errEl.textContent = '';
+  okEl.textContent = '';
+
+  if (!name || !path) { errEl.textContent = 'Заполните оба поля'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Добавляю…';
+
+  try {
+    const res = await fetch('/api/folders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, path }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error || 'Ошибка'; return; }
+
+    // Add row to folder list
+    const emptyMsg = document.getElementById('emptyMsg');
+    if (emptyMsg) emptyMsg.remove();
+
+    const list = document.getElementById('folderList');
+    const item = document.createElement('div');
+    item.className = 'folder-item';
+    item.dataset.id = data.id;
+    item.dataset.name = name;
+    item.innerHTML = `
+      <div class="fi-left">
+        <div class="fi-dot"></div>
+        <div class="fi-info">
+          <div class="fi-name">${esc(name)}</div>
+          <div class="fi-path">${esc(path)}</div>
+        </div>
+      </div>
+      <div class="fi-right">
+        <span class="fi-count">индексируется…</span>
+        <button class="btn-icon" title="Удалить папку" onclick="confirmDelete(${data.id}, '${esc(name)}')">✕</button>
+      </div>`;
+    list.appendChild(item);
+
+    document.getElementById('newName').value = '';
+    document.getElementById('newPath').value = '';
+    okEl.textContent = `Папка «${name}» добавлена, идёт индексация…`;
+    setTimeout(() => { okEl.textContent = ''; refreshStats(); }, 4000);
+  } catch(e) {
+    errEl.textContent = 'Ошибка соединения';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Добавить';
+  }
+}
+
+// ── Delete folder ─────────────────────────────────────────────────────────────
+let _deleteId = null;
+
+function confirmDelete(id, name) {
+  _deleteId = id;
+  document.getElementById('dialogMsg').textContent =
+    `Папка «${name}» и все её файлы будут удалены из индекса. Сами файлы на диске не затрагиваются.`;
+  document.getElementById('overlay').classList.add('visible');
+  document.getElementById('confirmBtn').onclick = () => doDelete(id, name);
+}
+
+function closeDialog() {
+  document.getElementById('overlay').classList.remove('visible');
+  _deleteId = null;
+}
+
+document.getElementById('overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeDialog();
+});
+
+async function doDelete(id, name) {
+  closeDialog();
+  try {
+    const res = await fetch(`/api/folders/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      const item = document.querySelector(`.folder-item[data-id="${id}"]`);
+      if (item) item.remove();
+      const list = document.getElementById('folderList');
+      if (!list.querySelector('.folder-item')) {
+        list.innerHTML = '<div class="empty-folders" id="emptyMsg">Папки не добавлены. Добавьте первую папку ниже.</div>';
+      }
+      refreshStats();
+    }
+  } catch(e) {}
+}
+
+// ── Reindex ───────────────────────────────────────────────────────────────────
 async function triggerReindex() {
   const btn = document.getElementById('reindexBtn');
   const msg = document.getElementById('reindexMsg');
@@ -351,11 +331,12 @@ async function triggerReindex() {
     await fetch('/admin/reindex', { method: 'POST' });
     msg.classList.add('visible');
     setTimeout(() => msg.classList.remove('visible'), 4000);
-    setTimeout(refreshStats, 4000);
+    setTimeout(refreshStats, 5000);
   } catch(e) {}
   setTimeout(() => { btn.disabled = false; }, 3000);
 }
 
+// ── Stats refresh ─────────────────────────────────────────────────────────────
 async function refreshStats() {
   try {
     const res = await fetch('/admin/stats');
@@ -363,10 +344,28 @@ async function refreshStats() {
     document.getElementById('totalCount').textContent = d.count;
     document.getElementById('lastReindex').textContent = d.last_reindex;
     document.getElementById('nextReindex').textContent = d.next_reindex;
+
+    // Update file counts per folder
+    d.by_folder.forEach(bf => {
+      const items = document.querySelectorAll('.folder-item');
+      items.forEach(item => {
+        if (item.dataset.name === bf.folder_name) {
+          const countEl = item.querySelector('.fi-count');
+          if (countEl) countEl.textContent = bf.cnt + ' файлов';
+        }
+      });
+    });
   } catch(e) {}
 }
 
 setInterval(refreshStats, 30000);
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Submit add form on Enter in path input
+document.getElementById('newPath').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addFolder();
+});
 </script>
 </body>
 </html>

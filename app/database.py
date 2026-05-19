@@ -12,6 +12,13 @@ def init_db():
     conn = get_conn()
     cur = conn.cursor()
     cur.executescript("""
+        CREATE TABLE IF NOT EXISTS folders (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            name       TEXT    UNIQUE NOT NULL,
+            path       TEXT    NOT NULL,
+            created_at REAL    NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS files (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             path        TEXT    UNIQUE NOT NULL,
@@ -29,7 +36,6 @@ def init_db():
             tokenize='unicode61'
         );
     """)
-    # Add folder_name column to existing DBs that don't have it
     try:
         cur.execute("ALTER TABLE files ADD COLUMN folder_name TEXT NOT NULL DEFAULT ''")
         conn.commit()
@@ -38,6 +44,48 @@ def init_db():
     conn.commit()
     conn.close()
 
+
+# ── Folders CRUD ─────────────────────────────────────────────────────────────
+
+def get_folders() -> list[dict]:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT id, name, path, created_at FROM folders ORDER BY created_at")
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
+
+
+def add_folder(name: str, path: str) -> dict:
+    import time
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO folders (name, path, created_at) VALUES (?, ?, ?)",
+        (name, path, time.time()),
+    )
+    conn.commit()
+    row_id = cur.lastrowid
+    conn.close()
+    return {"id": row_id, "name": name, "path": path}
+
+
+def delete_folder(folder_id: int) -> str | None:
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT name FROM folders WHERE id = ?", (folder_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        return None
+    name = row["name"]
+    cur.execute("DELETE FROM folders WHERE id = ?", (folder_id,))
+    conn.commit()
+    conn.close()
+    return name
+
+
+# ── Files ────────────────────────────────────────────────────────────────────
 
 def upsert_file(path: str, name: str, folder_name: str, size: int, modified_at: float, content: str, indexed_at: float):
     conn = get_conn()
@@ -82,19 +130,29 @@ def delete_file(path: str):
     conn.close()
 
 
+def delete_files_by_folder(folder_name: str):
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM files WHERE folder_name = ?", (folder_name,))
+    ids = [r["id"] for r in cur.fetchall()]
+    for fid in ids:
+        cur.execute(
+            "INSERT INTO fts_index(fts_index, rowid, content) VALUES ('delete', ?, '')",
+            (fid,),
+        )
+    cur.execute("DELETE FROM files WHERE folder_name = ?", (folder_name,))
+    conn.commit()
+    conn.close()
+
+
 def search(query: str, folder_names: list[str] | None = None, limit: int = 50):
     conn = get_conn()
     cur = conn.cursor()
-
     if folder_names:
         placeholders = ",".join("?" * len(folder_names))
         sql = f"""
-            SELECT
-                f.path,
-                f.name,
-                f.folder_name,
-                f.modified_at,
-                snippet(fts_index, 0, '<mark>', '</mark>', '…', 32) AS snippet
+            SELECT f.path, f.name, f.folder_name, f.modified_at,
+                   snippet(fts_index, 0, '<mark>', '</mark>', '…', 32) AS snippet
             FROM fts_index
             JOIN files f ON fts_index.rowid = f.id
             WHERE fts_index MATCH ?
@@ -105,12 +163,8 @@ def search(query: str, folder_names: list[str] | None = None, limit: int = 50):
         params = [query] + folder_names + [limit]
     else:
         sql = """
-            SELECT
-                f.path,
-                f.name,
-                f.folder_name,
-                f.modified_at,
-                snippet(fts_index, 0, '<mark>', '</mark>', '…', 32) AS snippet
+            SELECT f.path, f.name, f.folder_name, f.modified_at,
+                   snippet(fts_index, 0, '<mark>', '</mark>', '…', 32) AS snippet
             FROM fts_index
             JOIN files f ON fts_index.rowid = f.id
             WHERE fts_index MATCH ?
@@ -118,7 +172,6 @@ def search(query: str, folder_names: list[str] | None = None, limit: int = 50):
             LIMIT ?
         """
         params = [query, limit]
-
     cur.execute(sql, params)
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
@@ -132,9 +185,7 @@ def stats():
     count = cur.fetchone()["cnt"]
     cur.execute("""
         SELECT folder_name, COUNT(*) as cnt
-        FROM files
-        GROUP BY folder_name
-        ORDER BY folder_name
+        FROM files GROUP BY folder_name ORDER BY folder_name
     """)
     by_folder = [dict(r) for r in cur.fetchall()]
     cur.execute("SELECT path, name, folder_name, indexed_at FROM files ORDER BY indexed_at DESC LIMIT 20")

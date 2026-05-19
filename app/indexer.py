@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-from app.config import SEARCH_FOLDERS, REINDEX_INTERVAL_MINUTES, MAX_WORKERS
+from app.config import REINDEX_INTERVAL_MINUTES, MAX_WORKERS
 from app import database as db
 
 logger = logging.getLogger(__name__)
@@ -17,6 +17,10 @@ SUPPORTED_EXTENSIONS = {".docx", ".xlsx", ".pdf", ".txt"}
 last_reindex_time: float = 0.0
 next_reindex_time: float = 0.0
 _lock = threading.Lock()
+
+# Watchdog observer — пересоздаётся при изменении списка папок
+_observer: Observer | None = None
+_observer_lock = threading.Lock()
 
 
 def extract_text(path: str) -> str:
@@ -46,15 +50,14 @@ def extract_text(path: str) -> str:
     return ""
 
 
-def _folder_name_for_path(path: str) -> str:
-    for folder in SEARCH_FOLDERS:
-        folder_path = os.path.normpath(folder["path"])
-        if os.path.normpath(path).startswith(folder_path):
+def _folder_name_for_path(path: str, folders: list[dict]) -> str:
+    for folder in folders:
+        if os.path.normpath(path).startswith(os.path.normpath(folder["path"])):
             return folder["name"]
     return ""
 
 
-def index_file(path: str):
+def index_file(path: str, folder_name: str = ""):
     ext = os.path.splitext(path)[1].lower()
     if ext not in SUPPORTED_EXTENSIONS:
         return
@@ -62,7 +65,8 @@ def index_file(path: str):
         stat = os.stat(path)
         content = extract_text(path)
         name = os.path.basename(path)
-        folder_name = _folder_name_for_path(path)
+        if not folder_name:
+            folder_name = _folder_name_for_path(path, db.get_folders())
         db.upsert_file(
             path=path,
             name=name,
@@ -79,32 +83,41 @@ def index_file(path: str):
         logger.error("Error indexing %s: %s", path, e)
 
 
+def index_folder(folder: dict):
+    folder_path = folder["path"]
+    folder_name = folder["name"]
+    if not os.path.isdir(folder_path):
+        logger.warning("Folder does not exist: %s", folder_path)
+        return
+    files = []
+    for root, _, filenames in os.walk(folder_path):
+        for fname in filenames:
+            if os.path.splitext(fname)[1].lower() in SUPPORTED_EXTENSIONS:
+                files.append(os.path.join(root, fname))
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        executor.map(lambda p: index_file(p, folder_name), files)
+    logger.info("Indexed folder '%s': %d files", folder_name, len(files))
+
+
 def full_reindex():
     global last_reindex_time, next_reindex_time
-    logger.info("Starting full reindex of %d folders", len(SEARCH_FOLDERS))
+    folders = db.get_folders()
+    logger.info("Starting full reindex of %d folders", len(folders))
     with _lock:
         last_reindex_time = time.time()
         next_reindex_time = last_reindex_time + REINDEX_INTERVAL_MINUTES * 60
 
-    all_paths = set()
-    files_to_process = []
-
-    for folder in SEARCH_FOLDERS:
+    all_paths: set[str] = set()
+    for folder in folders:
         folder_path = folder["path"]
         if not os.path.isdir(folder_path):
-            logger.warning("Folder does not exist: %s", folder_path)
             continue
         for root, _, filenames in os.walk(folder_path):
             for fname in filenames:
-                ext = os.path.splitext(fname)[1].lower()
-                if ext not in SUPPORTED_EXTENSIONS:
-                    continue
-                full_path = os.path.join(root, fname)
-                all_paths.add(full_path)
-                files_to_process.append(full_path)
-
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        executor.map(index_file, files_to_process)
+                if os.path.splitext(fname)[1].lower() in SUPPORTED_EXTENSIONS:
+                    full_path = os.path.join(root, fname)
+                    all_paths.add(full_path)
+                    index_file(full_path, folder["name"])
 
     import sqlite3
     from app.config import DB_PATH
@@ -113,12 +126,10 @@ def full_reindex():
     cur.execute("SELECT path FROM files")
     db_paths = {row[0] for row in cur.fetchall()}
     conn.close()
-
     for path in db_paths - all_paths:
         db.delete_file(path)
-        logger.debug("Removed from index: %s", path)
 
-    logger.info("Full reindex complete. %d files processed.", len(files_to_process))
+    logger.info("Full reindex complete.")
 
 
 def reindex_scheduler():
@@ -126,6 +137,8 @@ def reindex_scheduler():
         time.sleep(REINDEX_INTERVAL_MINUTES * 60)
         full_reindex()
 
+
+# ── Watchdog ──────────────────────────────────────────────────────────────────
 
 class FileEventHandler(FileSystemEventHandler):
     def _handle(self, path: str, deleted: bool = False):
@@ -152,15 +165,29 @@ class FileEventHandler(FileSystemEventHandler):
             self._handle(event.dest_path)
 
 
-def start_watchdog():
-    observer = Observer()
-    handler = FileEventHandler()
-    for folder in SEARCH_FOLDERS:
-        folder_path = folder["path"]
-        if os.path.isdir(folder_path):
-            observer.schedule(handler, folder_path, recursive=True)
-            logger.info("Watchdog watching: %s", folder_path)
-        else:
-            logger.warning("Watchdog skipped (not found): %s", folder_path)
-    observer.start()
-    return observer
+def restart_watchdog():
+    global _observer
+    with _observer_lock:
+        if _observer is not None:
+            try:
+                _observer.stop()
+                _observer.join(timeout=5)
+            except Exception:
+                pass
+            _observer = None
+
+        folders = db.get_folders()
+        if not folders:
+            return
+
+        observer = Observer()
+        handler = FileEventHandler()
+        for folder in folders:
+            folder_path = folder["path"]
+            if os.path.isdir(folder_path):
+                observer.schedule(handler, folder_path, recursive=True)
+                logger.info("Watchdog watching: %s", folder_path)
+            else:
+                logger.warning("Watchdog skipped (not found): %s", folder_path)
+        observer.start()
+        _observer = observer

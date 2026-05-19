@@ -12,11 +12,12 @@ else:
     BASE_DIR = Path(__file__).resolve().parent.parent
 
 from fastapi import FastAPI, Request, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 import uvicorn
 
-from app.config import PORT, SEARCH_FOLDERS
+from app.config import PORT
 from app import database as db
 from app import indexer
 
@@ -32,7 +33,7 @@ def startup():
     db.init_db()
     threading.Thread(target=_initial_and_scheduler, daemon=True).start()
     try:
-        indexer.start_watchdog()
+        indexer.restart_watchdog()
     except Exception as e:
         logger.error("Watchdog failed to start: %s", e)
 
@@ -42,9 +43,11 @@ def _initial_and_scheduler():
     indexer.reindex_scheduler()
 
 
+# ── Search ────────────────────────────────────────────────────────────────────
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    folders = [{"name": f["name"]} for f in SEARCH_FOLDERS]
+    folders = db.get_folders()
     return templates.TemplateResponse("index.html", {"request": request, "folders": folders})
 
 
@@ -63,6 +66,8 @@ async def search(
     return {"results": results}
 
 
+# ── Admin ─────────────────────────────────────────────────────────────────────
+
 @app.get("/admin", response_class=HTMLResponse)
 async def admin(request: Request):
     count, by_folder, recent = db.stats()
@@ -72,7 +77,7 @@ async def admin(request: Request):
     next_str = datetime.fromtimestamp(next_ts).strftime("%Y-%m-%d %H:%M:%S") if next_ts else "—"
     for r in recent:
         r["indexed_at_str"] = datetime.fromtimestamp(r["indexed_at"]).strftime("%Y-%m-%d %H:%M:%S")
-    folders_config = [{"name": f["name"], "path": f["path"]} for f in SEARCH_FOLDERS]
+    folders = db.get_folders()
     return templates.TemplateResponse("admin.html", {
         "request": request,
         "count": count,
@@ -80,14 +85,8 @@ async def admin(request: Request):
         "last_reindex": last_str,
         "next_reindex": next_str,
         "recent": recent,
-        "folders_config": folders_config,
+        "folders": folders,
     })
-
-
-@app.post("/admin/reindex")
-async def trigger_reindex():
-    threading.Thread(target=indexer.full_reindex, daemon=True).start()
-    return {"status": "started"}
 
 
 @app.get("/admin/stats")
@@ -101,6 +100,55 @@ async def admin_stats():
         "last_reindex": datetime.fromtimestamp(last_ts).strftime("%Y-%m-%d %H:%M:%S") if last_ts else "—",
         "next_reindex": datetime.fromtimestamp(next_ts).strftime("%Y-%m-%d %H:%M:%S") if next_ts else "—",
     }
+
+
+@app.post("/admin/reindex")
+async def trigger_reindex():
+    threading.Thread(target=indexer.full_reindex, daemon=True).start()
+    return {"status": "started"}
+
+
+# ── Folders API ───────────────────────────────────────────────────────────────
+
+class FolderIn(BaseModel):
+    name: str
+    path: str
+
+
+@app.get("/api/folders")
+async def api_get_folders():
+    return db.get_folders()
+
+
+@app.post("/api/folders")
+async def api_add_folder(data: FolderIn):
+    name = data.name.strip()
+    path = data.path.strip()
+    if not name or not path:
+        return JSONResponse({"error": "Имя и путь обязательны"}, status_code=400)
+    if not os.path.isdir(path):
+        return JSONResponse({"error": f"Папка не найдена: {path}"}, status_code=400)
+    try:
+        folder = db.add_folder(name, path)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+    def _init():
+        indexer.index_folder({"name": name, "path": path})
+        indexer.restart_watchdog()
+
+    threading.Thread(target=_init, daemon=True).start()
+    return folder
+
+
+@app.delete("/api/folders/{folder_id}")
+async def api_delete_folder(folder_id: int):
+    folder_name = db.delete_folder(folder_id)
+    if folder_name is None:
+        return JSONResponse({"error": "Папка не найдена"}, status_code=404)
+    db.delete_files_by_folder(folder_name)
+    threading.Thread(target=indexer.restart_watchdog, daemon=True).start()
+    return {"status": "deleted", "name": folder_name}
 
 
 if __name__ == "__main__":
