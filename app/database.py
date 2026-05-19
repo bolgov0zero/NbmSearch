@@ -208,6 +208,7 @@ def get_folders() -> list[dict]:
 def set_folder_last_reindex(folder_id: int, ts: float):
     with _main_lock:
         conn = _get_main_conn()
+        conn.execute("UPDATE folders SET last_reindex_at=? WHERE id=?", (ts, folder_id))
         rows = conn.execute("SELECT id, reindex_minutes FROM schedules WHERE folder_id=?", (folder_id,)).fetchall()
         for r in rows:
             nxt = ts + r["reindex_minutes"] * 60

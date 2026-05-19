@@ -160,20 +160,39 @@ def index_folder(folder: dict):
     folder_id = folder["id"]
     folder_path = folder["path"]
     folder_name = folder["name"]
+    last_reindex_at = folder.get("last_reindex_at")  # None → full index
 
     if not os.path.isdir(folder_path):
         logger.warning("Folder does not exist: %s", folder_path)
         return
 
-    files = []
+    all_files = []
     for root, _, filenames in os.walk(folder_path):
         for fname in filenames:
             if os.path.splitext(fname)[1].lower() in SUPPORTED_EXTENSIONS:
-                files.append(os.path.join(root, fname))
+                all_files.append(os.path.join(root, fname))
 
-    total = len(files)
+    # Get already-indexed paths: needed for stale detection and new-file detection
+    indexed_paths = db.get_all_paths_in_folder(folder_id)
+
+    if last_reindex_at:
+        # Incremental: only new files or files modified after last reindex
+        to_index = []
+        for f in all_files:
+            try:
+                if os.stat(f).st_mtime > last_reindex_at or f not in indexed_paths:
+                    to_index.append(f)
+            except OSError:
+                pass
+        logger.info("Indexing folder '%s': %d changed/new of %d total (since %s)",
+                    folder_name, len(to_index), len(all_files),
+                    time.strftime("%d.%m.%Y %H:%M", time.localtime(last_reindex_at)))
+    else:
+        to_index = all_files
+        logger.info("Indexing folder '%s': %d files (full)", folder_name, len(to_index))
+
+    total = len(to_index)
     _set_progress(folder_id, total, 0, "indexing")
-    logger.info("Indexing folder '%s': %d files", folder_name, total)
 
     done = 0
     def _index_and_count(path):
@@ -183,11 +202,10 @@ def index_folder(folder: dict):
         _set_progress(folder_id, total, done, "indexing")
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        executor.map(_index_and_count, files)
+        executor.map(_index_and_count, to_index)
 
     # Remove deleted files
-    indexed_paths = db.get_all_paths_in_folder(folder_id)
-    current_paths = set(files)
+    current_paths = set(all_files)
     for stale in indexed_paths - current_paths:
         db.delete_file_from_folder(folder_id, stale)
 
