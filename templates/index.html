@@ -14,12 +14,16 @@
   --green:    #2ecc71; --radius: 10px; --radius-sm: 6px;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: var(--bg); color: var(--text); min-height: 100vh; }
+  background: var(--bg); color: var(--text);
+  display: flex; flex-direction: column; overflow: hidden; }
 
-header { position: sticky; top: 0; z-index: 100; background: var(--surface);
+header { flex-shrink: 0; z-index: 100; background: var(--surface);
   border-bottom: 1px solid var(--border); padding: 0 28px; height: 52px;
   display: flex; align-items: center; justify-content: space-between; }
+.top-panel { flex-shrink: 0; }
+.results-panel { flex: 1; overflow-y: auto; min-height: 0; }
 .logo { display: flex; align-items: center; gap: 9px; font-weight: 700;
   font-size: 1rem; color: var(--text); text-decoration: none; }
 .logo-icon { width: 26px; height: 26px; border-radius: 6px; overflow: hidden; }
@@ -62,7 +66,7 @@ nav a:hover { background: var(--surface2); color: var(--text); }
 .spinner.visible { display: block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-#results { max-width: 760px; margin: 12px auto 60px; padding: 0 28px; }
+#results { max-width: 760px; width: 100%; margin: 0 auto; padding: 0 28px 32px; }
 .no-results { text-align: center; padding: 50px 0; color: var(--text-dim); }
 .no-results svg { opacity: .3; margin-bottom: 10px; display: block; margin-left: auto; margin-right: auto; }
 
@@ -106,9 +110,10 @@ nav a:hover { background: var(--surface2); color: var(--text); }
     <div class="logo-icon"><img src="/icon.png" alt=""></div>
     NbmSearch
   </a>
-  <nav><a href="/admin">Администратор</a></nav>
+  <nav><a href="/admin">Управление</a></nav>
 </header>
 
+<div class="top-panel">
 <div class="hero">
   <h1 class="hero-title">Поиск по файлам</h1>
   <p class="hero-sub">Документы, таблицы, PDF — всё в одном месте</p>
@@ -141,7 +146,11 @@ nav a:hover { background: var(--surface2); color: var(--text); }
   <div class="spinner" id="spinner"></div>
   <span id="statusText"></span>
 </div>
+</div><!-- /top-panel -->
+
+<div class="results-panel">
 <div id="results"></div>
+</div>
 
 <script>
 // ── Chips ──
