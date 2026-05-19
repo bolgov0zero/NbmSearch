@@ -2,14 +2,13 @@ import sys
 import os
 import threading
 import logging
+from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
 if getattr(sys, "frozen", False):
     BASE_DIR = Path(sys._MEIPASS)
-    # In windowed PyInstaller builds stdout/stderr are None — uvicorn's logging
-    # formatter calls isatty() on them and crashes. Redirect to a log file.
     _log_path = Path(sys.executable).parent / "nbmsearch.log"
     _log_file = open(_log_path, "a", encoding="utf-8", buffering=1)
     sys.stdout = _log_file
@@ -30,23 +29,25 @@ from app import indexer
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="NbmSearch")
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
-
-@app.on_event("startup")
-def startup():
+@asynccontextmanager
+async def lifespan(application: FastAPI):
     db.init_db()
     threading.Thread(target=_initial_and_scheduler, daemon=True).start()
     try:
         indexer.restart_watchdog()
     except Exception as e:
         logger.error("Watchdog failed to start: %s", e)
+    yield
 
 
 def _initial_and_scheduler():
     indexer.full_reindex()
     indexer.reindex_scheduler()
+
+
+app = FastAPI(title="NbmSearch", lifespan=lifespan)
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 
 # ── Search ────────────────────────────────────────────────────────────────────
@@ -159,9 +160,9 @@ async def api_delete_folder(folder_id: int):
 
 if __name__ == "__main__":
     uvicorn.run(
-        "app.main:app",
+        app,          # передаём объект напрямую — строка "app.main:app" не работает в PyInstaller
         host="0.0.0.0",
         port=PORT,
         reload=False,
-        log_config=None,  # disable uvicorn's logging config — safe after we set up our own
+        log_config=None,
     )
