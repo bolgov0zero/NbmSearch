@@ -210,9 +210,30 @@ Set-ItemProperty -Path $regBase -Name "URL Protocol"  -Value ""
 New-Item -Path "$regBase\\shell\\open\\command" -Force | Out-Null
 Set-ItemProperty -Path "$regBase\\shell\\open\\command" -Name "(Default)" -Value "`"$exePath`" `"%1`""
 
+Write-Host "Отключаю диалог подтверждения в Chrome и Edge..."
+# Chrome
+$chromePol = "HKLM:\\SOFTWARE\\Policies\\Google\\Chrome\\AutoOpenProtocolHandlerAllowlist"
+try {{
+    New-Item -Path $chromePol -Force | Out-Null
+    $idx = (Get-Item $chromePol -ErrorAction SilentlyContinue).Property.Count + 1
+    Set-ItemProperty -Path $chromePol -Name "$idx" -Value "nbmsearch"
+}} catch {{
+    Write-Host "  Chrome: нет прав на запись политики (нужен администратор)" -ForegroundColor Yellow
+}}
+# Edge
+$edgePol = "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge\\AutoOpenProtocolHandlerAllowlist"
+try {{
+    New-Item -Path $edgePol -Force | Out-Null
+    $idx = (Get-Item $edgePol -ErrorAction SilentlyContinue).Property.Count + 1
+    Set-ItemProperty -Path $edgePol -Name "$idx" -Value "nbmsearch"
+}} catch {{
+    Write-Host "  Edge: нет прав на запись политики (нужен администратор)" -ForegroundColor Yellow
+}}
+
 Write-Host ""
 Write-Host "Готово! Протокол nbmsearch:// зарегистрирован." -ForegroundColor Green
 Write-Host "Теперь ссылки 'Открыть файл' и 'Открыть папку' в NbmSearch будут работать на этом компьютере."
+Write-Host "Если диалог подтверждения всё ещё появляется — перезапустите браузер."
 """
     return PlainTextResponse(script, media_type="text/plain; charset=utf-8")
 
