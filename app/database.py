@@ -1,19 +1,31 @@
 import re
+import zlib
 import sqlite3
 import threading
 from app.config import DB_PATH
 
-# Single write lock — SQLite supports only one writer at a time.
-# All functions that modify the DB acquire this lock before opening a connection.
 _write_lock = threading.Lock()
 
 
 def get_conn():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=30)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")   # readers don't block writers
-    conn.execute("PRAGMA synchronous=NORMAL") # safe + faster than FULL
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
     return conn
+
+
+def _compress(text: str) -> bytes:
+    return zlib.compress(text.encode("utf-8"), level=6)
+
+
+def _decompress(blob) -> str:
+    if not blob:
+        return ""
+    try:
+        return zlib.decompress(bytes(blob)).decode("utf-8")
+    except Exception:
+        return ""
 
 
 def init_db():
@@ -37,41 +49,46 @@ def init_db():
                 size        INTEGER NOT NULL,
                 modified_at REAL    NOT NULL,
                 indexed_at  REAL    NOT NULL,
-                content     TEXT    NOT NULL DEFAULT ''
+                content     BLOB
             );
         """)
 
         # Migrations for older schemas
-        for col in ("folder_name TEXT NOT NULL DEFAULT ''",
-                    "content TEXT NOT NULL DEFAULT ''"):
+        for ddl in (
+            "ALTER TABLE files ADD COLUMN folder_name TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE files ADD COLUMN content BLOB",
+        ):
             try:
-                cur.execute(f"ALTER TABLE files ADD COLUMN {col}")
+                cur.execute(ddl)
                 conn.commit()
             except Exception:
                 pass
 
-        # Recreate fts_index as external-content table if needed.
-        # content='files' means FTS stores only the inverted index;
-        # the actual text lives in files.content — no duplication.
+        # Recreate fts_index as contentless if needed — stores only inverted index,
+        # no text duplication. Snippet is generated from files.content (compressed).
         cur.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='fts_index'")
         row = cur.fetchone()
         fts_sql = row[0] if row else ""
-        need_recreate = not fts_sql or "content='files'" not in fts_sql
+        need_recreate = not fts_sql or "content=''" not in fts_sql
 
         if need_recreate:
             cur.execute("DROP TABLE IF EXISTS fts_index")
             cur.execute("""
                 CREATE VIRTUAL TABLE fts_index USING fts5(
                     content,
-                    content='files',
-                    content_rowid='id',
+                    content='',
                     tokenize='unicode61'
                 )
             """)
-            # Rebuild index from existing files.content
-            cur.execute(
-                "INSERT INTO fts_index(rowid, content) SELECT id, content FROM files"
-            )
+            # Rebuild from existing files (content may be text or compressed blob)
+            cur.execute("SELECT id, content FROM files")
+            for r in cur.fetchall():
+                text = _decompress(r["content"]) if r["content"] else ""
+                if text:
+                    cur.execute(
+                        "INSERT INTO fts_index(rowid, content) VALUES (?, ?)",
+                        (r["id"], text),
+                    )
             conn.commit()
 
         conn.commit()
@@ -81,23 +98,58 @@ def init_db():
 # ── FTS5 query sanitizer ──────────────────────────────────────────────────────
 
 def _fts_query(raw: str) -> str:
-    """Convert a user query into a safe FTS5 MATCH expression.
-
-    - Query wrapped in quotes → exact phrase search: pass as single FTS5 phrase
-    - Otherwise → each word wrapped in quotes, all words must appear (AND logic)
-    """
     stripped = raw.strip()
     if not stripped:
         return '""'
-
-    # Exact phrase: user typed "Иванов Иван" — search as FTS5 phrase
     if stripped.startswith('"') and stripped.endswith('"') and len(stripped) > 2:
-        inner = stripped[1:-1].replace('"', '""')  # escape inner quotes
+        inner = stripped[1:-1].replace('"', '""')
         return f'"{inner}"'
-
-    # Regular: wrap each token so special chars are safe
     tokens = stripped.split()
     return " ".join(f'"{t.replace(chr(34), chr(34)*2)}"' for t in tokens)
+
+
+# ── Snippet ───────────────────────────────────────────────────────────────────
+
+def _make_snippet(text: str, query: str, radius: int = 120) -> str:
+    """Find the first query token in text and return a marked-up excerpt."""
+    if not text:
+        return ""
+    # Strip surrounding quotes for phrase search
+    q = query.strip().strip('"')
+    tokens = q.split()
+    if not tokens:
+        return ""
+
+    lower = text.lower()
+    pos = -1
+    for token in tokens:
+        p = lower.find(token.lower())
+        if p != -1:
+            pos = p
+            break
+
+    if pos == -1:
+        excerpt = text[:radius * 2]
+        prefix = ""
+    else:
+        start = max(0, pos - radius)
+        end = min(len(text), pos + radius)
+        excerpt = text[start:end]
+        prefix = "…" if start > 0 else ""
+
+    # Highlight all tokens
+    def highlight(s: str) -> str:
+        for t in tokens:
+            s = re.sub(
+                f"({re.escape(t)})",
+                r"<mark>\1</mark>",
+                s,
+                flags=re.IGNORECASE,
+            )
+        return s
+
+    suffix = "…" if (pos + radius) < len(text) else ""
+    return prefix + highlight(excerpt) + suffix
 
 
 # ── Folders CRUD ─────────────────────────────────────────────────────────────
@@ -146,34 +198,36 @@ def delete_folder(folder_id: int) -> str | None:
 
 def upsert_file(path: str, name: str, folder_name: str, size: int,
                 modified_at: float, content: str, indexed_at: float):
+    compressed = _compress(content)
     with _write_lock:
         conn = get_conn()
         cur = conn.cursor()
         try:
-            cur.execute("SELECT id, content FROM files WHERE path = ?", (path,))
+            cur.execute("SELECT id FROM files WHERE path = ?", (path,))
             row = cur.fetchone()
             if row:
                 file_id = row["id"]
-                old_content = row["content"]
-                # Remove old entry from FTS index (needs original content)
-                cur.execute(
-                    "INSERT INTO fts_index(fts_index, rowid, content) VALUES ('delete', ?, ?)",
-                    (file_id, old_content),
-                )
                 cur.execute(
                     "UPDATE files SET name=?, folder_name=?, size=?, modified_at=?, "
                     "indexed_at=?, content=? WHERE id=?",
-                    (name, folder_name, size, modified_at, indexed_at, content, file_id),
+                    (name, folder_name, size, modified_at, indexed_at, compressed, file_id),
+                )
+                # Contentless FTS delete doesn't need old content
+                cur.execute(
+                    "INSERT INTO fts_index(fts_index, rowid, content) VALUES ('delete', ?, ?)",
+                    (file_id, content),
                 )
             else:
                 cur.execute(
                     "INSERT INTO files (path, name, folder_name, size, modified_at, indexed_at, content) "
                     "VALUES (?,?,?,?,?,?,?)",
-                    (path, name, folder_name, size, modified_at, indexed_at, content),
+                    (path, name, folder_name, size, modified_at, indexed_at, compressed),
                 )
                 file_id = cur.lastrowid
-            # Add new entry to FTS index
-            cur.execute("INSERT INTO fts_index(rowid, content) VALUES (?, ?)", (file_id, content))
+            cur.execute(
+                "INSERT INTO fts_index(rowid, content) VALUES (?, ?)",
+                (file_id, content),
+            )
             conn.commit()
         except Exception:
             conn.rollback()
@@ -189,9 +243,10 @@ def delete_file(path: str):
         cur.execute("SELECT id, content FROM files WHERE path = ?", (path,))
         row = cur.fetchone()
         if row:
+            text = _decompress(row["content"])
             cur.execute(
                 "INSERT INTO fts_index(fts_index, rowid, content) VALUES ('delete', ?, ?)",
-                (row["id"], row["content"]),
+                (row["id"], text),
             )
             cur.execute("DELETE FROM files WHERE id = ?", (row["id"],))
             conn.commit()
@@ -205,9 +260,10 @@ def delete_files_by_folder(folder_name: str):
         cur.execute("SELECT id, content FROM files WHERE folder_name = ?", (folder_name,))
         rows = cur.fetchall()
         for r in rows:
+            text = _decompress(r["content"])
             cur.execute(
                 "INSERT INTO fts_index(fts_index, rowid, content) VALUES ('delete', ?, ?)",
-                (r["id"], r["content"]),
+                (r["id"], text),
             )
         cur.execute("DELETE FROM files WHERE folder_name = ?", (folder_name,))
         conn.commit()
@@ -221,8 +277,7 @@ def search(query: str, folder_names: list[str] | None = None, limit: int = 50):
     if folder_names:
         placeholders = ",".join("?" * len(folder_names))
         sql = f"""
-            SELECT f.path, f.name, f.folder_name, f.modified_at,
-                   snippet(fts_index, 0, '<mark>', '</mark>', '…', 32) AS snippet
+            SELECT f.path, f.name, f.folder_name, f.modified_at, f.content
             FROM fts_index
             JOIN files f ON fts_index.rowid = f.id
             WHERE fts_index MATCH ?
@@ -233,8 +288,7 @@ def search(query: str, folder_names: list[str] | None = None, limit: int = 50):
         params = [fts_q] + folder_names + [limit]
     else:
         sql = """
-            SELECT f.path, f.name, f.folder_name, f.modified_at,
-                   snippet(fts_index, 0, '<mark>', '</mark>', '…', 32) AS snippet
+            SELECT f.path, f.name, f.folder_name, f.modified_at, f.content
             FROM fts_index
             JOIN files f ON fts_index.rowid = f.id
             WHERE fts_index MATCH ?
@@ -243,9 +297,18 @@ def search(query: str, folder_names: list[str] | None = None, limit: int = 50):
         """
         params = [fts_q, limit]
     cur.execute(sql, params)
-    rows = [dict(r) for r in cur.fetchall()]
+    results = []
+    for r in cur.fetchall():
+        text = _decompress(r["content"])
+        results.append({
+            "path": r["path"],
+            "name": r["name"],
+            "folder_name": r["folder_name"],
+            "modified_at": r["modified_at"],
+            "snippet": _make_snippet(text, query),
+        })
     conn.close()
-    return rows
+    return results
 
 
 def stats():
