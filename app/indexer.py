@@ -12,7 +12,7 @@ from app import database as db
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_EXTENSIONS = {".docx", ".xlsx", ".pdf", ".txt"}
+SUPPORTED_EXTENSIONS = {".docx", ".doc", ".xlsx", ".xls", ".pdf", ".rtf", ".txt"}
 
 last_reindex_time: float = 0.0
 next_reindex_time: float = 0.0
@@ -29,10 +29,15 @@ def extract_text(path: str) -> str:
         if ext == ".txt":
             with open(path, "r", encoding="utf-8", errors="ignore") as f:
                 return f.read()
+
         elif ext == ".docx":
             import docx
             doc = docx.Document(path)
             return "\n".join(p.text for p in doc.paragraphs)
+
+        elif ext == ".doc":
+            return _extract_doc(path)
+
         elif ext == ".xlsx":
             import openpyxl
             wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
@@ -41,13 +46,53 @@ def extract_text(path: str) -> str:
                 for row in ws.iter_rows(values_only=True):
                     parts.append(" ".join(str(c) for c in row if c is not None))
             return "\n".join(parts)
+
+        elif ext == ".xls":
+            import xlrd
+            wb = xlrd.open_workbook(path)
+            parts = []
+            for sheet in wb.sheets():
+                for row_idx in range(sheet.nrows):
+                    parts.append(" ".join(str(sheet.cell_value(row_idx, c))
+                                          for c in range(sheet.ncols)))
+            return "\n".join(parts)
+
         elif ext == ".pdf":
             import pdfplumber
             with pdfplumber.open(path) as pdf:
                 return "\n".join(page.extract_text() or "" for page in pdf.pages)
+
+        elif ext == ".rtf":
+            from striprtf.striprtf import rtf_to_text
+            with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                return rtf_to_text(f.read())
+
     except Exception as e:
         logger.warning("Cannot extract text from %s: %s", path, e)
     return ""
+
+
+def _extract_doc(path: str) -> str:
+    """Extract text from legacy .doc (OLE/Word97) files using olefile."""
+    import re
+    import olefile
+    try:
+        with olefile.OleFileIO(path) as ole:
+            if not ole.exists("WordDocument"):
+                return ""
+            stream = ole.openstream("WordDocument").read()
+            # The text in Word97 streams is UTF-16-LE starting at offset 0x900+
+            text = stream.decode("utf-16-le", errors="ignore")
+            # Keep printable ASCII and Cyrillic, collapse garbage
+            text = re.sub(r"[^\x20-\x7eЀ-ӿ\n\r\t]+", " ", text)
+            return " ".join(text.split())
+    except Exception:
+        # Fallback: scan raw bytes for UTF-16 strings (handles corrupt/unusual files)
+        with open(path, "rb") as f:
+            raw = f.read()
+        text = raw.decode("utf-16-le", errors="ignore")
+        text = re.sub(r"[^\x20-\x7eЀ-ӿ\n\r\t]+", " ", text)
+        return " ".join(text.split())
 
 
 def _folder_name_for_path(path: str, folders: list[dict]) -> str:
