@@ -40,8 +40,6 @@ def init_db():
 
             CREATE VIRTUAL TABLE IF NOT EXISTS fts_index USING fts5(
                 content,
-                content=files,
-                content_rowid=id,
                 tokenize='unicode61'
             );
         """)
@@ -50,6 +48,21 @@ def init_db():
             conn.commit()
         except Exception:
             pass
+
+        # Migrate: if fts_index was created with content=files it breaks snippet().
+        # Detect by checking sqlite_master for the old definition and recreate.
+        cur.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='fts_index'")
+        row = cur.fetchone()
+        if row and "content=files" in (row[0] or ""):
+            cur.execute("DROP TABLE IF EXISTS fts_index")
+            cur.execute("""
+                CREATE VIRTUAL TABLE fts_index USING fts5(
+                    content,
+                    tokenize='unicode61'
+                )
+            """)
+            conn.commit()
+
         conn.commit()
         conn.close()
 
