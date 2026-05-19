@@ -1,48 +1,74 @@
+import re
 import sqlite3
+import threading
 from app.config import DB_PATH
+
+# Single write lock — SQLite supports only one writer at a time.
+# All functions that modify the DB acquire this lock before opening a connection.
+_write_lock = threading.Lock()
 
 
 def get_conn():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=30)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")   # readers don't block writers
+    conn.execute("PRAGMA synchronous=NORMAL") # safe + faster than FULL
     return conn
 
 
 def init_db():
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.executescript("""
-        CREATE TABLE IF NOT EXISTS folders (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            name       TEXT    UNIQUE NOT NULL,
-            path       TEXT    NOT NULL,
-            created_at REAL    NOT NULL
-        );
+    with _write_lock:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.executescript("""
+            CREATE TABLE IF NOT EXISTS folders (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                name       TEXT    UNIQUE NOT NULL,
+                path       TEXT    NOT NULL,
+                created_at REAL    NOT NULL
+            );
 
-        CREATE TABLE IF NOT EXISTS files (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            path        TEXT    UNIQUE NOT NULL,
-            name        TEXT    NOT NULL,
-            folder_name TEXT    NOT NULL DEFAULT '',
-            size        INTEGER NOT NULL,
-            modified_at REAL    NOT NULL,
-            indexed_at  REAL    NOT NULL
-        );
+            CREATE TABLE IF NOT EXISTS files (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                path        TEXT    UNIQUE NOT NULL,
+                name        TEXT    NOT NULL,
+                folder_name TEXT    NOT NULL DEFAULT '',
+                size        INTEGER NOT NULL,
+                modified_at REAL    NOT NULL,
+                indexed_at  REAL    NOT NULL
+            );
 
-        CREATE VIRTUAL TABLE IF NOT EXISTS fts_index USING fts5(
-            content,
-            content=files,
-            content_rowid=id,
-            tokenize='unicode61'
-        );
-    """)
-    try:
-        cur.execute("ALTER TABLE files ADD COLUMN folder_name TEXT NOT NULL DEFAULT ''")
+            CREATE VIRTUAL TABLE IF NOT EXISTS fts_index USING fts5(
+                content,
+                content=files,
+                content_rowid=id,
+                tokenize='unicode61'
+            );
+        """)
+        try:
+            cur.execute("ALTER TABLE files ADD COLUMN folder_name TEXT NOT NULL DEFAULT ''")
+            conn.commit()
+        except Exception:
+            pass
         conn.commit()
-    except Exception:
-        pass
-    conn.commit()
-    conn.close()
+        conn.close()
+
+
+# ── FTS5 query sanitizer ──────────────────────────────────────────────────────
+
+def _fts_query(raw: str) -> str:
+    """Convert a plain user query into a safe FTS5 MATCH expression.
+
+    Each whitespace-separated token is wrapped in double quotes so FTS5
+    treats it as a literal phrase rather than a syntax expression.
+    This prevents SQL logic errors from special chars like - * ( ) " ^
+    """
+    tokens = raw.split()
+    if not tokens:
+        return '""'
+    # Escape any double-quotes inside a token by doubling them
+    safe = " ".join(f'"{t.replace(chr(34), chr(34)+chr(34))}"' for t in tokens)
+    return safe
 
 
 # ── Folders CRUD ─────────────────────────────────────────────────────────────
@@ -58,94 +84,107 @@ def get_folders() -> list[dict]:
 
 def add_folder(name: str, path: str) -> dict:
     import time
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO folders (name, path, created_at) VALUES (?, ?, ?)",
-        (name, path, time.time()),
-    )
-    conn.commit()
-    row_id = cur.lastrowid
-    conn.close()
+    with _write_lock:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO folders (name, path, created_at) VALUES (?, ?, ?)",
+            (name, path, time.time()),
+        )
+        conn.commit()
+        row_id = cur.lastrowid
+        conn.close()
     return {"id": row_id, "name": name, "path": path}
 
 
 def delete_folder(folder_id: int) -> str | None:
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT name FROM folders WHERE id = ?", (folder_id,))
-    row = cur.fetchone()
-    if not row:
+    with _write_lock:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT name FROM folders WHERE id = ?", (folder_id,))
+        row = cur.fetchone()
+        if not row:
+            conn.close()
+            return None
+        name = row["name"]
+        cur.execute("DELETE FROM folders WHERE id = ?", (folder_id,))
+        conn.commit()
         conn.close()
-        return None
-    name = row["name"]
-    cur.execute("DELETE FROM folders WHERE id = ?", (folder_id,))
-    conn.commit()
-    conn.close()
     return name
 
 
 # ── Files ────────────────────────────────────────────────────────────────────
 
-def upsert_file(path: str, name: str, folder_name: str, size: int, modified_at: float, content: str, indexed_at: float):
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT id FROM files WHERE path = ?", (path,))
-    row = cur.fetchone()
-    if row:
-        file_id = row["id"]
-        cur.execute(
-            "UPDATE files SET name=?, folder_name=?, size=?, modified_at=?, indexed_at=? WHERE id=?",
-            (name, folder_name, size, modified_at, indexed_at, file_id),
-        )
-        cur.execute(
-            "INSERT INTO fts_index(fts_index, rowid, content) VALUES ('delete', ?, ?)",
-            (file_id, content),
-        )
-        cur.execute("INSERT INTO fts_index(rowid, content) VALUES (?, ?)", (file_id, content))
-    else:
-        cur.execute(
-            "INSERT INTO files (path, name, folder_name, size, modified_at, indexed_at) VALUES (?,?,?,?,?,?)",
-            (path, name, folder_name, size, modified_at, indexed_at),
-        )
-        file_id = cur.lastrowid
-        cur.execute("INSERT INTO fts_index(rowid, content) VALUES (?, ?)", (file_id, content))
-    conn.commit()
-    conn.close()
+def upsert_file(path: str, name: str, folder_name: str, size: int,
+                modified_at: float, content: str, indexed_at: float):
+    with _write_lock:
+        conn = get_conn()
+        cur = conn.cursor()
+        try:
+            cur.execute("SELECT id FROM files WHERE path = ?", (path,))
+            row = cur.fetchone()
+            if row:
+                file_id = row["id"]
+                cur.execute(
+                    "UPDATE files SET name=?, folder_name=?, size=?, modified_at=?, indexed_at=? WHERE id=?",
+                    (name, folder_name, size, modified_at, indexed_at, file_id),
+                )
+                cur.execute(
+                    "INSERT INTO fts_index(fts_index, rowid, content) VALUES ('delete', ?, ?)",
+                    (file_id, content),
+                )
+                cur.execute("INSERT INTO fts_index(rowid, content) VALUES (?, ?)", (file_id, content))
+            else:
+                cur.execute(
+                    "INSERT INTO files (path, name, folder_name, size, modified_at, indexed_at) "
+                    "VALUES (?,?,?,?,?,?)",
+                    (path, name, folder_name, size, modified_at, indexed_at),
+                )
+                file_id = cur.lastrowid
+                cur.execute("INSERT INTO fts_index(rowid, content) VALUES (?, ?)", (file_id, content))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
 
 def delete_file(path: str):
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT id FROM files WHERE path = ?", (path,))
-    row = cur.fetchone()
-    if row:
-        file_id = row["id"]
-        cur.execute(
-            "INSERT INTO fts_index(fts_index, rowid, content) VALUES ('delete', ?, '')",
-            (file_id,),
-        )
-        cur.execute("DELETE FROM files WHERE id = ?", (file_id,))
-        conn.commit()
-    conn.close()
+    with _write_lock:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM files WHERE path = ?", (path,))
+        row = cur.fetchone()
+        if row:
+            file_id = row["id"]
+            cur.execute(
+                "INSERT INTO fts_index(fts_index, rowid, content) VALUES ('delete', ?, '')",
+                (file_id,),
+            )
+            cur.execute("DELETE FROM files WHERE id = ?", (file_id,))
+            conn.commit()
+        conn.close()
 
 
 def delete_files_by_folder(folder_name: str):
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT id FROM files WHERE folder_name = ?", (folder_name,))
-    ids = [r["id"] for r in cur.fetchall()]
-    for fid in ids:
-        cur.execute(
-            "INSERT INTO fts_index(fts_index, rowid, content) VALUES ('delete', ?, '')",
-            (fid,),
-        )
-    cur.execute("DELETE FROM files WHERE folder_name = ?", (folder_name,))
-    conn.commit()
-    conn.close()
+    with _write_lock:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM files WHERE folder_name = ?", (folder_name,))
+        ids = [r["id"] for r in cur.fetchall()]
+        for fid in ids:
+            cur.execute(
+                "INSERT INTO fts_index(fts_index, rowid, content) VALUES ('delete', ?, '')",
+                (fid,),
+            )
+        cur.execute("DELETE FROM files WHERE folder_name = ?", (folder_name,))
+        conn.commit()
+        conn.close()
 
 
 def search(query: str, folder_names: list[str] | None = None, limit: int = 50):
+    fts_q = _fts_query(query)
     conn = get_conn()
     cur = conn.cursor()
     if folder_names:
@@ -160,7 +199,7 @@ def search(query: str, folder_names: list[str] | None = None, limit: int = 50):
             ORDER BY rank
             LIMIT ?
         """
-        params = [query] + folder_names + [limit]
+        params = [fts_q] + folder_names + [limit]
     else:
         sql = """
             SELECT f.path, f.name, f.folder_name, f.modified_at,
@@ -171,7 +210,7 @@ def search(query: str, folder_names: list[str] | None = None, limit: int = 50):
             ORDER BY rank
             LIMIT ?
         """
-        params = [query, limit]
+        params = [fts_q, limit]
     cur.execute(sql, params)
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
