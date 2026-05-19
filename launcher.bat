@@ -35,7 +35,7 @@ echo Для остановки закройте это окно.
 echo.
 
 :: Запуск сервера в фоне и открытие браузера
-start "" /b python app\main.py
+start "" /b python -m app.main
 
 :: Ждём пока сервер поднимется
 timeout /t 2 /nobreak >nul
