@@ -68,18 +68,25 @@ def init_db():
         conn = _get_main_conn()
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS folders (
-                id               INTEGER PRIMARY KEY AUTOINCREMENT,
-                name             TEXT    UNIQUE NOT NULL,
-                path             TEXT    NOT NULL,
-                reindex_minutes  INTEGER NOT NULL DEFAULT 60,
-                created_at       REAL    NOT NULL
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                name        TEXT    UNIQUE NOT NULL,
+                path        TEXT    NOT NULL,
+                created_at  REAL    NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS schedules (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                folder_id       INTEGER NOT NULL REFERENCES folders(id),
+                reindex_minutes INTEGER NOT NULL DEFAULT 60,
+                last_run_at     REAL,
+                next_run_at     REAL,
+                created_at      REAL    NOT NULL
             );
             CREATE TABLE IF NOT EXISTS sessions (
                 token      TEXT PRIMARY KEY,
                 created_at REAL NOT NULL
             );
         """)
-        # migrations
+        # migrations — keep old columns harmless
         for ddl in (
             "ALTER TABLE folders ADD COLUMN reindex_minutes INTEGER NOT NULL DEFAULT 60",
             "ALTER TABLE folders ADD COLUMN last_reindex_at REAL",
@@ -189,33 +196,75 @@ def get_folders() -> list[dict]:
 
 
 def set_folder_last_reindex(folder_id: int, ts: float):
+    # Update last_run_at on all schedules for this folder
     with _write_lock:
         conn = _get_main_conn()
-        conn.execute("UPDATE folders SET last_reindex_at=? WHERE id=?", (ts, folder_id))
+        rows = conn.execute("SELECT id, reindex_minutes FROM schedules WHERE folder_id=?", (folder_id,)).fetchall()
+        for r in rows:
+            nxt = ts + r["reindex_minutes"] * 60
+            conn.execute("UPDATE schedules SET last_run_at=?, next_run_at=? WHERE id=?", (ts, nxt, r["id"]))
         conn.commit()
         conn.close()
 
 
-def add_folder(name: str, path: str, reindex_minutes: int = 60) -> dict:
+def add_folder(name: str, path: str) -> dict:
     with _write_lock:
         conn = _get_main_conn()
         cur = conn.execute(
-            "INSERT INTO folders (name, path, reindex_minutes, created_at) VALUES (?,?,?,?)",
-            (name, path, reindex_minutes, time.time()),
+            "INSERT INTO folders (name, path, created_at) VALUES (?,?,?)",
+            (name, path, time.time()),
         )
         folder_id = cur.lastrowid
         conn.commit()
         conn.close()
     _init_folder_db(folder_id)
-    return {"id": folder_id, "name": name, "path": path, "reindex_minutes": reindex_minutes}
+    return {"id": folder_id, "name": name, "path": path}
 
 
-def update_folder_schedule(folder_id: int, reindex_minutes: int):
+# ── Schedules ─────────────────────────────────────────────────────────────────
+
+def get_schedules() -> list[dict]:
+    conn = _get_main_conn()
+    rows = [dict(r) for r in conn.execute("""
+        SELECT s.id, s.folder_id, s.reindex_minutes, s.last_run_at, s.next_run_at, s.created_at,
+               f.name AS folder_name
+        FROM schedules s
+        JOIN folders f ON s.folder_id = f.id
+        ORDER BY s.created_at
+    """).fetchall()]
+    conn.close()
+    return rows
+
+
+def add_schedule(folder_id: int, reindex_minutes: int) -> dict:
+    nxt = time.time() + reindex_minutes * 60
+    with _write_lock:
+        conn = _get_main_conn()
+        cur = conn.execute(
+            "INSERT INTO schedules (folder_id, reindex_minutes, next_run_at, created_at) VALUES (?,?,?,?)",
+            (folder_id, reindex_minutes, nxt, time.time()),
+        )
+        sid = cur.lastrowid
+        conn.commit()
+        conn.close()
+    return {"id": sid, "folder_id": folder_id, "reindex_minutes": reindex_minutes, "next_run_at": nxt}
+
+
+def delete_schedule(schedule_id: int):
+    with _write_lock:
+        conn = _get_main_conn()
+        conn.execute("DELETE FROM schedules WHERE id=?", (schedule_id,))
+        conn.commit()
+        conn.close()
+
+
+def update_schedule_run(schedule_id: int, reindex_minutes: int):
+    nxt = time.time() + reindex_minutes * 60
     with _write_lock:
         conn = _get_main_conn()
         conn.execute(
-            "UPDATE folders SET reindex_minutes=? WHERE id=?",
-            (reindex_minutes, folder_id),
+            "UPDATE schedules SET last_run_at=?, next_run_at=? WHERE id=?",
+            (time.time(), nxt, schedule_id),
         )
         conn.commit()
         conn.close()

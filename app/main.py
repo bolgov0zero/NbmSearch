@@ -49,6 +49,10 @@ def _startup():
 app = FastAPI(title="NbmSearch", lifespan=lifespan)
 templates = Jinja2Templates(directory=str(BUNDLE_DIR / "templates"))
 
+_SCHED_LABELS = {30:"каждые 30 мин",60:"каждый час",180:"каждые 3 часа",
+                 360:"каждые 6 часов",720:"каждые 12 часов",1440:"раз в сутки"}
+templates.env.globals["schedLabel"] = lambda m: _SCHED_LABELS.get(m, f"{m} мин")
+
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
 
@@ -119,19 +123,19 @@ async def admin(request: Request):
         return RedirectResponse("/admin/login")
     count, by_folder = db.stats()
     folders = db.get_folders()
-    # Attach file counts and progress to each folder
     counts_map = {b["folder_name"]: b["cnt"] for b in by_folder}
     for f in folders:
         f["file_count"] = counts_map.get(f["name"], 0)
         f["progress"] = indexer.get_progress(f["id"])
-        nxt = indexer.get_next_reindex(f["id"])
-        f["next_reindex"] = datetime.fromtimestamp(nxt).strftime("%d.%m.%Y %H:%M") if nxt else "—"
-        lrt = f.get("last_reindex_at")
-        f["last_reindex"] = datetime.fromtimestamp(lrt).strftime("%d.%m.%Y %H:%M") if lrt else "—"
+    schedules = db.get_schedules()
+    for s in schedules:
+        s["last_run_str"] = datetime.fromtimestamp(s["last_run_at"]).strftime("%d.%m.%Y %H:%M") if s.get("last_run_at") else "—"
+        s["next_run_str"] = datetime.fromtimestamp(s["next_run_at"]).strftime("%d.%m.%Y %H:%M") if s.get("next_run_at") else "—"
     return templates.TemplateResponse("admin.html", {
         "request": request,
         "count": count,
         "folders": folders,
+        "schedules": schedules,
     })
 
 
@@ -175,10 +179,10 @@ async def trigger_reindex(folder_id: int, request: Request):
 class FolderIn(BaseModel):
     name: str
     path: str
-    reindex_minutes: int = 60
 
 
-class FolderSchedule(BaseModel):
+class ScheduleIn(BaseModel):
+    folder_id: int
     reindex_minutes: int
 
 
@@ -198,7 +202,7 @@ async def api_add_folder(data: FolderIn, request: Request):
     if not os.path.isdir(path):
         return JSONResponse({"error": f"Папка не найдена: {path}"}, status_code=400)
     try:
-        folder = db.add_folder(name, path, data.reindex_minutes)
+        folder = db.add_folder(name, path)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=400)
 
@@ -210,12 +214,33 @@ async def api_add_folder(data: FolderIn, request: Request):
     return folder
 
 
-@app.patch("/api/folders/{folder_id}/schedule")
-async def api_update_schedule(folder_id: int, data: FolderSchedule, request: Request):
+@app.get("/api/schedules")
+async def api_get_schedules():
+    from datetime import datetime
+    rows = db.get_schedules()
+    for r in rows:
+        r["last_run_str"] = datetime.fromtimestamp(r["last_run_at"]).strftime("%d.%m.%Y %H:%M") if r.get("last_run_at") else "—"
+        r["next_run_str"] = datetime.fromtimestamp(r["next_run_at"]).strftime("%d.%m.%Y %H:%M") if r.get("next_run_at") else "—"
+    return rows
+
+
+@app.post("/api/schedules")
+async def api_add_schedule(data: ScheduleIn, request: Request):
     if not _is_auth(request):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
-    db.update_folder_schedule(folder_id, data.reindex_minutes)
-    return {"status": "ok"}
+    result = db.add_schedule(data.folder_id, data.reindex_minutes)
+    from datetime import datetime
+    result["next_run_str"] = datetime.fromtimestamp(result["next_run_at"]).strftime("%d.%m.%Y %H:%M")
+    result["last_run_str"] = "—"
+    return result
+
+
+@app.delete("/api/schedules/{schedule_id}")
+async def api_delete_schedule(schedule_id: int, request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    db.delete_schedule(schedule_id)
+    return {"status": "deleted"}
 
 
 @app.delete("/api/folders/{folder_id}")

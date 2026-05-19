@@ -45,16 +45,18 @@ def get_next_reindex(folder_id: int) -> float | None:
 
 
 def reindex_scheduler():
-    global _scheduler_running
-    _scheduler_running = True
     while True:
         time.sleep(30)
         now = time.time()
-        for folder in db.get_folders():
-            fid = folder["id"]
-            if fid in _next_reindex and now >= _next_reindex[fid]:
-                _schedule_next(fid, folder["reindex_minutes"])
-                threading.Thread(target=index_folder, args=(folder,), daemon=True).start()
+        schedules = db.get_schedules()
+        folders = {f["id"]: f for f in db.get_folders()}
+        for s in schedules:
+            nxt = s.get("next_run_at") or 0
+            if now >= nxt:
+                folder = folders.get(s["folder_id"])
+                if folder:
+                    db.update_schedule_run(s["id"], s["reindex_minutes"])
+                    threading.Thread(target=index_folder, args=(folder,), daemon=True).start()
 
 
 # ── Text extraction ───────────────────────────────────────────────────────────

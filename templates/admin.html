@@ -3,53 +3,49 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NbmSearch — Администратор</title>
+<title>NbmSearch — Панель управления</title>
 <link rel="icon" type="image/png" href="/icon.png">
 <style>
 :root {
-  --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a; --surface3:#1e2235;
-  --border:#2d3148; --border2:#383d5a;
-  --accent:#5b6af0; --accent-dim:#3d4ab0; --accent-bg:rgba(91,106,240,.12);
-  --text:#e8eaf6; --text-dim:#8b90b8; --text-muted:#555a7a;
-  --green:#2ecc71; --green-bg:rgba(46,204,113,.1);
-  --red:#e74c3c; --red-dim:#a93226; --red-bg:rgba(231,76,60,.08);
-  --orange:#f39c12;
+  --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a;
+  --border:#2d3148; --accent:#5b6af0; --accent-dim:#3d4ab0;
+  --accent-bg:rgba(91,106,240,.12);
+  --text:#e8eaf6; --text-dim:#8b90b8; --text-muted:#50546e;
+  --green:#2ecc71; --red:#e74c3c; --red-dim:#a93226;
+  --red-bg:rgba(231,76,60,.07);
   --radius:12px; --radius-sm:7px; --radius-xs:4px;
 }
-
-/* ── Reset ── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
   background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
 
-/* ── Custom form elements ── */
-input,select,textarea{
-  background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);
-  padding:9px 12px;font-size:13px;color:var(--text);outline:none;
-  transition:border-color .2s,box-shadow .2s;width:100%;
-  font-family:inherit;appearance:none;-webkit-appearance:none;
+/* ── Form elements ── */
+input,select{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;
+  color:var(--text);outline:none;width:100%;font-family:inherit;
+  transition:border-color .2s,box-shadow .2s;appearance:none;-webkit-appearance:none;
 }
 input::placeholder{color:var(--text-muted)}
 input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(91,106,240,.15)}
 select{
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238b90b8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 10px center;
-  padding-right:30px;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238b90b8' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 11px center;
+  padding-right:32px;cursor:pointer;
 }
-select option{background:var(--surface2);color:var(--text)}
+select option{background:var(--surface2)}
 
 /* ── Header ── */
 header{position:sticky;top:0;z-index:100;background:var(--surface);
   border-bottom:1px solid var(--border);padding:0 28px;height:52px;
-  display:flex;align-items:center;justify-content:space-between;
-  backdrop-filter:blur(8px)}
+  display:flex;align-items:center;justify-content:space-between}
 .logo{display:flex;align-items:center;gap:9px;font-weight:700;font-size:1rem;
   color:var(--text);text-decoration:none}
 .logo-icon{width:26px;height:26px;border-radius:6px;overflow:hidden;flex-shrink:0}
 .logo-icon img{width:100%;height:100%;object-fit:cover}
 .header-right{display:flex;align-items:center;gap:6px}
-.nav-link{color:var(--text-dim);text-decoration:none;font-size:.8rem;padding:5px 10px;
-  border-radius:var(--radius-sm);transition:background .15s,color .15s}
+.nav-link{color:var(--text-dim);text-decoration:none;font-size:.8rem;
+  padding:5px 10px;border-radius:var(--radius-sm);transition:background .15s,color .15s}
 .nav-link:hover{background:var(--surface2);color:var(--text)}
 .btn-logout{background:none;border:1px solid var(--border);color:var(--text-dim);
   font-size:.78rem;padding:5px 12px;border-radius:var(--radius-sm);cursor:pointer;
@@ -57,104 +53,95 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
 .btn-logout:hover{border-color:var(--red);color:var(--red)}
 
 /* ── Layout ── */
-.container{max-width:900px;margin:0 auto;padding:28px 24px 80px}
-.page-title{font-size:1.25rem;font-weight:700;margin-bottom:4px}
+.container{max-width:860px;margin:0 auto;padding:28px 24px 80px}
+.page-title{font-size:1.2rem;font-weight:700;margin-bottom:3px}
 .page-sub{font-size:.8rem;color:var(--text-dim);margin-bottom:24px}
 
 /* ── Card ── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-  margin-bottom:14px;overflow:hidden}
-.card-header{display:flex;align-items:center;justify-content:space-between;
-  padding:16px 20px;border-bottom:1px solid var(--border)}
-.card-title{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--text-dim)}
-.card-body{padding:20px}
-.card-body.compact{padding:0}
+.card{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
+.card-head{display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px;border-bottom:1px solid var(--border)}
+.card-title{font-size:.68rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.9px;color:var(--text-dim)}
+.card-body{padding:18px 20px}
 
-/* ── Stat ── */
+/* ── Stats ── */
 .stat-row{display:flex;gap:1px;background:var(--border)}
-.stat-box{flex:1;background:var(--surface);padding:16px 20px}
-.stat-box .s-label{font-size:.72rem;color:var(--text-dim);margin-bottom:5px}
-.stat-box .s-value{font-size:1.5rem;font-weight:700;color:var(--accent)}
-
-/* ── Folder item ── */
-.folder-item{padding:16px 20px;border-bottom:1px solid var(--border);transition:background .15s}
-.folder-item:last-child{border-bottom:none}
-.folder-item:hover{background:rgba(255,255,255,.015)}
-
-.fi-main{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-.fi-info{flex:1;min-width:0}
-.fi-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
-.fi-indicator{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:1px}
-.fi-name{font-weight:600;font-size:.9rem}
-.fi-path{font-size:.73rem;color:var(--text-dim);word-break:break-all;padding-left:15px}
-
-.fi-controls{display:flex;align-items:center;gap:6px;flex-shrink:0}
-.fi-badge{font-size:.72rem;font-weight:600;color:var(--accent);background:var(--accent-bg);
-  border:1px solid rgba(91,106,240,.2);padding:3px 10px;border-radius:20px;white-space:nowrap}
-
-/* ── Buttons ── */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;
-  border:none;border-radius:var(--radius-sm);font-size:.8rem;font-weight:600;
-  cursor:pointer;font-family:inherit;transition:background .15s,opacity .15s;white-space:nowrap}
-.btn-primary{background:var(--accent);color:#fff;padding:8px 16px}
-.btn-primary:hover{background:var(--accent-dim)}
-.btn-primary:disabled{opacity:.45;cursor:not-allowed}
-.btn-ghost{background:var(--surface2);color:var(--text-dim);padding:8px 14px;border:1px solid var(--border)}
-.btn-ghost:hover{border-color:var(--accent);color:var(--text)}
-.btn-icon{background:none;border:1px solid var(--border);color:var(--text-dim);
-  width:30px;height:30px;border-radius:var(--radius-sm);cursor:pointer;
-  display:inline-flex;align-items:center;justify-content:center;font-size:.8rem;
-  font-family:inherit;transition:border-color .15s,color .15s,background .15s}
-.btn-icon:hover{border-color:var(--red);color:var(--red);background:var(--red-bg)}
-.btn-icon.reindex:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
-
-/* ── Meta row ── */
-.fi-meta{display:flex;flex-wrap:wrap;gap:16px;margin-top:10px;padding-top:10px;
-  border-top:1px solid var(--border);align-items:center}
-.fi-meta-item{display:flex;flex-direction:column;gap:2px}
-.fi-meta-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted)}
-.fi-meta-value{font-size:.78rem;color:var(--text-dim)}
-.fi-meta-value.active{color:var(--text)}
-
-.schedule-wrap{display:flex;align-items:center;gap:6px}
-.schedule-wrap select{width:auto;min-width:150px;font-size:.78rem;padding:5px 28px 5px 9px}
-.schedule-wrap .save-btn{padding:5px 10px;font-size:.75rem}
-
-/* ── Progress ── */
-.fi-progress{margin-top:10px}
-.progress-track{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:4px}
-.progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .4s ease}
-.progress-label{font-size:.7rem;color:var(--text-dim)}
-
-/* ── Empty state ── */
-.empty-state{padding:36px;text-align:center;color:var(--text-dim);font-size:.85rem}
-.empty-state svg{opacity:.25;display:block;margin:0 auto 12px}
+.stat-box{flex:1;background:var(--surface);padding:14px 20px}
+.s-label{font-size:.72rem;color:var(--text-dim);margin-bottom:4px}
+.s-value{font-size:1.4rem;font-weight:700;color:var(--accent)}
 
 /* ── Add form ── */
-.add-form-grid{display:grid;grid-template-columns:1fr 2fr 160px;gap:10px;align-items:end}
-@media(max-width:640px){.add-form-grid{grid-template-columns:1fr}}
+.form-grid{display:grid;grid-template-columns:1fr 2fr;gap:10px}
+.form-grid-3{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+@media(max-width:600px){.form-grid,.form-grid-3{grid-template-columns:1fr}}
 .field{display:flex;flex-direction:column;gap:5px}
-.field label{font-size:.72rem;font-weight:600;color:var(--text-dim);
-  text-transform:uppercase;letter-spacing:.5px}
-.form-row{display:flex;align-items:flex-end;gap:10px;margin-top:10px}
-.form-msg{font-size:.78rem;margin-top:8px;min-height:16px}
+.field label{font-size:.7rem;font-weight:600;text-transform:uppercase;
+  letter-spacing:.5px;color:var(--text-dim)}
+.form-actions{display:flex;align-items:center;gap:10px;margin-top:12px}
+.form-msg{font-size:.78rem;min-height:14px}
 .form-error{color:var(--red)}
 .form-ok{color:var(--green)}
 
-/* ── Client setup ── */
-.setup-desc{font-size:.82rem;color:var(--text-dim);line-height:1.7;margin-bottom:14px}
-.setup-steps{padding-left:18px;margin-bottom:16px}
-.setup-steps li{font-size:.82rem;color:var(--text-dim);margin-bottom:5px;line-height:1.6}
-.setup-steps code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
-  border-radius:var(--radius-xs);font-size:.78rem;color:var(--text)}
-.setup-btns{display:flex;gap:8px;flex-wrap:wrap}
-.btn-dl{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:5px;border:none;
   border-radius:var(--radius-sm);font-size:.82rem;font-weight:600;
+  cursor:pointer;font-family:inherit;transition:background .15s;padding:9px 18px;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-dim)}
+.btn-primary:disabled{opacity:.45;cursor:not-allowed}
+
+/* ── Item rows ── */
+.item-list{display:flex;flex-direction:column}
+.item-row{display:flex;align-items:center;gap:12px;padding:12px 20px;
+  border-bottom:1px solid var(--border);transition:background .12s}
+.item-row:last-child{border-bottom:none}
+.item-row:hover{background:rgba(255,255,255,.015)}
+.item-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.item-info{flex:1;min-width:0}
+.item-name{font-weight:600;font-size:.88rem;margin-bottom:2px}
+.item-sub{font-size:.73rem;color:var(--text-dim);word-break:break-all}
+.item-meta{display:flex;gap:14px;margin-top:6px}
+.meta-chip{display:flex;flex-direction:column;gap:1px}
+.meta-label{font-size:.62rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)}
+.meta-value{font-size:.75rem;color:var(--text-dim)}
+.meta-value.hi{color:var(--text)}
+.item-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.badge{font-size:.72rem;font-weight:600;color:var(--accent);
+  background:var(--accent-bg);border:1px solid rgba(91,106,240,.2);
+  padding:3px 10px;border-radius:20px;white-space:nowrap}
+
+.btn-icon{background:none;border:1px solid var(--border);color:var(--text-dim);
+  width:28px;height:28px;border-radius:var(--radius-sm);cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:.8rem;font-family:inherit;flex-shrink:0;
+  transition:border-color .15s,color .15s,background .15s}
+.btn-icon:hover{border-color:var(--red);color:var(--red);background:var(--red-bg)}
+
+/* ── Progress ── */
+.prog-wrap{margin-top:8px}
+.prog-track{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:3px}
+.prog-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .4s}
+.prog-text{font-size:.68rem;color:var(--text-dim)}
+
+/* ── Empty ── */
+.empty{padding:28px 20px;text-align:center;color:var(--text-muted);font-size:.83rem}
+
+/* ── Client setup ── */
+.setup-desc{font-size:.82rem;color:var(--text-dim);line-height:1.7;margin-bottom:12px}
+.setup-steps{padding-left:18px;margin-bottom:14px}
+.setup-steps li{font-size:.82rem;color:var(--text-dim);margin-bottom:4px;line-height:1.6}
+code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
+  border-radius:var(--radius-xs);font-size:.78rem;color:var(--text)}
+.dl-row{display:flex;gap:8px;flex-wrap:wrap}
+.btn-dl{display:inline-flex;align-items:center;gap:5px;padding:8px 16px;
+  border-radius:var(--radius-sm);font-size:.8rem;font-weight:600;
   text-decoration:none;transition:background .15s,border-color .15s}
 .btn-dl-primary{background:var(--accent);color:#fff}
 .btn-dl-primary:hover{background:var(--accent-dim)}
-.btn-dl-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
-.btn-dl-secondary:hover{border-color:var(--accent)}
+.btn-dl-sec{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.btn-dl-sec:hover{border-color:var(--accent)}
 
 /* ── Dialog ── */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;
@@ -162,13 +149,13 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
   opacity:0;pointer-events:none;transition:opacity .2s}
 .overlay.visible{opacity:1;pointer-events:all}
 .dialog{background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius);padding:28px 32px;max-width:380px;width:90%}
+  border-radius:var(--radius);padding:26px 30px;max-width:370px;width:90%}
 .dialog h3{font-size:.95rem;font-weight:600;margin-bottom:8px}
-.dialog p{font-size:.83rem;color:var(--text-dim);margin-bottom:22px;line-height:1.55}
+.dialog p{font-size:.83rem;color:var(--text-dim);margin-bottom:20px;line-height:1.55}
 .dialog-btns{display:flex;gap:8px;justify-content:flex-end}
 .btn-cancel{background:var(--surface2);color:var(--text);border:1px solid var(--border);
-  padding:8px 18px;border-radius:var(--radius-sm);font-size:.83rem;cursor:pointer;font-family:inherit}
-.btn-danger{background:var(--red);color:#fff;border:none;padding:8px 18px;
+  padding:7px 16px;border-radius:var(--radius-sm);font-size:.83rem;cursor:pointer;font-family:inherit}
+.btn-danger{background:var(--red);color:#fff;border:none;padding:7px 16px;
   border-radius:var(--radius-sm);font-size:.83rem;font-weight:600;cursor:pointer;
   font-family:inherit;transition:background .15s}
 .btn-danger:hover{background:var(--red-dim)}
@@ -190,8 +177,8 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
 </header>
 
 <div class="container">
-  <div class="page-title">Администратор</div>
-  <div class="page-sub">Управление индексом и настройками переиндексации</div>
+  <div class="page-title">Панель управления</div>
+  <div class="page-sub">Индексы и расписание переиндексации</div>
 
   <!-- Stats -->
   <div class="card">
@@ -201,92 +188,21 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
         <div class="s-value" id="totalCount">{{ count }}</div>
       </div>
       <div class="stat-box">
-        <div class="s-label">Папок проиндексировано</div>
-        <div class="s-value">{{ folders|length }}</div>
+        <div class="s-label">Индексов</div>
+        <div class="s-value" style="color:var(--text)">{{ folders|length }}</div>
       </div>
     </div>
   </div>
 
-  <!-- Folder list -->
+  <!-- Block 1: Indexes -->
   <div class="card">
-    <div class="card-header">
+    <div class="card-head">
       <div class="card-title">Индексы</div>
     </div>
-    <div class="card-body compact" id="folderList">
-      {% if folders %}
-        {% for f in folders %}
-        <div class="folder-item" data-id="{{ f.id }}" data-name="{{ f.name }}">
-          <div class="fi-main">
-            <div class="fi-info">
-              <div class="fi-top">
-                <div class="fi-indicator"></div>
-                <div class="fi-name">{{ f.name }}</div>
-              </div>
-              <div class="fi-path">{{ f.path }}</div>
-            </div>
-            <div class="fi-controls">
-              <span class="fi-badge" id="cnt-{{ f.id }}">{{ f.file_count }} файлов</span>
-              <button class="btn-icon reindex" title="Переиндексировать" onclick="reindex({{ f.id }})">↻</button>
-              <button class="btn-icon" title="Удалить" onclick="confirmDelete({{ f.id }}, '{{ f.name }}')">✕</button>
-            </div>
-          </div>
 
-          <!-- Progress -->
-          <div class="fi-progress" id="prog-{{ f.id }}"
-               style="display:{% if f.progress.status == 'indexing' %}block{% else %}none{% endif %}">
-            <div class="progress-track">
-              <div class="progress-fill" id="fill-{{ f.id }}"
-                   style="width:{% if f.progress.total %}{{ (f.progress.done / f.progress.total * 100)|int }}{% else %}0{% endif %}%">
-              </div>
-            </div>
-            <div class="progress-label" id="ptxt-{{ f.id }}">
-              {{ f.progress.done }} / {{ f.progress.total }} файлов
-            </div>
-          </div>
-
-          <!-- Meta -->
-          <div class="fi-meta">
-            <div class="fi-meta-item">
-              <span class="fi-meta-label">Последний запуск</span>
-              <span class="fi-meta-value active" id="last-{{ f.id }}">{{ f.last_reindex }}</span>
-            </div>
-            <div class="fi-meta-item">
-              <span class="fi-meta-label">Следующий</span>
-              <span class="fi-meta-value" id="nxt-{{ f.id }}">{{ f.next_reindex }}</span>
-            </div>
-            <div class="fi-meta-item schedule-wrap">
-              <span class="fi-meta-label" style="margin-bottom:5px">Переиндексация</span>
-              <select class="schedule-select" onchange="updateSchedule({{ f.id }}, this.value)">
-                <option value="30"   {% if f.reindex_minutes == 30   %}selected{% endif %}>каждые 30 мин</option>
-                <option value="60"   {% if f.reindex_minutes == 60   %}selected{% endif %}>каждый час</option>
-                <option value="180"  {% if f.reindex_minutes == 180  %}selected{% endif %}>каждые 3 часа</option>
-                <option value="360"  {% if f.reindex_minutes == 360  %}selected{% endif %}>каждые 6 часов</option>
-                <option value="720"  {% if f.reindex_minutes == 720  %}selected{% endif %}>каждые 12 часов</option>
-                <option value="1440" {% if f.reindex_minutes == 1440 %}selected{% endif %}>раз в сутки</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        {% endfor %}
-      {% else %}
-        <div class="empty-state" id="emptyMsg">
-          <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.2">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M3 7h18M3 12h18M3 17h18"/>
-          </svg>
-          Индексы ещё не добавлены
-        </div>
-      {% endif %}
-    </div>
-  </div>
-
-  <!-- Add folder -->
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">Добавить индекс</div>
-    </div>
-    <div class="card-body">
-      <div class="add-form-grid">
+    <!-- Add form -->
+    <div class="card-body" style="border-bottom:1px solid var(--border)">
+      <div class="form-grid">
         <div class="field">
           <label>Название</label>
           <input type="text" id="newName" placeholder="Документы" maxlength="64">
@@ -295,9 +211,65 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
           <label>Путь к папке</label>
           <input type="text" id="newPath" placeholder="C:\Files или \\server\share">
         </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="addBtn" onclick="addFolder()">Добавить</button>
+        <span class="form-msg form-error" id="formError"></span>
+        <span class="form-msg form-ok" id="formOk"></span>
+      </div>
+    </div>
+
+    <!-- List -->
+    <div class="item-list" id="folderList">
+      {% if folders %}
+        {% for f in folders %}
+        <div class="item-row" data-id="{{ f.id }}" data-name="{{ f.name }}">
+          <div class="item-dot"></div>
+          <div class="item-info">
+            <div class="item-name">{{ f.name }}</div>
+            <div class="item-sub">{{ f.path }}</div>
+            <div class="prog-wrap" id="prog-{{ f.id }}"
+                 style="display:{% if f.progress.status == 'indexing' %}block{% else %}none{% endif %}">
+              <div class="prog-track">
+                <div class="prog-fill" id="fill-{{ f.id }}"
+                  style="width:{% if f.progress.total %}{{ (f.progress.done/f.progress.total*100)|int }}{% else %}0{% endif %}%"></div>
+              </div>
+              <div class="prog-text" id="ptxt-{{ f.id }}">{{ f.progress.done }} / {{ f.progress.total }}</div>
+            </div>
+          </div>
+          <div class="item-right">
+            <span class="badge" id="cnt-{{ f.id }}">{{ f.file_count }} файлов</span>
+            <button class="btn-icon" title="Удалить индекс" onclick="confirmDeleteFolder({{ f.id }}, '{{ f.name }}')">✕</button>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty" id="emptyFolders">Индексы ещё не добавлены</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Block 2: Scheduler -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Планировщик переиндексации</div>
+    </div>
+
+    <!-- Add schedule form -->
+    <div class="card-body" style="border-bottom:1px solid var(--border)">
+      <div class="form-grid-3">
         <div class="field">
-          <label>Переиндексация</label>
-          <select id="newInterval">
+          <label>Индекс</label>
+          <select id="schedFolder">
+            <option value="">— выберите индекс —</option>
+            {% for f in folders %}
+            <option value="{{ f.id }}">{{ f.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Периодичность</label>
+          <select id="schedInterval">
             <option value="30">каждые 30 мин</option>
             <option value="60" selected>каждый час</option>
             <option value="180">каждые 3 часа</option>
@@ -307,19 +279,50 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
           </select>
         </div>
       </div>
-      <div class="form-row">
-        <button class="btn btn-primary" id="addBtn" onclick="addFolder()">Добавить</button>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="addSchedBtn" onclick="addSchedule()">Добавить</button>
+        <span class="form-msg form-error" id="schedError"></span>
+        <span class="form-msg form-ok" id="schedOk"></span>
       </div>
-      <div class="form-msg form-error" id="formError"></div>
-      <div class="form-msg form-ok" id="formOk"></div>
+    </div>
+
+    <!-- Schedule list -->
+    <div class="item-list" id="schedList">
+      {% if schedules %}
+        {% for s in schedules %}
+        <div class="item-row" data-sched-id="{{ s.id }}">
+          <div class="item-dot" style="background:var(--green)"></div>
+          <div class="item-info">
+            <div class="item-name">{{ s.folder_name }}</div>
+            <div class="item-meta">
+              <div class="meta-chip">
+                <span class="meta-label">Периодичность</span>
+                <span class="meta-value hi">{{ schedLabel(s.reindex_minutes) }}</span>
+              </div>
+              <div class="meta-chip">
+                <span class="meta-label">Последний запуск</span>
+                <span class="meta-value" id="slast-{{ s.id }}">{{ s.last_run_str }}</span>
+              </div>
+              <div class="meta-chip">
+                <span class="meta-label">Следующий</span>
+                <span class="meta-value" id="snxt-{{ s.id }}">{{ s.next_run_str }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="item-right">
+            <button class="btn-icon" title="Удалить расписание" onclick="deleteSchedule({{ s.id }})">✕</button>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty" id="emptySchedules">Расписания не настроены</div>
+      {% endif %}
     </div>
   </div>
 
   <!-- Client setup -->
   <div class="card">
-    <div class="card-header">
-      <div class="card-title">Настройка клиентов</div>
-    </div>
+    <div class="card-head"><div class="card-title">Настройка клиентов</div></div>
     <div class="card-body">
       <p class="setup-desc">
         Чтобы кнопки <strong style="color:var(--text)">«Открыть»</strong> и
@@ -329,13 +332,12 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
       </p>
       <ol class="setup-steps">
         <li>Скачайте <strong>setup.ps1</strong></li>
-        <li>Запустите PowerShell от имени администратора:<br>
-          <code>PowerShell -ExecutionPolicy Bypass -File setup.ps1</code></li>
-        <li>Перезапустите браузер — готово</li>
+        <li>Запустите PowerShell от администратора: <code>PowerShell -ExecutionPolicy Bypass -File setup.ps1</code></li>
+        <li>Перезапустите браузер</li>
       </ol>
-      <div class="setup-btns">
+      <div class="dl-row">
         <a class="btn-dl btn-dl-primary" href="/client/setup.ps1" download="setup.ps1">⬇ setup.ps1</a>
-        <a class="btn-dl btn-dl-secondary" href="/client/NbmSearchOpen.exe" download="NbmSearchOpen.exe">⬇ NbmSearchOpen.exe</a>
+        <a class="btn-dl btn-dl-sec" href="/client/NbmSearchOpen.exe" download="NbmSearchOpen.exe">⬇ NbmSearchOpen.exe</a>
       </div>
     </div>
   </div>
@@ -344,125 +346,164 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
 <!-- Delete dialog -->
 <div class="overlay" id="overlay">
   <div class="dialog">
-    <h3>Удалить индекс?</h3>
-    <p id="dialogMsg"></p>
+    <h3 id="dlgTitle">Удалить?</h3>
+    <p id="dlgMsg"></p>
     <div class="dialog-btns">
       <button class="btn-cancel" onclick="closeDialog()">Отмена</button>
-      <button class="btn-danger" id="confirmBtn">Удалить</button>
+      <button class="btn-danger" id="dlgConfirm">Удалить</button>
     </div>
   </div>
 </div>
 
 <script>
-const SCHEDULE_LABELS = {
+const SCHED_LABELS = {
   30:'каждые 30 мин', 60:'каждый час', 180:'каждые 3 часа',
   360:'каждые 6 часов', 720:'каждые 12 часов', 1440:'раз в сутки'
 };
 
-// ── Add folder ──────────────────────────────────────────────────────────────
+// ── Add folder ───────────────────────────────────────────────────────────────
 async function addFolder() {
-  const name     = document.getElementById('newName').value.trim();
-  const path     = document.getElementById('newPath').value.trim();
-  const interval = parseInt(document.getElementById('newInterval').value);
-  const errEl    = document.getElementById('formError');
-  const okEl     = document.getElementById('formOk');
-  const btn      = document.getElementById('addBtn');
+  const name  = document.getElementById('newName').value.trim();
+  const path  = document.getElementById('newPath').value.trim();
+  const errEl = document.getElementById('formError');
+  const okEl  = document.getElementById('formOk');
+  const btn   = document.getElementById('addBtn');
   errEl.textContent = ''; okEl.textContent = '';
   if (!name || !path) { errEl.textContent = 'Заполните оба поля'; return; }
   btn.disabled = true; btn.textContent = 'Добавляю…';
   try {
-    const res = await fetch('/api/folders', {
+    const res  = await fetch('/api/folders', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({name, path, reindex_minutes: interval}),
+      body: JSON.stringify({name, path}),
     });
     const data = await res.json();
     if (!res.ok) { errEl.textContent = data.error || 'Ошибка'; return; }
-    document.getElementById('emptyMsg')?.remove();
-    appendFolderItem(data.id, name, path, interval, 0);
+    document.getElementById('emptyFolders')?.remove();
+    appendFolderRow(data.id, name, path);
+    addFolderOption(data.id, name);
     document.getElementById('newName').value = '';
     document.getElementById('newPath').value = '';
     okEl.textContent = `Индекс «${name}» добавлен, идёт индексация…`;
-    setTimeout(() => { okEl.textContent = ''; }, 5000);
+    setTimeout(() => okEl.textContent = '', 5000);
     startPolling(data.id);
   } catch(e) { errEl.textContent = 'Ошибка соединения'; }
   finally { btn.disabled = false; btn.textContent = 'Добавить'; }
 }
 
-function appendFolderItem(id, name, path, interval, count) {
+function appendFolderRow(id, name, path) {
   const list = document.getElementById('folderList');
-  const div = document.createElement('div');
-  div.className = 'folder-item';
-  div.dataset.id = id;
-  div.dataset.name = name;
-  const selOpts = Object.entries(SCHEDULE_LABELS).map(([v,l]) =>
-    `<option value="${v}"${parseInt(v)===interval?' selected':''}>${l}</option>`).join('');
+  const div  = document.createElement('div');
+  div.className = 'item-row'; div.dataset.id = id; div.dataset.name = name;
   div.innerHTML = `
-    <div class="fi-main">
-      <div class="fi-info">
-        <div class="fi-top"><div class="fi-indicator"></div><div class="fi-name">${esc(name)}</div></div>
-        <div class="fi-path">${esc(path)}</div>
-      </div>
-      <div class="fi-controls">
-        <span class="fi-badge" id="cnt-${id}">${count} файлов</span>
-        <button class="btn-icon reindex" title="Переиндексировать" onclick="reindex(${id})">↻</button>
-        <button class="btn-icon" title="Удалить" onclick="confirmDelete(${id},'${esc(name)}')">✕</button>
+    <div class="item-dot"></div>
+    <div class="item-info">
+      <div class="item-name">${esc(name)}</div>
+      <div class="item-sub">${esc(path)}</div>
+      <div class="prog-wrap" id="prog-${id}" style="display:block">
+        <div class="prog-track"><div class="prog-fill" id="fill-${id}" style="width:0%"></div></div>
+        <div class="prog-text" id="ptxt-${id}">Запускаю…</div>
       </div>
     </div>
-    <div class="fi-progress" id="prog-${id}" style="display:block">
-      <div class="progress-track"><div class="progress-fill" id="fill-${id}" style="width:0%"></div></div>
-      <div class="progress-label" id="ptxt-${id}">Запускаю индексацию…</div>
-    </div>
-    <div class="fi-meta">
-      <div class="fi-meta-item">
-        <span class="fi-meta-label">Последний запуск</span>
-        <span class="fi-meta-value active" id="last-${id}">—</span>
-      </div>
-      <div class="fi-meta-item">
-        <span class="fi-meta-label">Следующий</span>
-        <span class="fi-meta-value" id="nxt-${id}">—</span>
-      </div>
-      <div class="fi-meta-item schedule-wrap">
-        <span class="fi-meta-label" style="margin-bottom:5px">Переиндексация</span>
-        <select class="schedule-select" onchange="updateSchedule(${id},this.value)">${selOpts}</select>
-      </div>
+    <div class="item-right">
+      <span class="badge" id="cnt-${id}">0 файлов</span>
+      <button class="btn-icon" title="Удалить" onclick="confirmDeleteFolder(${id},'${esc(name)}')">✕</button>
     </div>`;
   list.appendChild(div);
 }
 
-// ── Delete ──────────────────────────────────────────────────────────────────
-function confirmDelete(id, name) {
-  document.getElementById('dialogMsg').textContent =
-    `Индекс «${name}» и все его файлы будут удалены. Сами файлы на диске не затрагиваются.`;
-  document.getElementById('overlay').classList.add('visible');
-  document.getElementById('confirmBtn').onclick = () => doDelete(id);
-}
-function closeDialog() { document.getElementById('overlay').classList.remove('visible'); }
-document.getElementById('overlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeDialog(); });
-
-async function doDelete(id) {
-  closeDialog();
-  const res = await fetch(`/api/folders/${id}`, {method:'DELETE'}).catch(()=>null);
-  if (res?.ok) {
-    document.querySelector(`.folder-item[data-id="${id}"]`)?.remove();
-    const list = document.getElementById('folderList');
-    if (!list.querySelector('.folder-item'))
-      list.innerHTML = '<div class="empty-state" id="emptyMsg">Индексы ещё не добавлены</div>';
-    refreshStats();
-  }
+function addFolderOption(id, name) {
+  const sel = document.getElementById('schedFolder');
+  const opt = document.createElement('option');
+  opt.value = id; opt.textContent = name;
+  sel.appendChild(opt);
 }
 
-// ── Reindex ─────────────────────────────────────────────────────────────────
-async function reindex(id) {
-  await fetch(`/admin/reindex/${id}`, {method:'POST'}).catch(()=>null);
-  startPolling(id);
+// ── Delete folder ────────────────────────────────────────────────────────────
+function confirmDeleteFolder(id, name) {
+  showDialog(
+    'Удалить индекс?',
+    `Индекс «${name}» и все его данные будут удалены. Файлы на диске не затрагиваются.`,
+    async () => {
+      const res = await fetch(`/api/folders/${id}`, {method:'DELETE'}).catch(()=>null);
+      if (res?.ok) {
+        document.querySelector(`.item-row[data-id="${id}"]`)?.remove();
+        document.querySelector(`#schedFolder option[value="${id}"]`)?.remove();
+        if (!document.querySelector('#folderList .item-row'))
+          document.getElementById('folderList').innerHTML = '<div class="empty" id="emptyFolders">Индексы ещё не добавлены</div>';
+        refreshStats();
+      }
+    }
+  );
 }
 
-// ── Schedule ────────────────────────────────────────────────────────────────
-async function updateSchedule(id, minutes) {
-  await fetch(`/api/folders/${id}/schedule`, {
-    method:'PATCH', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({reindex_minutes: parseInt(minutes)}),
-  }).catch(()=>null);
+// ── Add schedule ─────────────────────────────────────────────────────────────
+async function addSchedule() {
+  const fid     = parseInt(document.getElementById('schedFolder').value);
+  const minutes = parseInt(document.getElementById('schedInterval').value);
+  const errEl   = document.getElementById('schedError');
+  const okEl    = document.getElementById('schedOk');
+  const btn     = document.getElementById('addSchedBtn');
+  errEl.textContent = ''; okEl.textContent = '';
+  if (!fid) { errEl.textContent = 'Выберите индекс'; return; }
+  btn.disabled = true; btn.textContent = 'Добавляю…';
+  try {
+    const res  = await fetch('/api/schedules', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({folder_id: fid, reindex_minutes: minutes}),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error || 'Ошибка'; return; }
+    document.getElementById('emptySchedules')?.remove();
+    appendScheduleRow(data.id, data.folder_name || folderName(fid), minutes, '—', data.next_run_str);
+    okEl.textContent = 'Расписание добавлено';
+    setTimeout(() => okEl.textContent = '', 3000);
+  } catch(e) { errEl.textContent = 'Ошибка соединения'; }
+  finally { btn.disabled = false; btn.textContent = 'Добавить'; }
+}
+
+function appendScheduleRow(id, name, minutes, lastStr, nextStr) {
+  const list = document.getElementById('schedList');
+  const div  = document.createElement('div');
+  div.className = 'item-row'; div.dataset.schedId = id;
+  div.innerHTML = `
+    <div class="item-dot" style="background:var(--green)"></div>
+    <div class="item-info">
+      <div class="item-name">${esc(name)}</div>
+      <div class="item-meta">
+        <div class="meta-chip">
+          <span class="meta-label">Периодичность</span>
+          <span class="meta-value hi">${SCHED_LABELS[minutes] || minutes + ' мин'}</span>
+        </div>
+        <div class="meta-chip">
+          <span class="meta-label">Последний запуск</span>
+          <span class="meta-value" id="slast-${id}">${lastStr}</span>
+        </div>
+        <div class="meta-chip">
+          <span class="meta-label">Следующий</span>
+          <span class="meta-value" id="snxt-${id}">${nextStr}</span>
+        </div>
+      </div>
+    </div>
+    <div class="item-right">
+      <button class="btn-icon" title="Удалить" onclick="deleteSchedule(${id})">✕</button>
+    </div>`;
+  list.appendChild(div);
+}
+
+function folderName(id) {
+  return document.querySelector(`#schedFolder option[value="${id}"]`)?.textContent || '?';
+}
+
+// ── Delete schedule ──────────────────────────────────────────────────────────
+async function deleteSchedule(id) {
+  showDialog('Удалить расписание?', 'Автоматическая переиндексация для этого правила будет отключена.', async () => {
+    const res = await fetch(`/api/schedules/${id}`, {method:'DELETE'}).catch(()=>null);
+    if (res?.ok) {
+      document.querySelector(`.item-row[data-sched-id="${id}"]`)?.remove();
+      if (!document.querySelector('#schedList .item-row'))
+        document.getElementById('schedList').innerHTML = '<div class="empty" id="emptySchedules">Расписания не настроены</div>';
+    }
+  });
 }
 
 // ── Progress polling ─────────────────────────────────────────────────────────
@@ -485,17 +526,16 @@ async function pollProgress(id) {
       if (txtEl)  txtEl.textContent = `${p.done} / ${p.total} файлов — ${pct}%`;
     } else if (p.status === 'done') {
       if (fillEl) fillEl.style.width = '100%';
-      if (txtEl)  txtEl.textContent = `Готово: ${p.total} файлов`;
+      if (txtEl)  txtEl.textContent = `Проиндексировано: ${p.total} файлов`;
       setTimeout(() => { if (progEl) progEl.style.display = 'none'; }, 2500);
-      clearInterval(_pollers[id]);
-      delete _pollers[id];
-      await refreshStats();
+      clearInterval(_pollers[id]); delete _pollers[id];
+      refreshStats();
     }
   } catch(e) {}
 }
 
-// Start polling for folders already indexing on page load
-document.querySelectorAll('.folder-item').forEach(el => {
+// Auto-start polling for already-indexing folders
+document.querySelectorAll('.item-row[data-id]').forEach(el => {
   const id = parseInt(el.dataset.id);
   if (document.getElementById(`prog-${id}`)?.style.display !== 'none') startPolling(id);
 });
@@ -507,18 +547,41 @@ async function refreshStats() {
     const tot = document.getElementById('totalCount');
     if (tot) tot.textContent = d.count;
     (d.folders || []).forEach(f => {
-      const cnt  = document.getElementById(`cnt-${f.id}`);
-      const last = document.getElementById(`last-${f.id}`);
-      const nxt  = document.getElementById(`nxt-${f.id}`);
-      if (cnt)  cnt.textContent  = f.file_count + ' файлов';
-      if (last) last.textContent = f.last_reindex;
-      if (nxt)  nxt.textContent  = f.next_reindex;
+      const el = document.getElementById(`cnt-${f.id}`);
+      if (el) el.textContent = f.file_count + ' файлов';
+    });
+  } catch(e) {}
+}
+
+// ── Refresh schedule times periodically ──────────────────────────────────────
+async function refreshSchedules() {
+  try {
+    const rows = await fetch('/api/schedules').then(r => r.json());
+    rows.forEach(s => {
+      const lEl = document.getElementById(`slast-${s.id}`);
+      const nEl = document.getElementById(`snxt-${s.id}`);
+      if (lEl) lEl.textContent = s.last_run_str;
+      if (nEl) nEl.textContent = s.next_run_str;
     });
   } catch(e) {}
 }
 
 setInterval(refreshStats, 20000);
+setInterval(refreshSchedules, 30000);
+
 document.getElementById('newPath').addEventListener('keydown', e => { if(e.key==='Enter') addFolder(); });
+
+// ── Dialog ───────────────────────────────────────────────────────────────────
+function showDialog(title, msg, onConfirm) {
+  document.getElementById('dlgTitle').textContent = title;
+  document.getElementById('dlgMsg').textContent = msg;
+  document.getElementById('dlgConfirm').onclick = () => { closeDialog(); onConfirm(); };
+  document.getElementById('overlay').classList.add('visible');
+}
+function closeDialog() { document.getElementById('overlay').classList.remove('visible'); }
+document.getElementById('overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeDialog();
+});
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 </script>
