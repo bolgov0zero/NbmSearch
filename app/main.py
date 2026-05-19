@@ -146,15 +146,25 @@ async def api_add_folder(data: FolderIn):
 
 @app.get("/open")
 async def open_file(path: str = ""):
-    """Open a file with the default OS application (Windows: os.startfile)."""
+    """Open a file with the default OS application.
+
+    Uses 'start' shell command — more reliable than os.startfile for UNC paths
+    (\\\\server\\share\\...) because it doesn't require os.path.exists to work.
+    """
     if not path:
         return JSONResponse({"error": "path required"}, status_code=400)
-    if not os.path.exists(path):
-        return JSONResponse({"error": "file not found"}, status_code=404)
     try:
-        os.startfile(path)  # Windows built-in — opens with default app
+        import subprocess
+        # 'start "" "path"' — first arg is window title (empty), second is path.
+        # shell=True required for the start builtin; path is quoted to handle spaces.
+        subprocess.Popen(
+            f'start "" "{path}"',
+            shell=True,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+        )
         return {"status": "ok"}
     except Exception as e:
+        logger.error("open_file error: %s", e)
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
