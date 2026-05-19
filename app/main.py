@@ -8,6 +8,12 @@ from typing import List, Optional
 
 if getattr(sys, "frozen", False):
     BASE_DIR = Path(sys._MEIPASS)
+    # In windowed PyInstaller builds stdout/stderr are None — uvicorn's logging
+    # formatter calls isatty() on them and crashes. Redirect to a log file.
+    _log_path = Path(sys.executable).parent / "nbmsearch.log"
+    _log_file = open(_log_path, "a", encoding="utf-8", buffering=1)
+    sys.stdout = _log_file
+    sys.stderr = _log_file
 else:
     BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -152,4 +158,10 @@ async def api_delete_folder(folder_id: int):
 
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="0.0.0.0", port=PORT, reload=False)
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=PORT,
+        reload=False,
+        log_config=None,  # disable uvicorn's logging config — safe after we set up our own
+    )
