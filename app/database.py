@@ -20,6 +20,7 @@ def init_db():
     with _write_lock:
         conn = get_conn()
         cur = conn.cursor()
+
         cur.executescript("""
             CREATE TABLE IF NOT EXISTS folders (
                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,32 +36,42 @@ def init_db():
                 folder_name TEXT    NOT NULL DEFAULT '',
                 size        INTEGER NOT NULL,
                 modified_at REAL    NOT NULL,
-                indexed_at  REAL    NOT NULL
-            );
-
-            CREATE VIRTUAL TABLE IF NOT EXISTS fts_index USING fts5(
-                content,
-                tokenize='unicode61'
+                indexed_at  REAL    NOT NULL,
+                content     TEXT    NOT NULL DEFAULT ''
             );
         """)
-        try:
-            cur.execute("ALTER TABLE files ADD COLUMN folder_name TEXT NOT NULL DEFAULT ''")
-            conn.commit()
-        except Exception:
-            pass
 
-        # Migrate: if fts_index was created with content=files it breaks snippet().
-        # Detect by checking sqlite_master for the old definition and recreate.
+        # Migrations for older schemas
+        for col in ("folder_name TEXT NOT NULL DEFAULT ''",
+                    "content TEXT NOT NULL DEFAULT ''"):
+            try:
+                cur.execute(f"ALTER TABLE files ADD COLUMN {col}")
+                conn.commit()
+            except Exception:
+                pass
+
+        # Recreate fts_index as external-content table if needed.
+        # content='files' means FTS stores only the inverted index;
+        # the actual text lives in files.content — no duplication.
         cur.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='fts_index'")
         row = cur.fetchone()
-        if row and "content=files" in (row[0] or ""):
+        fts_sql = row[0] if row else ""
+        need_recreate = not fts_sql or "content='files'" not in fts_sql
+
+        if need_recreate:
             cur.execute("DROP TABLE IF EXISTS fts_index")
             cur.execute("""
                 CREATE VIRTUAL TABLE fts_index USING fts5(
                     content,
+                    content='files',
+                    content_rowid='id',
                     tokenize='unicode61'
                 )
             """)
+            # Rebuild index from existing files.content
+            cur.execute(
+                "INSERT INTO fts_index(rowid, content) SELECT id, content FROM files"
+            )
             conn.commit()
 
         conn.commit()
@@ -139,27 +150,30 @@ def upsert_file(path: str, name: str, folder_name: str, size: int,
         conn = get_conn()
         cur = conn.cursor()
         try:
-            cur.execute("SELECT id FROM files WHERE path = ?", (path,))
+            cur.execute("SELECT id, content FROM files WHERE path = ?", (path,))
             row = cur.fetchone()
             if row:
                 file_id = row["id"]
-                cur.execute(
-                    "UPDATE files SET name=?, folder_name=?, size=?, modified_at=?, indexed_at=? WHERE id=?",
-                    (name, folder_name, size, modified_at, indexed_at, file_id),
-                )
+                old_content = row["content"]
+                # Remove old entry from FTS index (needs original content)
                 cur.execute(
                     "INSERT INTO fts_index(fts_index, rowid, content) VALUES ('delete', ?, ?)",
-                    (file_id, content),
+                    (file_id, old_content),
                 )
-                cur.execute("INSERT INTO fts_index(rowid, content) VALUES (?, ?)", (file_id, content))
+                cur.execute(
+                    "UPDATE files SET name=?, folder_name=?, size=?, modified_at=?, "
+                    "indexed_at=?, content=? WHERE id=?",
+                    (name, folder_name, size, modified_at, indexed_at, content, file_id),
+                )
             else:
                 cur.execute(
-                    "INSERT INTO files (path, name, folder_name, size, modified_at, indexed_at) "
-                    "VALUES (?,?,?,?,?,?)",
-                    (path, name, folder_name, size, modified_at, indexed_at),
+                    "INSERT INTO files (path, name, folder_name, size, modified_at, indexed_at, content) "
+                    "VALUES (?,?,?,?,?,?,?)",
+                    (path, name, folder_name, size, modified_at, indexed_at, content),
                 )
                 file_id = cur.lastrowid
-                cur.execute("INSERT INTO fts_index(rowid, content) VALUES (?, ?)", (file_id, content))
+            # Add new entry to FTS index
+            cur.execute("INSERT INTO fts_index(rowid, content) VALUES (?, ?)", (file_id, content))
             conn.commit()
         except Exception:
             conn.rollback()
@@ -172,15 +186,14 @@ def delete_file(path: str):
     with _write_lock:
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute("SELECT id FROM files WHERE path = ?", (path,))
+        cur.execute("SELECT id, content FROM files WHERE path = ?", (path,))
         row = cur.fetchone()
         if row:
-            file_id = row["id"]
             cur.execute(
-                "INSERT INTO fts_index(fts_index, rowid, content) VALUES ('delete', ?, '')",
-                (file_id,),
+                "INSERT INTO fts_index(fts_index, rowid, content) VALUES ('delete', ?, ?)",
+                (row["id"], row["content"]),
             )
-            cur.execute("DELETE FROM files WHERE id = ?", (file_id,))
+            cur.execute("DELETE FROM files WHERE id = ?", (row["id"],))
             conn.commit()
         conn.close()
 
@@ -189,12 +202,12 @@ def delete_files_by_folder(folder_name: str):
     with _write_lock:
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute("SELECT id FROM files WHERE folder_name = ?", (folder_name,))
-        ids = [r["id"] for r in cur.fetchall()]
-        for fid in ids:
+        cur.execute("SELECT id, content FROM files WHERE folder_name = ?", (folder_name,))
+        rows = cur.fetchall()
+        for r in rows:
             cur.execute(
-                "INSERT INTO fts_index(fts_index, rowid, content) VALUES ('delete', ?, '')",
-                (fid,),
+                "INSERT INTO fts_index(fts_index, rowid, content) VALUES ('delete', ?, ?)",
+                (r["id"], r["content"]),
             )
         cur.execute("DELETE FROM files WHERE folder_name = ?", (folder_name,))
         conn.commit()
