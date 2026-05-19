@@ -172,7 +172,10 @@ async def open_file(path: str = ""):
 
 @app.get("/client/NbmSearchOpen.exe")
 async def client_exe(request: Request):
-    exe_path = BASE_DIR / "NbmSearchOpen.exe"
+    if getattr(sys, "frozen", False):
+        exe_path = Path(sys.executable).parent / "NbmSearchOpen.exe"
+    else:
+        exe_path = BASE_DIR / "NbmSearchOpen.exe"
     if not exe_path.exists():
         return JSONResponse({"error": "NbmSearchOpen.exe not found on server"}, status_code=404)
     return FileResponse(str(exe_path), media_type="application/octet-stream", filename="NbmSearchOpen.exe")
