@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NbmSearch — Администратор</title>
+<style>
+:root {
+  --bg:        #0f1117;
+  --surface:   #1a1d27;
+  --surface2:  #22263a;
+  --border:    #2d3148;
+  --accent:    #5b6af0;
+  --accent-dim:#3d4ab0;
+  --text:      #e8eaf6;
+  --text-dim:  #8b90b8;
+  --green:     #2ecc71;
+  --red:       #e74c3c;
+  --radius:    10px;
+  --radius-sm: 6px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── Header ── */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text);
+  text-decoration: none;
+}
+.logo-icon {
+  width: 28px;
+  height: 28px;
+  background: var(--accent);
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .9rem;
+}
+
+nav a {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: .875rem;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  transition: background .15s, color .15s;
+}
+nav a:hover { background: var(--surface2); color: var(--text); }
+
+/* ── Layout ── */
+.container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 36px 32px 60px;
+}
+
+.page-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 28px;
+}
+
+/* ── Cards ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  margin-bottom: 16px;
+}
+
+.card-title {
+  font-size: .72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: var(--text-dim);
+  margin-bottom: 18px;
+}
+
+/* ── Stat grid ── */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.stat-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px 18px;
+}
+.stat-box .s-label { font-size: .78rem; color: var(--text-dim); margin-bottom: 6px; }
+.stat-box .s-value { font-size: 1.35rem; font-weight: 700; color: var(--text); }
+.stat-box .s-value.accent { color: var(--accent); }
+
+/* ── Folder rows ── */
+.folder-rows { display: flex; flex-direction: column; gap: 10px; }
+
+.folder-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  gap: 12px;
+}
+
+.fr-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+
+.fr-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.fr-name { font-weight: 600; font-size: .9rem; }
+.fr-path { font-size: .75rem; color: var(--text-dim); margin-top: 2px; word-break: break-all; }
+
+.fr-count {
+  flex-shrink: 0;
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(91,106,240,.12);
+  border: 1px solid rgba(91,106,240,.25);
+  padding: 3px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+/* ── Reindex button ── */
+.action-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+
+.btn {
+  padding: 10px 22px;
+  border-radius: var(--radius-sm);
+  font-size: .875rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: background .15s, opacity .15s;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-dim); }
+.btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+.action-msg {
+  font-size: .85rem;
+  color: var(--green);
+  opacity: 0;
+  transition: opacity .3s;
+}
+.action-msg.visible { opacity: 1; }
+
+/* ── Schedule info ── */
+.schedule-row {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.sched-item { }
+.sched-item .si-label { font-size: .75rem; color: var(--text-dim); margin-bottom: 4px; }
+.sched-item .si-value { font-size: .9rem; font-weight: 600; }
+
+/* ── Recent files table ── */
+.table-wrap { overflow-x: auto; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .83rem;
+}
+thead th {
+  text-align: left;
+  padding: 9px 12px;
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+}
+tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: var(--surface2); }
+
+.td-name { font-weight: 500; color: var(--text); }
+.td-folder {
+  white-space: nowrap;
+  font-size: .75rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  background: var(--surface2);
+  display: inline-block;
+}
+.td-date { color: var(--text-dim); white-space: nowrap; }
+.td-path { color: var(--text-dim); font-size: .78rem; word-break: break-all; max-width: 280px; }
+
+.empty-row { text-align: center; color: var(--text-dim); padding: 28px !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/" class="logo">
+    <span class="logo-icon">⌕</span>
+    NbmSearch
+  </a>
+  <nav>
+    <a href="/">← Поиск</a>
+  </nav>
+</header>
+
+<div class="container">
+  <h1 class="page-title">Администратор</h1>
+
+  <!-- Stats -->
+  <div class="card">
+    <div class="card-title">Общая статистика</div>
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="s-label">Файлов в индексе</div>
+        <div class="s-value accent" id="totalCount">{{ count }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="s-label">Последняя переиндексация</div>
+        <div class="s-value" id="lastReindex" style="font-size:.95rem">{{ last_reindex }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="s-label">Следующая переиндексация</div>
+        <div class="s-value" id="nextReindex" style="font-size:.95rem">{{ next_reindex }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Folders -->
+  <div class="card">
+    <div class="card-title">Папки индексации</div>
+    <div class="folder-rows" id="folderRows">
+      {% for fc in folders_config %}
+      <div class="folder-row">
+        <div class="fr-left">
+          <div class="fr-dot"></div>
+          <div>
+            <div class="fr-name">{{ fc.name }}</div>
+            <div class="fr-path">{{ fc.path }}</div>
+          </div>
+        </div>
+        <div class="fr-count" id="fc-{{ loop.index0 }}">
+          {% set ns = namespace(found=false) %}
+          {% for bf in by_folder %}
+            {% if bf.folder_name == fc.name %}
+              {{ bf.cnt }} файлов
+              {% set ns.found = true %}
+            {% endif %}
+          {% endfor %}
+          {% if not ns.found %}0 файлов{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Reindex -->
+  <div class="card">
+    <div class="card-title">Управление индексом</div>
+    <div class="action-row">
+      <button class="btn btn-primary" id="reindexBtn" onclick="triggerReindex()">
+        Переиндексировать сейчас
+      </button>
+      <span class="action-msg" id="reindexMsg">Запущено</span>
+    </div>
+  </div>
+
+  <!-- Recent files -->
+  <div class="card">
+    <div class="card-title">Последние 20 проиндексированных файлов</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Файл</th>
+            <th>Папка</th>
+            <th>Проиндексирован</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in recent %}
+          <tr>
+            <td>
+              <div class="td-name">{{ r.name }}</div>
+              <div class="td-path">{{ r.path }}</div>
+            </td>
+            <td><span class="td-folder">{{ r.folder_name or '—' }}</span></td>
+            <td class="td-date">{{ r.indexed_at_str }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" class="empty-row">Нет данных</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+async function triggerReindex() {
+  const btn = document.getElementById('reindexBtn');
+  const msg = document.getElementById('reindexMsg');
+  btn.disabled = true;
+  try {
+    await fetch('/admin/reindex', { method: 'POST' });
+    msg.classList.add('visible');
+    setTimeout(() => msg.classList.remove('visible'), 4000);
+    setTimeout(refreshStats, 4000);
+  } catch(e) {}
+  setTimeout(() => { btn.disabled = false; }, 3000);
+}
+
+async function refreshStats() {
+  try {
+    const res = await fetch('/admin/stats');
+    const d = await res.json();
+    document.getElementById('totalCount').textContent = d.count;
+    document.getElementById('lastReindex').textContent = d.last_reindex;
+    document.getElementById('nextReindex').textContent = d.next_reindex;
+  } catch(e) {}
+}
+
+setInterval(refreshStats, 30000);
+</script>
+</body>
+</html>

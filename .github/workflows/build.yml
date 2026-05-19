@@ -1,0 +1,45 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build EXE
+        run: |
+          pyinstaller --onefile --windowed --name NbmSearch `
+            --add-data "templates;templates" `
+            app/main.py
+
+      - name: Rename artifact
+        run: mv dist/NbmSearch.exe dist/NbmSearch-windows.exe
+
+      - name: Generate release tag
+        id: tag
+        run: echo "tag=$(Get-Date -Format 'yyyy-MM-dd-HH-mm')" >> $env:GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: NbmSearch ${{ steps.tag.outputs.tag }}
+          files: dist/NbmSearch-windows.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
