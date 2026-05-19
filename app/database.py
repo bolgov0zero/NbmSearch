@@ -19,8 +19,18 @@ from pathlib import Path
 
 from app.settings import DB_PATH, DATA_DIR
 
-_write_lock = threading.Lock()
+# One lock per folder DB — parallel indexing of different folders works fully concurrently
+_main_lock = threading.Lock()
+_folder_locks: dict[int, threading.Lock] = {}
+_folder_locks_mu = threading.Lock()
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _folder_lock(folder_id: int) -> threading.Lock:
+    with _folder_locks_mu:
+        if folder_id not in _folder_locks:
+            _folder_locks[folder_id] = threading.Lock()
+        return _folder_locks[folder_id]
 
 
 # ── Connections ───────────────────────────────────────────────────────────────
@@ -196,8 +206,7 @@ def get_folders() -> list[dict]:
 
 
 def set_folder_last_reindex(folder_id: int, ts: float):
-    # Update last_run_at on all schedules for this folder
-    with _write_lock:
+    with _main_lock:
         conn = _get_main_conn()
         rows = conn.execute("SELECT id, reindex_minutes FROM schedules WHERE folder_id=?", (folder_id,)).fetchall()
         for r in rows:
@@ -208,7 +217,7 @@ def set_folder_last_reindex(folder_id: int, ts: float):
 
 
 def add_folder(name: str, path: str) -> dict:
-    with _write_lock:
+    with _main_lock:
         conn = _get_main_conn()
         cur = conn.execute(
             "INSERT INTO folders (name, path, created_at) VALUES (?,?,?)",
@@ -238,7 +247,7 @@ def get_schedules() -> list[dict]:
 
 def add_schedule(folder_id: int, reindex_minutes: int) -> dict:
     nxt = time.time() + reindex_minutes * 60
-    with _write_lock:
+    with _main_lock:
         conn = _get_main_conn()
         cur = conn.execute(
             "INSERT INTO schedules (folder_id, reindex_minutes, next_run_at, created_at) VALUES (?,?,?,?)",
@@ -251,7 +260,7 @@ def add_schedule(folder_id: int, reindex_minutes: int) -> dict:
 
 
 def delete_schedule(schedule_id: int):
-    with _write_lock:
+    with _main_lock:
         conn = _get_main_conn()
         conn.execute("DELETE FROM schedules WHERE id=?", (schedule_id,))
         conn.commit()
@@ -260,7 +269,7 @@ def delete_schedule(schedule_id: int):
 
 def update_schedule_run(schedule_id: int, reindex_minutes: int):
     nxt = time.time() + reindex_minutes * 60
-    with _write_lock:
+    with _main_lock:
         conn = _get_main_conn()
         conn.execute(
             "UPDATE schedules SET last_run_at=?, next_run_at=? WHERE id=?",
@@ -271,7 +280,7 @@ def update_schedule_run(schedule_id: int, reindex_minutes: int):
 
 
 def delete_folder(folder_id: int) -> str | None:
-    with _write_lock:
+    with _main_lock:
         conn = _get_main_conn()
         row = conn.execute("SELECT name FROM folders WHERE id=?", (folder_id,)).fetchone()
         if not row:
@@ -295,7 +304,7 @@ def delete_folder(folder_id: int) -> str | None:
 def upsert_file(folder_id: int, path: str, name: str, size: int,
                 modified_at: float, content: str, indexed_at: float):
     compressed = _compress(content)
-    with _write_lock:
+    with _folder_lock(folder_id):
         conn = _get_folder_conn(folder_id)
         try:
             row = conn.execute("SELECT id FROM files WHERE path=?", (path,)).fetchone()
@@ -327,7 +336,7 @@ def upsert_file(folder_id: int, path: str, name: str, size: int,
 
 
 def delete_file_from_folder(folder_id: int, path: str):
-    with _write_lock:
+    with _folder_lock(folder_id):
         conn = _get_folder_conn(folder_id)
         row = conn.execute("SELECT id, content FROM files WHERE path=?", (path,)).fetchone()
         if row:
