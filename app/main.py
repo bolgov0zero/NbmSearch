@@ -123,10 +123,11 @@ async def admin(request: Request):
     counts_map = {b["folder_name"]: b["cnt"] for b in by_folder}
     for f in folders:
         f["file_count"] = counts_map.get(f["name"], 0)
-        prog = indexer.get_progress(f["id"])
-        f["progress"] = prog
+        f["progress"] = indexer.get_progress(f["id"])
         nxt = indexer.get_next_reindex(f["id"])
-        f["next_reindex"] = datetime.fromtimestamp(nxt).strftime("%H:%M %d.%m.%Y") if nxt else "—"
+        f["next_reindex"] = datetime.fromtimestamp(nxt).strftime("%d.%m.%Y %H:%M") if nxt else "—"
+        lrt = f.get("last_reindex_at")
+        f["last_reindex"] = datetime.fromtimestamp(lrt).strftime("%d.%m.%Y %H:%M") if lrt else "—"
     return templates.TemplateResponse("admin.html", {
         "request": request,
         "count": count,
@@ -145,12 +146,14 @@ async def admin_stats(request: Request):
     for f in folders:
         prog = indexer.get_progress(f["id"])
         nxt = indexer.get_next_reindex(f["id"])
+        lrt = f.get("last_reindex_at")
         result.append({
             "id": f["id"],
             "name": f["name"],
             "file_count": counts_map.get(f["name"], 0),
-            "progress": prog,
-            "next_reindex": datetime.fromtimestamp(nxt).strftime("%H:%M %d.%m.%Y") if nxt else "—",
+            "progress": indexer.get_progress(f["id"]),
+            "next_reindex": datetime.fromtimestamp(nxt).strftime("%d.%m.%Y %H:%M") if nxt else "—",
+            "last_reindex": datetime.fromtimestamp(lrt).strftime("%d.%m.%Y %H:%M") if lrt else "—",
         })
     return {"count": count, "folders": result}
 

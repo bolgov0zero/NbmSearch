@@ -190,6 +190,7 @@ def index_folder(folder: dict):
         db.delete_file_from_folder(folder_id, stale)
 
     _set_progress(folder_id, total, total, "done")
+    db.set_folder_last_reindex(folder_id, time.time())
     logger.info("Done indexing folder '%s'", folder_name)
 
 

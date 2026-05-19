@@ -79,11 +79,15 @@ def init_db():
                 created_at REAL NOT NULL
             );
         """)
-        # migration: add reindex_minutes if missing
-        try:
-            conn.execute("ALTER TABLE folders ADD COLUMN reindex_minutes INTEGER NOT NULL DEFAULT 60")
-        except Exception:
-            pass
+        # migrations
+        for ddl in (
+            "ALTER TABLE folders ADD COLUMN reindex_minutes INTEGER NOT NULL DEFAULT 60",
+            "ALTER TABLE folders ADD COLUMN last_reindex_at REAL",
+        ):
+            try:
+                conn.execute(ddl)
+            except Exception:
+                pass
         conn.commit()
         conn.close()
 
@@ -178,10 +182,18 @@ def _make_snippet(text: str, query: str, radius: int = 150) -> str:
 def get_folders() -> list[dict]:
     conn = _get_main_conn()
     rows = [dict(r) for r in conn.execute(
-        "SELECT id, name, path, reindex_minutes, created_at FROM folders ORDER BY created_at"
+        "SELECT id, name, path, reindex_minutes, created_at, last_reindex_at FROM folders ORDER BY created_at"
     ).fetchall()]
     conn.close()
     return rows
+
+
+def set_folder_last_reindex(folder_id: int, ts: float):
+    with _write_lock:
+        conn = _get_main_conn()
+        conn.execute("UPDATE folders SET last_reindex_at=? WHERE id=?", (ts, folder_id))
+        conn.commit()
+        conn.close()
 
 
 def add_folder(name: str, path: str, reindex_minutes: int = 60) -> dict:
