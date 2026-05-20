@@ -74,7 +74,7 @@ def _decompress(blob) -> str:
 # ── Init ─────────────────────────────────────────────────────────────────────
 
 def init_db():
-    with _write_lock:
+    with _main_lock:
         conn = _get_main_conn()
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS folders (
