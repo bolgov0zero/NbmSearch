@@ -152,7 +152,8 @@ $json = '[{{"protocol":"nbmsearch","allowed_origins":["*"]}}]'
 foreach ($p in @(
     "HKLM:\\SOFTWARE\\Policies\\Google\\Chrome",
     "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
-    "HKLM:\\SOFTWARE\\Policies\\YandexBrowser"
+    "HKLM:\\SOFTWARE\\Policies\\YandexBrowser",
+    "HKLM:\\SOFTWARE\\Policies\\Chromium"
 )) {{
     try {{
         New-Item -Path $p -Force | Out-Null
