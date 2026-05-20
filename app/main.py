@@ -148,23 +148,17 @@ Set-ItemProperty -Path $reg -Name "URL Protocol" -Value ""
 New-Item -Path "$reg\\shell\\open\\command" -Force | Out-Null
 Set-ItemProperty -Path "$reg\\shell\\open\\command" -Name "(Default)" -Value "`"$exe`" `"%1`""
 
+$json = '[{{"protocol":"nbmsearch","allowed_origins":["*"]}}]'
 foreach ($p in @(
-    "HKLM:\\SOFTWARE\\Policies\\Google\\Chrome\\AutoOpenProtocolHandlerAllowlist",
-    "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge\\AutoOpenProtocolHandlerAllowlist"
+    "HKLM:\\SOFTWARE\\Policies\\Google\\Chrome",
+    "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+    "HKLM:\\SOFTWARE\\Policies\\YandexBrowser"
 )) {{
     try {{
         New-Item -Path $p -Force | Out-Null
-        $i = ((Get-Item $p).Property.Count + 1).ToString()
-        Set-ItemProperty -Path $p -Name $i -Value "nbmsearch"
+        Set-ItemProperty -Path $p -Name "AutoLaunchProtocolsFromOrigins" -Value $json
     }} catch {{}}
 }}
-
-try {{
-    New-Item -Path "HKLM:\\SOFTWARE\\Policies\\YandexBrowser" -Force | Out-Null
-    Set-ItemProperty -Path "HKLM:\\SOFTWARE\\Policies\\YandexBrowser" `
-        -Name "AutoLaunchProtocolsFromOrigins" `
-        -Value '[{{"protocol":"nbmsearch","allowed_origins":["*"]}}]'
-}} catch {{}}
 
 Write-Host "Done! Restart your browser." -ForegroundColor Green"""
     return templates.TemplateResponse("admin.html", {
