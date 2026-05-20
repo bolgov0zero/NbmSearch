@@ -162,7 +162,9 @@ def _fts_query(raw: str) -> str:
 def _make_snippet(text: str, query: str, radius: int = 150) -> str:
     if not text:
         return ""
-    q = query.strip().strip('"')
+    stripped = query.strip()
+    is_phrase = stripped.startswith('"') and stripped.endswith('"') and len(stripped) > 2
+    q = stripped.strip('"')
     normalized_q = _normalize(q)
     tokens = [t for t in normalized_q.split() if t]
     if not tokens:
@@ -170,11 +172,19 @@ def _make_snippet(text: str, query: str, radius: int = 150) -> str:
 
     lower = text.lower()
     pos = -1
-    for token in tokens:
-        p = lower.find(token.lower())
-        if p != -1:
-            pos = p
-            break
+
+    if is_phrase:
+        # Search for the whole phrase first
+        phrase = " ".join(tokens)
+        pos = lower.find(phrase.lower())
+
+    if pos == -1:
+        # Fall back: find first token
+        for token in tokens:
+            p = lower.find(token.lower())
+            if p != -1:
+                pos = p
+                break
 
     if pos == -1:
         start, end, prefix = 0, min(len(text), radius * 2), ""
@@ -187,9 +197,12 @@ def _make_snippet(text: str, query: str, radius: int = 150) -> str:
     suffix = "…" if end < len(text) else ""
 
     def highlight(s: str) -> str:
-        # Sort longest first to avoid "Иван" matching inside "Иванов"
-        pattern = "|".join(re.escape(t) for t in sorted(tokens, key=len, reverse=True))
-        return re.sub(f"({pattern})", r"<mark>\1</mark>", s, flags=re.IGNORECASE)
+        # Sort longest first; use word boundaries to avoid partial matches
+        pattern = "|".join(
+            r"(?<![а-яёa-z\d])" + re.escape(t) + r"(?![а-яёa-z\d])"
+            for t in sorted(tokens, key=len, reverse=True)
+        )
+        return re.sub(pattern, lambda m: f"<mark>{m.group()}</mark>", s, flags=re.IGNORECASE)
 
     return prefix + highlight(excerpt) + suffix
 
