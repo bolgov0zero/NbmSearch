@@ -51,7 +51,7 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
 
 .search-row { display: flex; gap: 8px; align-items: stretch; }
 .search-container { position: relative; flex: 1; min-width: 0; }
-.btn-history { flex-shrink: 0; aspect-ratio: 1; display: flex; align-items: center;
+.btn-history { width: 100%; display: flex; align-items: center;
   justify-content: center; background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); cursor: pointer; color: var(--text-dim);
   transition: border-color .15s, color .15s, background .15s; padding: 0; }
@@ -142,7 +142,7 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
 
   <form id="searchForm">
     <div class="search-row">
-      <div style="position:relative;flex-shrink:0;display:flex">
+      <div style="position:relative;flex-shrink:0;display:flex;align-self:stretch;aspect-ratio:1">
         <button type="button" class="btn-history" id="historyBtn" title="История поиска">
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <polyline points="12 8 12 12 14 14"/>
