@@ -142,7 +142,7 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
 
   <form id="searchForm">
     <div class="search-row">
-      <div style="position:relative;flex-shrink:0;display:flex;align-self:stretch;aspect-ratio:1">
+      <div style="position:relative;flex-shrink:0;display:flex" id="historyWrap">
         <button type="button" class="btn-history" id="historyBtn" title="История поиска">
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <polyline points="12 8 12 12 14 14"/>
@@ -221,6 +221,14 @@ const statusText = document.getElementById('statusText');
 const results = document.getElementById('results');
 const historyBox = document.getElementById('searchHistory');
 const historyBtn = document.getElementById('historyBtn');
+
+// Square history button
+(function() {
+  const wrap = document.getElementById('historyWrap');
+  const h = document.querySelector('.search-wrap').offsetHeight;
+  wrap.style.width = h + 'px';
+  wrap.style.height = h + 'px';
+})();
 
 const HIST_KEY = 'nbm_search_history';
 function getHistory() { try { return JSON.parse(localStorage.getItem(HIST_KEY)) || []; } catch { return []; } }
