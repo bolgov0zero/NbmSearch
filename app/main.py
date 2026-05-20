@@ -277,9 +277,9 @@ async def client_setup(request: Request):
     host = request.headers.get("host", f"localhost:{PORT}")
     scheme = "https" if request.headers.get("x-forwarded-proto") == "https" else "http"
     server_url = f"{scheme}://{host}"
-    script = f"""# NbmSearch — установка обработчика протокола nbmsearch://
-# Устанавливается в ProgramData — работает для всех пользователей компьютера.
-# Запускать от имени администратора!
+    script = f"""# NbmSearch - nbmsearch:// protocol handler setup
+# Installs to ProgramData - works for all users on this machine.
+# Run as Administrator!
 
 #Requires -RunAsAdministrator
 $ErrorActionPreference = "Stop"
@@ -289,13 +289,13 @@ $exeName    = "NbmSearchOpen.exe"
 $installDir = "$env:ProgramData\\NbmSearch"
 $exePath    = "$installDir\\$exeName"
 
-Write-Host "Создаю папку $installDir..."
+Write-Host "Creating folder $installDir..."
 New-Item -ItemType Directory -Force -Path $installDir | Out-Null
 
-Write-Host "Загружаю $exeName с $serverUrl/client/$exeName ..."
+Write-Host "Downloading $exeName from $serverUrl/client/$exeName ..."
 Invoke-WebRequest -Uri "$serverUrl/client/$exeName" -OutFile $exePath -UseBasicParsing
 
-Write-Host "Регистрирую протокол nbmsearch:// для всех пользователей (HKLM)..."
+Write-Host "Registering nbmsearch:// protocol for all users (HKLM)..."
 $regBase = "HKLM:\\Software\\Classes\\nbmsearch"
 New-Item -Path $regBase -Force | Out-Null
 Set-ItemProperty -Path $regBase -Name "(Default)"    -Value "URL:NbmSearch Protocol"
@@ -304,7 +304,7 @@ New-Item -Path "$regBase\\shell\\open\\command" -Force | Out-Null
 Set-ItemProperty -Path "$regBase\\shell\\open\\command" -Name "(Default)" `
     -Value "`"$exePath`" `"%1`""
 
-Write-Host "Отключаю диалог подтверждения в Chrome и Edge..."
+Write-Host "Disabling protocol confirmation dialog in Chrome and Edge..."
 foreach ($browser in @(
     "HKLM:\\SOFTWARE\\Policies\\Google\\Chrome\\AutoOpenProtocolHandlerAllowlist",
     "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge\\AutoOpenProtocolHandlerAllowlist"
@@ -314,13 +314,13 @@ foreach ($browser in @(
         $idx = ((Get-Item $browser).Property.Count + 1).ToString()
         Set-ItemProperty -Path $browser -Name $idx -Value "nbmsearch"
     }} catch {{
-        Write-Host "  Пропущено: $browser" -ForegroundColor Yellow
+        Write-Host "  Skipped: $browser" -ForegroundColor Yellow
     }}
 }}
 
 Write-Host ""
-Write-Host "Готово! Протокол nbmsearch:// зарегистрирован для всех пользователей." -ForegroundColor Green
-Write-Host "Перезапустите браузер."
+Write-Host "Done! Protocol nbmsearch:// registered for all users." -ForegroundColor Green
+Write-Host "Please restart your browser."
 """
     return Response(
         content=b"\xef\xbb\xbf" + script.encode("utf-8"),
