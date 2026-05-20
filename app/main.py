@@ -322,7 +322,10 @@ Write-Host ""
 Write-Host "Готово! Протокол nbmsearch:// зарегистрирован для всех пользователей." -ForegroundColor Green
 Write-Host "Перезапустите браузер."
 """
-    return PlainTextResponse(script, media_type="text/plain; charset=utf-8")
+    return Response(
+        content=b"\xef\xbb\xbf" + script.encode("utf-8"),
+        media_type="text/plain; charset=utf-8",
+    )
 
 
 # ── Favicon / icon ────────────────────────────────────────────────────────────
