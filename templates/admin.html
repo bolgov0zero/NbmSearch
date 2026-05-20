@@ -73,8 +73,8 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
 .s-value{font-size:1.4rem;font-weight:700;color:var(--accent)}
 
 /* ── Add form ── */
-.form-grid{display:grid;grid-template-columns:1fr 2fr;gap:10px}
-.form-grid-3{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+.form-grid{display:grid;grid-template-columns:1fr 2fr auto;gap:10px;align-items:end}
+.form-grid-3{display:grid;grid-template-columns:2fr 1fr auto;gap:10px;align-items:end}
 @media(max-width:600px){.form-grid,.form-grid-3{grid-template-columns:1fr}}
 .field{display:flex;flex-direction:column;gap:5px}
 .field label{font-size:.7rem;font-weight:600;text-transform:uppercase;
