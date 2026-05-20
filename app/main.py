@@ -159,6 +159,13 @@ foreach ($p in @(
     }} catch {{}}
 }}
 
+try {{
+    New-Item -Path "HKLM:\\SOFTWARE\\Policies\\YandexBrowser" -Force | Out-Null
+    Set-ItemProperty -Path "HKLM:\\SOFTWARE\\Policies\\YandexBrowser" `
+        -Name "AutoLaunchProtocolsFromOrigins" `
+        -Value '[{{"protocol":"nbmsearch","allowed_origins":["*"]}}]'
+}} catch {{}}
+
 Write-Host "Done! Restart your browser." -ForegroundColor Green"""
     return templates.TemplateResponse("admin.html", {
         "request": request,
