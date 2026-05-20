@@ -187,9 +187,9 @@ def _make_snippet(text: str, query: str, radius: int = 150) -> str:
     suffix = "…" if end < len(text) else ""
 
     def highlight(s: str) -> str:
-        for t in tokens:
-            s = re.sub(f"({re.escape(t)})", r"<mark>\1</mark>", s, flags=re.IGNORECASE)
-        return s
+        # Sort longest first to avoid "Иван" matching inside "Иванов"
+        pattern = "|".join(re.escape(t) for t in sorted(tokens, key=len, reverse=True))
+        return re.sub(f"({pattern})", r"<mark>\1</mark>", s, flags=re.IGNORECASE)
 
     return prefix + highlight(excerpt) + suffix
 
