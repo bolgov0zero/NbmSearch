@@ -131,11 +131,41 @@ async def admin(request: Request):
     for s in schedules:
         s["last_run_str"] = datetime.fromtimestamp(s["last_run_at"]).strftime("%d.%m.%Y %H:%M") if s.get("last_run_at") else "—"
         s["next_run_str"] = datetime.fromtimestamp(s["next_run_at"]).strftime("%d.%m.%Y %H:%M") if s.get("next_run_at") else "—"
+    host = request.headers.get("host", f"localhost:{PORT}")
+    scheme = "https" if request.headers.get("x-forwarded-proto") == "https" else "http"
+    server_url = f"{scheme}://{host}"
+    setup_script = f"""#Requires -RunAsAdministrator
+$ErrorActionPreference = "Stop"
+$exe = "$env:ProgramData\\NbmSearch\\NbmSearchOpen.exe"
+
+New-Item -ItemType Directory -Force -Path (Split-Path $exe) | Out-Null
+Invoke-WebRequest -Uri "{server_url}/client/NbmSearchOpen.exe" -OutFile $exe -UseBasicParsing
+
+$reg = "HKLM:\\Software\\Classes\\nbmsearch"
+New-Item -Path $reg -Force | Out-Null
+Set-ItemProperty -Path $reg -Name "(Default)" -Value "URL:NbmSearch Protocol"
+Set-ItemProperty -Path $reg -Name "URL Protocol" -Value ""
+New-Item -Path "$reg\\shell\\open\\command" -Force | Out-Null
+Set-ItemProperty -Path "$reg\\shell\\open\\command" -Name "(Default)" -Value "`"$exe`" `"%1`""
+
+foreach ($p in @(
+    "HKLM:\\SOFTWARE\\Policies\\Google\\Chrome\\AutoOpenProtocolHandlerAllowlist",
+    "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge\\AutoOpenProtocolHandlerAllowlist"
+)) {{
+    try {{
+        New-Item -Path $p -Force | Out-Null
+        $i = ((Get-Item $p).Property.Count + 1).ToString()
+        Set-ItemProperty -Path $p -Name $i -Value "nbmsearch"
+    }} catch {{}}
+}}
+
+Write-Host "Done! Restart your browser." -ForegroundColor Green"""
     return templates.TemplateResponse("admin.html", {
         "request": request,
         "count": count,
         "folders": folders,
         "schedules": schedules,
+        "setup_script": setup_script,
     })
 
 

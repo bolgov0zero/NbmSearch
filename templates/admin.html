@@ -324,21 +324,24 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
 
   <!-- Client setup -->
   <div class="card">
-    <div class="card-head"><div class="card-title">Настройка клиентов</div></div>
+    <div class="card-head"><div class="card-title">Client setup</div></div>
     <div class="card-body">
       <p class="setup-desc">
-        Чтобы кнопки <strong style="color:var(--text)">«Открыть»</strong> и
-        <strong style="color:var(--text)">«Папка»</strong> работали в браузере —
-        один раз запустите скрипт от имени администратора на каждом ПК.
-        Устанавливается в <code>ProgramData</code>, работает для всех пользователей.
+        To make <strong style="color:var(--text)">Open</strong> and
+        <strong style="color:var(--text)">Folder</strong> buttons work in the browser —
+        run the script as Administrator once on each PC.
+        Installs to <code>ProgramData</code>, works for all users.
       </p>
       <ol class="setup-steps">
-        <li>Скачайте <strong>setup.ps1</strong></li>
-        <li>Запустите PowerShell от администратора: <code>PowerShell -ExecutionPolicy Bypass -File setup.ps1</code></li>
-        <li>Перезапустите браузер</li>
+        <li>Copy the script below</li>
+        <li>Open PowerShell as Administrator, paste and run</li>
+        <li>Restart your browser</li>
       </ol>
+      <div style="position:relative;margin-bottom:12px">
+        <pre id="setupScript" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:.75rem;color:var(--text-dim);overflow-x:auto;white-space:pre;margin:0">{{ setup_script }}</pre>
+        <button onclick="copySetupScript(this)" style="position:absolute;top:8px;right:8px;background:var(--surface);border:1px solid var(--border);color:var(--text-dim);border-radius:var(--radius-sm);padding:3px 10px;font-size:.72rem;cursor:pointer;transition:border-color .15s,color .15s">Copy</button>
+      </div>
       <div class="dl-row">
-        <a class="btn-dl btn-dl-primary" href="/client/setup.ps1" download="setup.ps1">⬇ setup.ps1</a>
         <a class="btn-dl btn-dl-sec" href="/client/NbmSearchOpen.exe" download="NbmSearchOpen.exe">⬇ NbmSearchOpen.exe</a>
       </div>
     </div>
@@ -594,6 +597,18 @@ document.getElementById('overlay').addEventListener('click', e => {
 });
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+async function copySetupScript(btn) {
+  const text = document.getElementById('setupScript').innerText;
+  try {
+    await navigator.clipboard.writeText(text);
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    btn.style.borderColor = 'var(--green)';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => { btn.textContent = orig; btn.style.borderColor = ''; btn.style.color = ''; }, 1800);
+  } catch(e) {}
+}
 </script>
 </body>
 </html>
