@@ -12,7 +12,7 @@ from app import database as db
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_EXTENSIONS = {".docx", ".doc", ".xlsx", ".xls", ".pdf", ".rtf", ".txt"}
+SUPPORTED_EXTENSIONS = {".docx", ".doc", ".xlsx", ".xls", ".pdf", ".rtf", ".txt", ".csv"}
 
 # ── Progress tracking ─────────────────────────────────────────────────────────
 # folder_id → {"total": int, "done": int, "status": "idle"|"indexing"|"done"}
@@ -64,7 +64,7 @@ def reindex_scheduler():
 def extract_text(path: str) -> str:
     ext = os.path.splitext(path)[1].lower()
     try:
-        if ext == ".txt":
+        if ext in (".txt", ".csv"):
             with open(path, "r", encoding="utf-8", errors="ignore") as f:
                 return f.read()
 
