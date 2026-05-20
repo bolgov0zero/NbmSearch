@@ -21,7 +21,10 @@ def main():
     if uri.startswith("nbmsearch://open/"):
         path = unquote(uri.removeprefix("nbmsearch://open/"))
         try:
-            os.startfile(path)
+            subprocess.Popen(
+                ["cmd.exe", "/c", "start", "", path],
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
         except Exception as e:
             _error(f"Не удалось открыть файл:\n{path}\n\n{e}")
 
