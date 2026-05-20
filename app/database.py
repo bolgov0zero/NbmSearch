@@ -427,8 +427,8 @@ def search(query: str, folder_names: list[str] | None = None, limit: int = 50) -
                 "snippet": _make_snippet(text, query),
             })
 
-    # Sort by snippet presence, then name
-    results.sort(key=lambda x: (not bool(x["snippet"]), x["name"]))
+    # Sort: 1) folder name descending, 2) modified_at descending
+    results.sort(key=lambda x: (x["folder_name"], x["modified_at"] or 0), reverse=True)
     return results[:limit]
 
 
