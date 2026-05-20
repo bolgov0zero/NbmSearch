@@ -324,22 +324,22 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
 
   <!-- Client setup -->
   <div class="card">
-    <div class="card-head"><div class="card-title">Client setup</div></div>
+    <div class="card-head"><div class="card-title">Настройка клиентов</div></div>
     <div class="card-body">
       <p class="setup-desc">
-        To make <strong style="color:var(--text)">Open</strong> and
-        <strong style="color:var(--text)">Folder</strong> buttons work in the browser —
-        run the script as Administrator once on each PC.
-        Installs to <code>ProgramData</code>, works for all users.
+        Чтобы кнопки <strong style="color:var(--text)">«Открыть»</strong> и
+        <strong style="color:var(--text)">«Папка»</strong> работали в браузере —
+        один раз запустите скрипт от имени администратора на каждом ПК.
+        Устанавливается в <code>ProgramData</code>, работает для всех пользователей.
       </p>
       <ol class="setup-steps">
-        <li>Copy the script below</li>
-        <li>Open PowerShell as Administrator, paste and run</li>
-        <li>Restart your browser</li>
+        <li>Скопируйте скрипт ниже</li>
+        <li>Откройте PowerShell от имени администратора, вставьте и запустите</li>
+        <li>Перезапустите браузер</li>
       </ol>
       <div style="position:relative;margin-bottom:12px">
         <pre id="setupScript" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:.75rem;color:var(--text-dim);overflow-x:auto;white-space:pre;margin:0">{{ setup_script }}</pre>
-        <button onclick="copySetupScript(this)" style="position:absolute;top:8px;right:8px;background:var(--surface);border:1px solid var(--border);color:var(--text-dim);border-radius:var(--radius-sm);padding:3px 10px;font-size:.72rem;cursor:pointer;transition:border-color .15s,color .15s">Copy</button>
+        <button onclick="copySetupScript(this)" style="position:absolute;top:8px;right:8px;background:var(--surface);border:1px solid var(--border);color:var(--text-dim);border-radius:var(--radius-sm);padding:3px 10px;font-size:.72rem;cursor:pointer;transition:border-color .15s,color .15s">Копировать</button>
       </div>
     </div>
   </div>
