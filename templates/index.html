@@ -48,6 +48,16 @@ nav a:hover { background: var(--surface2); color: var(--text); }
   cursor: pointer; white-space: nowrap; transition: background .15s; }
 .btn-search:hover { background: var(--accent-dim); }
 
+.search-container { position: relative; }
+.search-history { position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  z-index: 200; overflow: hidden; display: none; }
+.search-history.visible { display: block; }
+.sh-item { padding: 9px 14px; font-size: .88rem; color: var(--text-dim); cursor: pointer;
+  display: flex; align-items: center; gap: 8px; transition: background .1s; }
+.sh-item:hover { background: var(--surface2); color: var(--text); }
+.sh-item svg { flex-shrink: 0; opacity: .5; }
+
 .folder-bar { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
 .folder-label { font-size: .75rem; color: var(--text-dim); margin-right: 2px; }
 .folder-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px;
@@ -119,9 +129,12 @@ nav a:hover { background: var(--surface2); color: var(--text); }
   <p class="hero-sub">Документы, таблицы, PDF — всё в одном месте</p>
 
   <form id="searchForm">
-    <div class="search-wrap">
-      <input type="text" id="query" placeholder='Запрос… или "точная фраза"' autocomplete="off" autofocus>
-      <button type="submit" class="btn-search">Найти</button>
+    <div class="search-container">
+      <div class="search-wrap">
+        <input type="text" id="query" placeholder='Запрос… или "точная фраза"' autocomplete="off" autofocus>
+        <button type="submit" class="btn-search">Найти</button>
+      </div>
+      <div class="search-history" id="searchHistory"></div>
     </div>
   </form>
 
@@ -178,18 +191,53 @@ function selectedFolders() {
     .map(c => c.dataset.folder);
 }
 
-// ── Search — only on submit/Enter ──
+// ── Search history ──
 const form = document.getElementById('searchForm');
 const input = document.getElementById('query');
 const spinner = document.getElementById('spinner');
 const statusText = document.getElementById('statusText');
 const results = document.getElementById('results');
+const historyBox = document.getElementById('searchHistory');
+
+const HIST_KEY = 'nbm_search_history';
+function getHistory() { try { return JSON.parse(localStorage.getItem(HIST_KEY)) || []; } catch { return []; } }
+function saveToHistory(q) {
+  let h = getHistory().filter(x => x !== q);
+  h.unshift(q);
+  localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(0, 5)));
+}
+function renderHistory() {
+  const h = getHistory().filter(x => x && (!input.value || x.toLowerCase().includes(input.value.toLowerCase())));
+  if (!h.length) { historyBox.classList.remove('visible'); return; }
+  historyBox.innerHTML = h.map(q =>
+    `<div class="sh-item" data-q="${esc(q)}">
+      <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4" stroke-linecap="round"/></svg>
+      ${esc(q)}
+    </div>`
+  ).join('');
+  historyBox.classList.add('visible');
+}
+function hideHistory() { historyBox.classList.remove('visible'); }
+
+input.addEventListener('focus', renderHistory);
+input.addEventListener('input', renderHistory);
+input.addEventListener('blur', () => setTimeout(hideHistory, 150));
+
+historyBox.addEventListener('click', e => {
+  const item = e.target.closest('.sh-item');
+  if (!item) return;
+  input.value = item.dataset.q;
+  hideHistory();
+  doSearch();
+});
 
 form.addEventListener('submit', e => { e.preventDefault(); doSearch(); });
 
 async function doSearch() {
   const q = input.value.trim();
+  hideHistory();
   if (!q) { results.innerHTML = ''; statusText.textContent = ''; return; }
+  saveToHistory(q);
   spinner.classList.add('visible');
   statusText.textContent = 'Поиск…';
   results.innerHTML = '';
