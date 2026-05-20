@@ -595,16 +595,29 @@ document.getElementById('overlay').addEventListener('click', e => {
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-async function copySetupScript(btn) {
+function copySetupScript(btn) {
   const text = document.getElementById('setupScript').innerText;
-  try {
-    await navigator.clipboard.writeText(text);
-    const orig = btn.textContent;
-    btn.textContent = 'Copied!';
+  const orig = btn.textContent;
+  const ok = () => {
+    btn.textContent = 'Скопировано!';
     btn.style.borderColor = 'var(--green)';
     btn.style.color = 'var(--green)';
     setTimeout(() => { btn.textContent = orig; btn.style.borderColor = ''; btn.style.color = ''; }, 1800);
-  } catch(e) {}
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(ok).catch(() => fallbackCopy(text, ok));
+  } else {
+    fallbackCopy(text, ok);
+  }
+}
+function fallbackCopy(text, cb) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try { document.execCommand('copy'); cb(); } catch(e) {}
+  document.body.removeChild(ta);
 }
 </script>
 </body>
