@@ -28,7 +28,7 @@ jobs:
       - name: Get version
         id: ver
         run: |
-          $ver = python -c "import re; m = re.search(r'VERSION\s*=\s*\"([^\"]+)\"', open('app/settings.py').read()); print(m.group(1))"
+          $ver = (Select-String -Path 'app/settings.py' -Pattern 'VERSION\s*=\s*"([^"]+)"').Matches.Groups[1].Value
           echo "version=$ver" >> $env:GITHUB_OUTPUT
 
       - name: Convert icon PNG → ICO
