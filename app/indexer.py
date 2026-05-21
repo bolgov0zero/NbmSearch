@@ -81,8 +81,14 @@ def extract_text(path: str) -> str:
             wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
             parts = []
             for ws in wb.worksheets:
-                for row in ws.iter_rows(values_only=True):
-                    parts.append(" ".join(str(c) for c in row if c is not None))
+                try:
+                    for row in ws.iter_rows(values_only=True):
+                        try:
+                            parts.append(" ".join(str(c) for c in row if c is not None))
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
             return "\n".join(parts)
 
         elif ext == ".xls":
