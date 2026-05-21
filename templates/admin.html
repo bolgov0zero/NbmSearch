@@ -61,7 +61,8 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
 
 /* ── Card ── */
 .card{background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
+  border-radius:var(--radius);margin-bottom:12px}
+.card>.stat-row{border-radius:var(--radius) var(--radius) 0 0;overflow:hidden}
 .card-head{display:flex;align-items:center;justify-content:space-between;
   padding:14px 20px;border-bottom:1px solid var(--border)}
 .card-title{font-size:.68rem;font-weight:700;text-transform:uppercase;
@@ -783,6 +784,17 @@ let _statsFolderId = null;
 let _statsPeriod = 'day';
 
 async function openFolderStats(id, name) {
+  // Reset stale state immediately before fetching new data
+  if (_statsChart) { _statsChart.destroy(); _statsChart = null; }
+  document.getElementById('statsExtBody').innerHTML =
+    '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:16px">Загрузка…</td></tr>';
+  const loading = document.getElementById('statsLoading');
+  loading.textContent = 'Загрузка…';
+  loading.style.display = 'block';
+  // Reset to default tab
+  _statsPeriod = 'day';
+  document.querySelectorAll('.period-tab').forEach(t => t.classList.toggle('active', t.dataset.period === 'day'));
+
   _statsFolderId = id;
   document.getElementById('statsTitle').textContent = `Статистика — ${name}`;
   document.getElementById('statsOverlay').classList.add('visible');
