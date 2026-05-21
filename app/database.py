@@ -428,8 +428,10 @@ def get_all_paths_in_folder(folder_id: int) -> set[str]:
 
 # ── Folder stats ──────────────────────────────────────────────────────────────
 
+_MONTH_NAMES = ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"]
+
 def get_folder_stats(folder_id: int, period: str = "day") -> dict:
-    """period: 'day' (hourly, today) | 'month' (daily, current month)"""
+    """period: 'day' (hourly, today) | 'month' (daily, current month) | 'year' (monthly, current year)"""
     import datetime as _dt
     db_path = _folder_db_path(folder_id)
     if not db_path.exists():
@@ -449,6 +451,20 @@ def get_folder_stats(folder_id: int, period: str = "day") -> dict:
             ).fetchall()
             counts = {r["period"]: r["cnt"] for r in rows}
             timeline = [{"period": f"{h:02d}:00", "cnt": counts.get(f"{h:02d}", 0)} for h in range(24)]
+        elif period == "year":
+            # Months 01-12 for current year (local time)
+            rows = conn.execute(
+                f"""SELECT strftime('%m', {ts_col}, 'unixepoch', 'localtime') AS period,
+                           COUNT(*) AS cnt
+                    FROM files
+                    WHERE strftime('%Y', {ts_col}, 'unixepoch', 'localtime')
+                          = strftime('%Y', 'now', 'localtime')
+                      AND {ts_col} IS NOT NULL
+                    GROUP BY period ORDER BY period"""
+            ).fetchall()
+            counts = {r["period"]: r["cnt"] for r in rows}
+            timeline = [{"period": _MONTH_NAMES[m], "cnt": counts.get(f"{m+1:02d}", 0)}
+                        for m in range(12)]
         else:
             # Days 01-NN for current month (local time)
             import calendar
