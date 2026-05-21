@@ -57,7 +57,7 @@ jobs:
 
       - name: Build opener EXE
         run: |
-          pyinstaller --onefile --windowed --name NbmSearchOpen `
+          pyinstaller --onefile --windowed --name NbmSearchHelper `
             --icon icon.ico `
             --add-data "icon.png;." `
             open_handler.py
@@ -75,7 +75,7 @@ jobs:
           name: NbmSearch v${{ steps.ver.outputs.version }}
           files: |
             dist/NbmSearch.exe
-            dist/NbmSearchOpen.exe
+            dist/NbmSearchHelper.exe
             dist/NbmSearchUpdater.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

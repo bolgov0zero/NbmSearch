@@ -136,10 +136,10 @@ async def admin(request: Request):
     server_url = f"{scheme}://{host}"
     setup_script = f"""#Requires -RunAsAdministrator
 $ErrorActionPreference = "Stop"
-$exe = "$env:ProgramData\\NbmSearch\\NbmSearchOpen.exe"
+$exe = "$env:ProgramData\\NbmSearch\\NbmSearchHelper.exe"
 
 New-Item -ItemType Directory -Force -Path (Split-Path $exe) | Out-Null
-Invoke-WebRequest -Uri "{server_url}/client/NbmSearchOpen.exe" -OutFile $exe -UseBasicParsing
+Invoke-WebRequest -Uri "{server_url}/client/NbmSearchHelper.exe" -OutFile $exe -UseBasicParsing
 
 $reg = "HKLM:\\Software\\Classes\\nbmsearch"
 New-Item -Path $reg -Force | Out-Null
@@ -413,15 +413,15 @@ async def api_update_start(request: Request):
 
 # ── Client setup ──────────────────────────────────────────────────────────────
 
-@app.get("/client/NbmSearchOpen.exe")
+@app.get("/client/NbmSearchHelper.exe")
 async def client_exe():
     if getattr(sys, "frozen", False):
-        exe_path = Path(sys.executable).parent / "NbmSearchOpen.exe"
+        exe_path = Path(sys.executable).parent / "NbmSearchHelper.exe"
     else:
-        exe_path = BASE_DIR / "NbmSearchOpen.exe"
+        exe_path = BASE_DIR / "NbmSearchHelper.exe"
     if not exe_path.exists():
-        return JSONResponse({"error": "NbmSearchOpen.exe not found on server"}, status_code=404)
-    return FileResponse(str(exe_path), media_type="application/octet-stream", filename="NbmSearchOpen.exe")
+        return JSONResponse({"error": "NbmSearchHelper.exe not found on server"}, status_code=404)
+    return FileResponse(str(exe_path), media_type="application/octet-stream", filename="NbmSearchHelper.exe")
 
 
 @app.get("/client/setup.ps1")
@@ -437,7 +437,7 @@ async def client_setup(request: Request):
 $ErrorActionPreference = "Stop"
 
 $serverUrl  = "{server_url}"
-$exeName    = "NbmSearchOpen.exe"
+$exeName    = "NbmSearchHelper.exe"
 $installDir = "$env:ProgramData\\NbmSearch"
 $exePath    = "$installDir\\$exeName"
 
