@@ -142,6 +142,8 @@ def index_file(folder_id: int, path: str):
     ext = os.path.splitext(path)[1].lower()
     if ext not in SUPPORTED_EXTENSIONS:
         return
+    if os.path.basename(path).startswith("~$"):
+        return
     try:
         stat = os.stat(path)
         content = extract_text(path)
@@ -175,7 +177,7 @@ def index_folder(folder: dict):
     all_files = []
     for root, _, filenames in os.walk(folder_path):
         for fname in filenames:
-            if os.path.splitext(fname)[1].lower() in SUPPORTED_EXTENSIONS:
+            if os.path.splitext(fname)[1].lower() in SUPPORTED_EXTENSIONS and not fname.startswith("~$"):
                 all_files.append(os.path.join(root, fname))
 
     # Get already-indexed paths: needed for stale detection and new-file detection
