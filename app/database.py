@@ -227,6 +227,14 @@ def get_folders() -> list[dict]:
     return rows
 
 
+def rename_folder(folder_id: int, new_name: str):
+    with _main_lock:
+        conn = _get_main_conn()
+        conn.execute("UPDATE folders SET name=? WHERE id=?", (new_name.strip(), folder_id))
+        conn.commit()
+        conn.close()
+
+
 def set_folder_last_reindex(folder_id: int, ts: float):
     with _main_lock:
         conn = _get_main_conn()

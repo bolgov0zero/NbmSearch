@@ -118,13 +118,23 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
 .btn-icon{background:none;border:1px solid var(--border);color:var(--text-dim);
   width:28px;height:28px;border-radius:var(--radius-sm);cursor:pointer;
   display:inline-flex;align-items:center;justify-content:center;
-  font-size:.8rem;font-family:inherit;flex-shrink:0;
+  font-size:.9rem;font-family:inherit;flex-shrink:0;letter-spacing:1px;
   transition:border-color .15s,color .15s,background .15s}
-.btn-icon:hover{border-color:var(--red);color:var(--red);background:var(--red-bg)}
-.btn-icon.reindex:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
-.btn-icon.watchdog{color:var(--text-dim)}
-.btn-icon.watchdog.on{border-color:var(--green);color:var(--green);background:rgba(46,204,113,.1)}
-.btn-icon.watchdog:hover{border-color:var(--green);color:var(--green);background:rgba(46,204,113,.1)}
+.btn-icon:hover{border-color:var(--accent);color:var(--text);background:var(--surface2)}
+.folder-menu-wrap{position:relative;flex-shrink:0}
+.folder-menu{position:absolute;top:calc(100% + 4px);right:0;min-width:170px;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);
+  box-shadow:0 8px 24px rgba(0,0,0,.35);z-index:300;display:none;overflow:hidden}
+.folder-menu.open{display:block}
+.fm-item{padding:9px 14px;font-size:.82rem;color:var(--text-dim);cursor:pointer;
+  transition:background .1s,color .1s;white-space:nowrap;border:none;background:none;
+  width:100%;text-align:left;font-family:inherit}
+.fm-item:hover{background:var(--surface2);color:var(--text)}
+.fm-item.green{color:var(--green)}
+.fm-item.green:hover{background:rgba(46,204,113,.1);color:var(--green)}
+.fm-item.red{color:var(--red)}
+.fm-item.red:hover{background:var(--red-bg);color:var(--red)}
+.fm-sep{height:1px;background:var(--border);margin:3px 0}
 
 /* ── Progress ── */
 .prog-wrap{margin-top:8px}
@@ -246,19 +256,18 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
           </div>
           <div class="item-right">
             <span class="badge" id="cnt-{{ f.id }}">{{ f.file_count }} файлов</span>
-            <button class="btn-icon watchdog {% if f.watchdog_enabled %}on{% endif %}" id="wd-{{ f.id }}"
-              title="Watchdog{% if f.watchdog_enabled %} включён{% else %} выключен{% endif %}"
-              onclick="toggleWatchdog({{ f.id }}, this)">
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                {% if f.watchdog_enabled %}
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-                {% else %}
-                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
-                {% endif %}
-              </svg>
-            </button>
-            <button class="btn-icon reindex" title="Переиндексировать" onclick="reindexFolder({{ f.id }})">↻</button>
-            <button class="btn-icon" title="Удалить индекс" onclick="confirmDeleteFolder({{ f.id }}, '{{ f.name }}')">✕</button>
+            <div class="folder-menu-wrap">
+              <button class="btn-icon" onclick="toggleFolderMenu({{ f.id }}, this)">···</button>
+              <div class="folder-menu" id="fmenu-{{ f.id }}">
+                <button class="fm-item {% if f.watchdog_enabled %}green{% endif %}" id="wd-{{ f.id }}" onclick="toggleWatchdog({{ f.id }}, this)">{% if f.watchdog_enabled %}● {% endif %}Следить</button>
+                <div class="fm-sep"></div>
+                <button class="fm-item" onclick="closeFolderMenu({{ f.id }}); reindexFolder({{ f.id }})">Индексировать</button>
+                <button class="fm-item" onclick="closeFolderMenu({{ f.id }}); fullReindexFolder({{ f.id }})">Сброс</button>
+                <div class="fm-sep"></div>
+                <button class="fm-item" onclick="closeFolderMenu({{ f.id }}); renameFolder({{ f.id }}, '{{ f.name }}')">Переименовать</button>
+                <button class="fm-item red" onclick="closeFolderMenu({{ f.id }}); confirmDeleteFolder({{ f.id }}, '{{ f.name }}')">Удалить</button>
+              </div>
+            </div>
           </div>
         </div>
         {% endfor %}
@@ -425,11 +434,18 @@ function appendFolderRow(id, name, path) {
     </div>
     <div class="item-right">
       <span class="badge" id="cnt-${id}">0 файлов</span>
-      <button class="btn-icon watchdog" id="wd-${id}" title="Watchdog выключен" onclick="toggleWatchdog(${id}, this)">
-        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-      </button>
-      <button class="btn-icon reindex" title="Переиндексировать" onclick="reindexFolder(${id})">↻</button>
-      <button class="btn-icon" title="Удалить" onclick="confirmDeleteFolder(${id},'${esc(name)}')">✕</button>
+      <div class="folder-menu-wrap">
+        <button class="btn-icon" onclick="toggleFolderMenu(${id}, this)">···</button>
+        <div class="folder-menu" id="fmenu-${id}">
+          <button class="fm-item" id="wd-${id}" onclick="toggleWatchdog(${id}, this)">Следить</button>
+          <div class="fm-sep"></div>
+          <button class="fm-item" onclick="closeFolderMenu(${id}); reindexFolder(${id})">Индексировать</button>
+          <button class="fm-item" onclick="closeFolderMenu(${id}); fullReindexFolder(${id})">Сброс</button>
+          <div class="fm-sep"></div>
+          <button class="fm-item" onclick="closeFolderMenu(${id}); renameFolder(${id}, '${esc(name)}')">Переименовать</button>
+          <button class="fm-item red" onclick="closeFolderMenu(${id}); confirmDeleteFolder(${id},'${esc(name)}')">Удалить</button>
+        </div>
+      </div>
     </div>`;
   list.appendChild(div);
 }
@@ -441,22 +457,35 @@ function addFolderOption(id, name) {
   sel.appendChild(opt);
 }
 
-// ── Watchdog toggle ──────────────────────────────────────────────────────────
-const eyeOn  = `<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
-const eyeOff = `<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+// ── Folder menu ──────────────────────────────────────────────────────────────
+function toggleFolderMenu(id, btn) {
+  const menu = document.getElementById(`fmenu-${id}`);
+  const isOpen = menu.classList.contains('open');
+  document.querySelectorAll('.folder-menu.open').forEach(m => m.classList.remove('open'));
+  if (!isOpen) menu.classList.add('open');
+}
+function closeFolderMenu(id) {
+  document.getElementById(`fmenu-${id}`)?.classList.remove('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.folder-menu-wrap')) {
+    document.querySelectorAll('.folder-menu.open').forEach(m => m.classList.remove('open'));
+  }
+});
 
+// ── Watchdog toggle ──────────────────────────────────────────────────────────
 async function toggleWatchdog(id, btn) {
-  const enabling = !btn.classList.contains('on');
+  const enabling = !btn.classList.contains('green');
   const res = await fetch(`/api/folders/${id}/watchdog`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
     body: JSON.stringify({enabled: enabling})
   }).catch(() => null);
   if (!res || !res.ok) return;
-  btn.classList.toggle('on', enabling);
-  btn.innerHTML = enabling ? eyeOn : eyeOff;
-  btn.title = enabling ? 'Watchdog включён' : 'Watchdog выключен';
+  btn.classList.toggle('green', enabling);
+  btn.textContent = enabling ? '● Следить' : 'Следить';
   const dot = document.getElementById(`dot-${id}`);
   if (dot) dot.classList.toggle('watching', enabling);
+  closeFolderMenu(id);
 }
 
 // ── Reindex folder ───────────────────────────────────────────────────────────
@@ -464,6 +493,30 @@ async function reindexFolder(id) {
   const res = await fetch(`/admin/reindex/${id}`, {method:'POST'}).catch(()=>null);
   if (!res || !res.ok) { alert('Ошибка запуска переиндексации'); return; }
   startPolling(id);
+}
+
+async function fullReindexFolder(id) {
+  const res = await fetch(`/admin/reindex/${id}/full`, {method:'POST'}).catch(()=>null);
+  if (!res || !res.ok) { alert('Ошибка запуска переиндексации'); return; }
+  startPolling(id);
+}
+
+// ── Rename folder ─────────────────────────────────────────────────────────────
+async function renameFolder(id, currentName) {
+  const newName = prompt('Новое название индекса:', currentName);
+  if (!newName || newName.trim() === currentName) return;
+  const res = await fetch(`/api/folders/${id}`, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name: newName.trim()})
+  }).catch(() => null);
+  if (!res || !res.ok) { alert('Ошибка переименования'); return; }
+  const row = document.querySelector(`.item-row[data-id="${id}"]`);
+  if (row) {
+    row.dataset.name = newName.trim();
+    row.querySelector('.item-name').textContent = newName.trim();
+  }
+  const opt = document.querySelector(`#schedFolder option[value="${id}"]`);
+  if (opt) opt.textContent = newName.trim();
 }
 
 // ── Delete folder ────────────────────────────────────────────────────────────

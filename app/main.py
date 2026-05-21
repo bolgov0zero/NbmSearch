@@ -206,6 +206,33 @@ async def trigger_reindex(folder_id: int, request: Request):
     return {"status": "started"}
 
 
+@app.post("/admin/reindex/{folder_id}/full")
+async def trigger_full_reindex(folder_id: int, request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    folders = db.get_folders()
+    folder = next((f for f in folders if f["id"] == folder_id), None)
+    if not folder:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    threading.Thread(target=indexer.index_folder, args=(folder,), kwargs={"full": True}, daemon=True).start()
+    return {"status": "started"}
+
+
+@app.patch("/api/folders/{folder_id}")
+async def api_rename_folder(folder_id: int, request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    body = await request.json()
+    new_name = body.get("name", "").strip()
+    if not new_name:
+        return JSONResponse({"error": "Имя не может быть пустым"}, status_code=400)
+    try:
+        db.rename_folder(folder_id, new_name)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    return {"status": "ok", "name": new_name}
+
+
 # ── Folders API ───────────────────────────────────────────────────────────────
 
 class FolderIn(BaseModel):

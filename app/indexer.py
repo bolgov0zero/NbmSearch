@@ -164,11 +164,11 @@ def index_file(folder_id: int, path: str):
         logger.error("Error indexing %s: %s", path, e)
 
 
-def index_folder(folder: dict):
+def index_folder(folder: dict, full: bool = False):
     folder_id = folder["id"]
     folder_path = folder["path"]
     folder_name = folder["name"]
-    last_reindex_at = folder.get("last_reindex_at")  # None → full index
+    last_reindex_at = None if full else folder.get("last_reindex_at")  # None → full index
 
     if not os.path.isdir(folder_path):
         logger.warning("Folder does not exist: %s", folder_path)
