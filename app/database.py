@@ -428,21 +428,44 @@ def get_all_paths_in_folder(folder_id: int) -> set[str]:
 
 # ── Folder stats ──────────────────────────────────────────────────────────────
 
-def get_folder_stats(folder_id: int, period: str = "month") -> dict:
-    """period: 'day' | 'week' | 'month'"""
+def get_folder_stats(folder_id: int, period: str = "day") -> dict:
+    """period: 'day' (hourly, today) | 'month' (daily, current month)"""
+    import datetime as _dt
     db_path = _folder_db_path(folder_id)
     if not db_path.exists():
         return {"timeline": [], "extensions": []}
     conn = _get_folder_conn(folder_id)
     try:
-        fmt = {"day": "%Y-%m-%d", "week": "%Y-W%W", "month": "%Y-%m"}.get(period, "%Y-%m")
-        timeline = [dict(r) for r in conn.execute(
-            f"""SELECT strftime('{fmt}', COALESCE(created_at, indexed_at), 'unixepoch') AS period,
-                       COUNT(*) AS cnt
-                FROM files
-                WHERE COALESCE(created_at, indexed_at) IS NOT NULL
-                GROUP BY period ORDER BY period"""
-        ).fetchall()]
+        ts_col = "COALESCE(created_at, indexed_at)"
+        if period == "day":
+            # Hours 00-23 for today (local time)
+            rows = conn.execute(
+                f"""SELECT strftime('%H', {ts_col}, 'unixepoch', 'localtime') AS period,
+                           COUNT(*) AS cnt
+                    FROM files
+                    WHERE date({ts_col}, 'unixepoch', 'localtime') = date('now', 'localtime')
+                      AND {ts_col} IS NOT NULL
+                    GROUP BY period ORDER BY period"""
+            ).fetchall()
+            counts = {r["period"]: r["cnt"] for r in rows}
+            timeline = [{"period": f"{h:02d}:00", "cnt": counts.get(f"{h:02d}", 0)} for h in range(24)]
+        else:
+            # Days 01-NN for current month (local time)
+            import calendar
+            now = _dt.datetime.now()
+            days_in_month = calendar.monthrange(now.year, now.month)[1]
+            rows = conn.execute(
+                f"""SELECT strftime('%d', {ts_col}, 'unixepoch', 'localtime') AS period,
+                           COUNT(*) AS cnt
+                    FROM files
+                    WHERE strftime('%Y-%m', {ts_col}, 'unixepoch', 'localtime')
+                          = strftime('%Y-%m', 'now', 'localtime')
+                      AND {ts_col} IS NOT NULL
+                    GROUP BY period ORDER BY period"""
+            ).fetchall()
+            counts = {r["period"]: r["cnt"] for r in rows}
+            timeline = [{"period": f"{d:02d}", "cnt": counts.get(f"{d:02d}", 0)}
+                        for d in range(1, days_in_month + 1)]
         rows = conn.execute("SELECT name FROM files").fetchall()
         ext_counts: dict[str, int] = {}
         for r in rows:

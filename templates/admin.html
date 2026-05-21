@@ -415,9 +415,8 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
       <button class="stats-modal-close" onclick="closeStatsModal()">✕</button>
     </div>
     <div class="stats-period-tabs">
-      <button class="period-tab" data-period="day" onclick="selectPeriod('day')">По дням</button>
-      <button class="period-tab active" data-period="month" onclick="selectPeriod('month')">По месяцам</button>
-      <button class="period-tab" data-period="week" onclick="selectPeriod('week')">По неделям</button>
+      <button class="period-tab active" data-period="day" onclick="selectPeriod('day')">День</button>
+      <button class="period-tab" data-period="month" onclick="selectPeriod('month')">Месяц</button>
     </div>
     <div class="stats-chart-wrap">
       <canvas id="statsChart"></canvas>
@@ -780,7 +779,7 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 // ── Folder stats modal ───────────────────────────────────────────────────────
 let _statsChart = null;
 let _statsFolderId = null;
-let _statsPeriod = 'month';
+let _statsPeriod = 'day';
 
 async function openFolderStats(id, name) {
   _statsFolderId = id;
