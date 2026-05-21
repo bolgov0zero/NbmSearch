@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NbmSearch — Панель управления</title>
 <link rel="icon" type="image/png" href="/icon.png">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <style>
 :root {
   --bg:#0f1117; --surface:#1a1d27; --surface2:#22263a;
@@ -176,6 +177,40 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
   border-radius:var(--radius-sm);font-size:.83rem;font-weight:600;cursor:pointer;
   font-family:inherit;transition:background .15s}
 .btn-danger:hover{background:var(--red-dim)}
+
+/* ── Stats modal ── */
+.stats-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:400;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .2s}
+.stats-overlay.visible{opacity:1;pointer-events:all}
+.stats-modal{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:28px 30px;width:min(640px,95vw);max-height:90vh;
+  overflow-y:auto;display:flex;flex-direction:column;gap:20px}
+.stats-modal-head{display:flex;align-items:center;justify-content:space-between}
+.stats-modal-title{font-size:1rem;font-weight:700}
+.stats-modal-close{background:none;border:none;color:var(--text-dim);font-size:1.1rem;
+  cursor:pointer;padding:4px 8px;border-radius:var(--radius-xs);
+  transition:color .15s,background .15s}
+.stats-modal-close:hover{color:var(--text);background:var(--surface2)}
+.stats-period-tabs{display:flex;gap:6px}
+.period-tab{background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);
+  border-radius:var(--radius-sm);padding:5px 14px;font-size:.78rem;font-weight:600;
+  cursor:pointer;font-family:inherit;transition:all .15s}
+.period-tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.stats-chart-wrap{position:relative;height:200px;background:var(--surface2);
+  border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px}
+.stats-ext-title{font-size:.7rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.8px;color:var(--text-dim);margin-bottom:8px}
+.stats-ext-table{width:100%;border-collapse:collapse}
+.stats-ext-table th{font-size:.65rem;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--text-muted);text-align:left;padding:4px 8px;border-bottom:1px solid var(--border)}
+.stats-ext-table td{font-size:.8rem;padding:6px 8px;border-bottom:1px solid rgba(45,49,72,.5);
+  color:var(--text-dim)}
+.stats-ext-table td:last-child{text-align:right;color:var(--text)}
+.stats-ext-table tr:last-child td{border-bottom:none}
+.stats-ext-bar{display:inline-block;height:6px;border-radius:3px;
+  background:var(--accent);opacity:.7;vertical-align:middle;margin-right:8px}
+.stats-loading{text-align:center;color:var(--text-muted);font-size:.83rem;padding:40px 0}
 </style>
 </head>
 <body>
@@ -264,6 +299,7 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
                 <button class="fm-item" onclick="closeFolderMenu({{ f.id }}); reindexFolder({{ f.id }})">Индексировать</button>
                 <button class="fm-item" onclick="closeFolderMenu({{ f.id }}); fullReindexFolder({{ f.id }})">Сброс</button>
                 <div class="fm-sep"></div>
+                <button class="fm-item" onclick="closeFolderMenu({{ f.id }}); openFolderStats({{ f.id }}, '{{ f.name }}')">Статистика</button>
                 <button class="fm-item" onclick="closeFolderMenu({{ f.id }}); renameFolder({{ f.id }}, '{{ f.name }}')">Переименовать</button>
                 <button class="fm-item red" onclick="closeFolderMenu({{ f.id }}); confirmDeleteFolder({{ f.id }}, '{{ f.name }}')">Удалить</button>
               </div>
@@ -371,6 +407,32 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
   </div>
 </div>
 
+<!-- Stats modal -->
+<div class="stats-overlay" id="statsOverlay">
+  <div class="stats-modal">
+    <div class="stats-modal-head">
+      <div class="stats-modal-title" id="statsTitle">Статистика</div>
+      <button class="stats-modal-close" onclick="closeStatsModal()">✕</button>
+    </div>
+    <div class="stats-period-tabs">
+      <button class="period-tab" data-period="day" onclick="selectPeriod('day')">По дням</button>
+      <button class="period-tab active" data-period="month" onclick="selectPeriod('month')">По месяцам</button>
+      <button class="period-tab" data-period="week" onclick="selectPeriod('week')">По неделям</button>
+    </div>
+    <div class="stats-chart-wrap">
+      <canvas id="statsChart"></canvas>
+      <div class="stats-loading" id="statsLoading">Загрузка…</div>
+    </div>
+    <div>
+      <div class="stats-ext-title">Распределение по типам файлов</div>
+      <table class="stats-ext-table">
+        <thead><tr><th>Расширение</th><th></th><th>Файлов</th></tr></thead>
+        <tbody id="statsExtBody"><tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:16px">Загрузка…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- Rename dialog -->
 <div class="overlay" id="renameOverlay">
   <div class="dialog">
@@ -457,6 +519,7 @@ function appendFolderRow(id, name, path) {
           <button class="fm-item" onclick="closeFolderMenu(${id}); reindexFolder(${id})">Индексировать</button>
           <button class="fm-item" onclick="closeFolderMenu(${id}); fullReindexFolder(${id})">Сброс</button>
           <div class="fm-sep"></div>
+          <button class="fm-item" onclick="closeFolderMenu(${id}); openFolderStats(${id}, '${esc(name)}')">Статистика</button>
           <button class="fm-item" onclick="closeFolderMenu(${id}); renameFolder(${id}, '${esc(name)}')">Переименовать</button>
           <button class="fm-item red" onclick="closeFolderMenu(${id}); confirmDeleteFolder(${id},'${esc(name)}')">Удалить</button>
         </div>
@@ -713,6 +776,121 @@ document.getElementById('overlay').addEventListener('click', e => {
 });
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Folder stats modal ───────────────────────────────────────────────────────
+let _statsChart = null;
+let _statsFolderId = null;
+let _statsPeriod = 'month';
+
+async function openFolderStats(id, name) {
+  _statsFolderId = id;
+  document.getElementById('statsTitle').textContent = `Статистика — ${name}`;
+  document.getElementById('statsOverlay').classList.add('visible');
+  await loadStats();
+}
+
+function closeStatsModal() {
+  document.getElementById('statsOverlay').classList.remove('visible');
+}
+
+document.getElementById('statsOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('statsOverlay')) closeStatsModal();
+});
+
+function selectPeriod(p) {
+  _statsPeriod = p;
+  document.querySelectorAll('.period-tab').forEach(t => t.classList.toggle('active', t.dataset.period === p));
+  loadStats();
+}
+
+async function loadStats() {
+  if (!_statsFolderId) return;
+  const loading = document.getElementById('statsLoading');
+  loading.style.display = 'block';
+  try {
+    const data = await fetch(`/api/folders/${_statsFolderId}/stats?period=${_statsPeriod}`).then(r => r.json());
+    renderChart(data.timeline || []);
+    renderExtTable(data.extensions || []);
+  } catch(e) {
+    loading.textContent = 'Ошибка загрузки';
+  } finally {
+    loading.style.display = 'none';
+  }
+}
+
+function renderChart(timeline) {
+  const canvas = document.getElementById('statsChart');
+  const labels = timeline.map(r => r.period);
+  const values = timeline.map(r => r.cnt);
+  if (_statsChart) { _statsChart.destroy(); _statsChart = null; }
+  if (!timeline.length) {
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    document.getElementById('statsLoading').textContent = 'Нет данных за этот период';
+    document.getElementById('statsLoading').style.display = 'block';
+    return;
+  }
+  _statsChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Файлов добавлено',
+        data: values,
+        borderColor: '#5b6af0',
+        backgroundColor: 'rgba(91,106,240,.12)',
+        borderWidth: 2,
+        pointRadius: timeline.length > 30 ? 0 : 3,
+        pointHoverRadius: 5,
+        pointBackgroundColor: '#5b6af0',
+        fill: true,
+        tension: 0.4,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1d27',
+          borderColor: '#2d3148',
+          borderWidth: 1,
+          titleColor: '#e8eaf6',
+          bodyColor: '#8b90b8',
+          padding: 10,
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(45,49,72,.6)' },
+          ticks: { color: '#8b90b8', font: { size: 11 }, maxTicksLimit: 12 }
+        },
+        y: {
+          grid: { color: 'rgba(45,49,72,.6)' },
+          ticks: { color: '#8b90b8', font: { size: 11 }, precision: 0 },
+          beginAtZero: true,
+        }
+      }
+    }
+  });
+}
+
+function renderExtTable(extensions) {
+  const tbody = document.getElementById('statsExtBody');
+  if (!extensions.length) {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:16px">Нет данных</td></tr>';
+    return;
+  }
+  const max = extensions[0].cnt;
+  tbody.innerHTML = extensions.map(e => {
+    const pct = Math.round(e.cnt / max * 100);
+    return `<tr>
+      <td><code>.${esc(e.ext)}</code></td>
+      <td><span class="stats-ext-bar" style="width:${Math.max(pct,2)}px"></span></td>
+      <td>${e.cnt.toLocaleString('ru-RU')}</td>
+    </tr>`;
+  }).join('');
+}
 
 function copySetupScript(btn) {
   const text = document.getElementById('setupScript').innerText;

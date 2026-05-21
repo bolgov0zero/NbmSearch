@@ -329,6 +329,16 @@ async def api_folder_progress(folder_id: int):
     return indexer.get_progress(folder_id)
 
 
+@app.get("/api/folders/{folder_id}/stats")
+async def api_folder_stats(folder_id: int, request: Request, period: str = "month"):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    try:
+        return db.get_folder_stats(folder_id, period)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 # ── Client setup ──────────────────────────────────────────────────────────────
 
 @app.get("/client/NbmSearchOpen.exe")

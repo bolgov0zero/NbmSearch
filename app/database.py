@@ -120,6 +120,7 @@ def _init_folder_db(folder_id: int):
             size        INTEGER NOT NULL DEFAULT 0,
             modified_at REAL    NOT NULL DEFAULT 0,
             indexed_at  REAL    NOT NULL DEFAULT 0,
+            created_at  REAL,
             content     BLOB
         );
         CREATE VIRTUAL TABLE IF NOT EXISTS fts_index USING fts5(
@@ -128,6 +129,12 @@ def _init_folder_db(folder_id: int):
             tokenize='unicode61'
         );
     """)
+    # migration for existing DBs
+    try:
+        conn.execute("ALTER TABLE files ADD COLUMN created_at REAL")
+        conn.commit()
+    except Exception:
+        pass
     conn.commit()
     conn.close()
 
@@ -359,8 +366,8 @@ def upsert_file(folder_id: int, path: str, name: str, size: int,
                 )
             else:
                 cur = conn.execute(
-                    "INSERT INTO files (path,name,size,modified_at,indexed_at,content) VALUES (?,?,?,?,?,?)",
-                    (path, name, size, modified_at, indexed_at, compressed),
+                    "INSERT INTO files (path,name,size,modified_at,indexed_at,created_at,content) VALUES (?,?,?,?,?,?,?)",
+                    (path, name, size, modified_at, indexed_at, indexed_at, compressed),
                 )
                 fid = cur.lastrowid
             conn.execute("INSERT INTO fts_index(rowid, content) VALUES (?,?)", (fid, content))
@@ -404,6 +411,35 @@ def get_all_paths_in_folder(folder_id: int) -> set[str]:
         return {r[0] for r in rows}
     except Exception:
         return set()
+
+
+# ── Folder stats ──────────────────────────────────────────────────────────────
+
+def get_folder_stats(folder_id: int, period: str = "month") -> dict:
+    """period: 'day' | 'week' | 'month'"""
+    db_path = _folder_db_path(folder_id)
+    if not db_path.exists():
+        return {"timeline": [], "extensions": []}
+    conn = _get_folder_conn(folder_id)
+    try:
+        fmt = {"day": "%Y-%m-%d", "week": "%Y-W%W", "month": "%Y-%m"}.get(period, "%Y-%m")
+        timeline = [dict(r) for r in conn.execute(
+            f"""SELECT strftime('{fmt}', COALESCE(created_at, indexed_at), 'unixepoch') AS period,
+                       COUNT(*) AS cnt
+                FROM files
+                WHERE COALESCE(created_at, indexed_at) IS NOT NULL
+                GROUP BY period ORDER BY period"""
+        ).fetchall()]
+        rows = conn.execute("SELECT name FROM files").fetchall()
+        ext_counts: dict[str, int] = {}
+        for r in rows:
+            ext = r["name"].rsplit(".", 1)[-1].lower() if "." in r["name"] else "—"
+            ext_counts[ext] = ext_counts.get(ext, 0) + 1
+        extensions = sorted([{"ext": k, "cnt": v} for k, v in ext_counts.items()],
+                            key=lambda x: x["cnt"], reverse=True)
+        return {"timeline": timeline, "extensions": extensions}
+    finally:
+        conn.close()
 
 
 # ── Search ────────────────────────────────────────────────────────────────────
