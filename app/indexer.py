@@ -175,10 +175,7 @@ def index_folder(folder: dict, full: bool = False):
         return
 
     all_files = []
-    def _onerror(err):
-        logger.warning("Cannot access directory: %s", err)
-
-    for root, _, filenames in os.walk(folder_path, onerror=_onerror):
+    for root, _, filenames in os.walk(folder_path):
         for fname in filenames:
             if os.path.splitext(fname)[1].lower() in SUPPORTED_EXTENSIONS and not fname.startswith("~$"):
                 all_files.append(os.path.join(root, fname))
