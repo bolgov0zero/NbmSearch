@@ -385,6 +385,32 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
     </div>
   </div>
 
+  <!-- Update -->
+  <div class="card">
+    <div class="card-head"><div class="card-title">Обновление</div></div>
+    <div class="card-body">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Текущая версия</div>
+          <div style="font-size:1rem;font-weight:700;color:var(--text)">v{{ version }}</div>
+        </div>
+        <div id="updateStatus" style="flex:1;min-width:180px">
+          <div style="font-size:.8rem;color:var(--text-dim)" id="updateMsg">Нажмите «Проверить» для проверки обновлений</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+          <button class="btn btn-primary" id="checkUpdateBtn" onclick="checkUpdate()">Проверить</button>
+          <button class="btn btn-primary" id="doUpdateBtn" onclick="doUpdate()" style="display:none;background:#2ecc71">Обновить</button>
+        </div>
+      </div>
+      <div id="updateProgressWrap" style="display:none;margin-top:14px">
+        <div style="font-size:.78rem;color:var(--text-dim);margin-bottom:6px" id="updateProgressMsg">Загрузка обновления…</div>
+        <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+          <div id="updateProgressBar" style="height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .3s"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Client setup -->
   <div class="card">
     <div class="card-head"><div class="card-title">Настройка клиентов</div></div>
@@ -407,6 +433,10 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
     </div>
   </div>
 </div>
+
+<footer style="text-align:center;padding:20px 24px 32px;font-size:.75rem;color:var(--text-muted)">
+  © 2026 Nebolit LLC &nbsp;·&nbsp; v{{ version }}
+</footer>
 
 <!-- Stats modal -->
 <div class="stats-overlay" id="statsOverlay">
@@ -777,6 +807,91 @@ document.getElementById('overlay').addEventListener('click', e => {
 });
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Update ────────────────────────────────────────────────────────────────────
+let _updateDownloadUrl = null;
+
+async function checkUpdate() {
+  const btn  = document.getElementById('checkUpdateBtn');
+  const msg  = document.getElementById('updateMsg');
+  btn.disabled = true; btn.textContent = 'Проверяю…';
+  msg.style.color = 'var(--text-dim)';
+  try {
+    const res  = await fetch('/api/update/check');
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      msg.textContent = 'Ошибка: ' + (data.error || res.status);
+      msg.style.color = 'var(--red)';
+      return;
+    }
+    if (data.update_available && data.download_url) {
+      _updateDownloadUrl = data.download_url;
+      msg.innerHTML = `Доступна новая версия <strong style="color:var(--text)">v${data.latest}</strong>`;
+      msg.style.color = 'var(--green)';
+      btn.style.display = 'none';
+      document.getElementById('doUpdateBtn').style.display = '';
+    } else {
+      msg.textContent = `Версия v${data.latest} — актуальная`;
+      msg.style.color = 'var(--green)';
+      btn.disabled = false; btn.textContent = 'Проверить';
+    }
+  } catch(e) {
+    msg.textContent = 'Нет соединения с сервером';
+    msg.style.color = 'var(--red)';
+    btn.disabled = false; btn.textContent = 'Проверить';
+  }
+}
+
+async function doUpdate() {
+  if (!_updateDownloadUrl) return;
+  document.getElementById('doUpdateBtn').disabled = true;
+  document.getElementById('checkUpdateBtn').style.display = 'none';
+
+  const wrap   = document.getElementById('updateProgressWrap');
+  const bar    = document.getElementById('updateProgressBar');
+  const pmsg   = document.getElementById('updateProgressMsg');
+  wrap.style.display = 'block';
+
+  // Animate progress bar through stages since we can't get real progress
+  const stages = [
+    [500,  10, 'Загрузка обновления…'],
+    [4000, 60, 'Загрузка обновления…'],
+    [2000, 80, 'Установка…'],
+    [1500, 95, 'Перезапуск…'],
+  ];
+  let pos = 0;
+  function nextStage() {
+    if (pos >= stages.length) return;
+    const [delay, pct, text] = stages[pos++];
+    setTimeout(() => { bar.style.width = pct + '%'; pmsg.textContent = text; nextStage(); }, delay);
+  }
+  nextStage();
+
+  try {
+    await fetch('/api/update/start', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({download_url: _updateDownloadUrl}),
+    });
+  } catch(e) {
+    // Expected — server shutting down
+  }
+
+  // Poll until server is back, then reload
+  pmsg.textContent = 'Ожидание перезапуска…';
+  bar.style.width = '98%';
+  const poll = setInterval(async () => {
+    try {
+      const r = await fetch('/api/update/check', {signal: AbortSignal.timeout(2000)});
+      if (r.ok) {
+        clearInterval(poll);
+        bar.style.width = '100%';
+        pmsg.textContent = 'Готово! Перезагружаю страницу…';
+        setTimeout(() => location.reload(), 1000);
+      }
+    } catch(e) {}
+  }, 2000);
+}
 
 // ── Folder stats modal ───────────────────────────────────────────────────────
 let _statsChart = null;

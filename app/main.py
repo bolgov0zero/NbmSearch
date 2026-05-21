@@ -22,7 +22,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 import uvicorn
 
-from app.settings import PORT, verify_password
+from app.settings import PORT, verify_password, VERSION, GITHUB_REPO
 from app import database as db
 from app import indexer
 
@@ -168,6 +168,7 @@ Write-Host "Done! Restart your browser." -ForegroundColor Green"""
         "folders": folders,
         "schedules": schedules,
         "setup_script": setup_script,
+        "version": VERSION,
     })
 
 
@@ -337,6 +338,71 @@ async def api_folder_stats(folder_id: int, request: Request, period: str = "mont
         return db.get_folder_stats(folder_id, period)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ── Update ────────────────────────────────────────────────────────────────────
+
+def _version_gt(a: str, b: str) -> bool:
+    """Return True if semver a > b."""
+    try:
+        return tuple(int(x) for x in a.split(".")) > tuple(int(x) for x in b.split("."))
+    except Exception:
+        return False
+
+
+@app.get("/api/update/check")
+async def api_update_check(request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    import urllib.request as _req
+    import json as _json
+    try:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+        req = _req.Request(url, headers={"User-Agent": "NbmSearch"})
+        with _req.urlopen(req, timeout=10) as r:
+            data = _json.loads(r.read())
+        latest_tag = data.get("tag_name", "").lstrip("v")
+        assets = data.get("assets", [])
+        # Find NbmSearch exe asset (not the opener)
+        download_url = next(
+            (a["browser_download_url"] for a in assets
+             if a["name"].lower().startswith("nbmsearch")
+             and not a["name"].lower().startswith("nbmsearchopen")
+             and a["name"].lower().endswith(".exe")),
+            None,
+        )
+        return {
+            "current": VERSION,
+            "latest": latest_tag,
+            "update_available": _version_gt(latest_tag, VERSION),
+            "download_url": download_url,
+        }
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/update/start")
+async def api_update_start(request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    if not getattr(sys, "frozen", False):
+        return JSONResponse({"error": "Обновление доступно только в собранном приложении"}, status_code=400)
+    body = await request.json()
+    download_url = body.get("download_url", "").strip()
+    if not download_url:
+        return JSONResponse({"error": "Нет ссылки на обновление"}, status_code=400)
+    exe_path = str(Path(sys.executable))
+    updater_path = str(Path(sys.executable).parent / "NbmSearchUpdater.exe")
+    if not os.path.exists(updater_path):
+        return JSONResponse({"error": "NbmSearchUpdater.exe не найден рядом с приложением"}, status_code=500)
+    import subprocess as _sp
+    pid = os.getpid()
+    _sp.Popen(
+        [updater_path, str(pid), download_url, exe_path],
+        creationflags=_sp.DETACHED_PROCESS | _sp.CREATE_NEW_PROCESS_GROUP,
+    )
+    threading.Timer(1.0, lambda: os._exit(0)).start()
+    return {"status": "updating"}
 
 
 # ── Client setup ──────────────────────────────────────────────────────────────

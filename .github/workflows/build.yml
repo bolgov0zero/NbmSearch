@@ -25,6 +25,12 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller pillow
 
+      - name: Get version
+        id: ver
+        run: |
+          $ver = python -c "exec(open('app/settings.py').read()); print(VERSION)"
+          echo "version=$ver" >> $env:GITHUB_OUTPUT
+
       - name: Convert icon PNG → ICO
         run: |
           python -c "
@@ -56,22 +62,20 @@ jobs:
             --add-data "icon.png;." `
             open_handler.py
 
-      - name: Rename artifacts
+      - name: Build updater EXE
         run: |
-          mv dist/NbmSearch.exe dist/NbmSearch-windows.exe
-          mv dist/NbmSearchOpen.exe dist/NbmSearchOpen-windows.exe
-
-      - name: Generate release tag
-        id: tag
-        run: echo "tag=$(Get-Date -Format 'yyyy-MM-dd-HH-mm')" >> $env:GITHUB_OUTPUT
+          pyinstaller --onefile --windowed --name NbmSearchUpdater `
+            --icon icon.ico `
+            NbmSearchUpdater.py
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: NbmSearch ${{ steps.tag.outputs.tag }}
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: NbmSearch v${{ steps.ver.outputs.version }}
           files: |
-            dist/NbmSearch-windows.exe
-            dist/NbmSearchOpen-windows.exe
+            dist/NbmSearch.exe
+            dist/NbmSearchOpen.exe
+            dist/NbmSearchUpdater.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
