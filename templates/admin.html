@@ -100,6 +100,8 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
 .item-row:last-child{border-bottom:none}
 .item-row:hover{background:rgba(255,255,255,.015)}
 .item-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.item-dot.watching{background:var(--green);animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(46,204,113,.6)}50%{box-shadow:0 0 0 5px rgba(46,204,113,0)}}
 .item-info{flex:1;min-width:0}
 .item-name{font-weight:600;font-size:.88rem;margin-bottom:2px}
 .item-sub{font-size:.73rem;color:var(--text-dim);word-break:break-all}
@@ -229,7 +231,7 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
       {% if folders %}
         {% for f in folders %}
         <div class="item-row" data-id="{{ f.id }}" data-name="{{ f.name }}">
-          <div class="item-dot"></div>
+          <div class="item-dot {% if f.watchdog_enabled %}watching{% endif %}" id="dot-{{ f.id }}"></div>
           <div class="item-info">
             <div class="item-name">{{ f.name }}</div>
             <div class="item-sub">{{ f.path }}</div>
@@ -412,7 +414,7 @@ function appendFolderRow(id, name, path) {
   const div  = document.createElement('div');
   div.className = 'item-row'; div.dataset.id = id; div.dataset.name = name;
   div.innerHTML = `
-    <div class="item-dot"></div>
+    <div class="item-dot" id="dot-${id}"></div>
     <div class="item-info">
       <div class="item-name">${esc(name)}</div>
       <div class="item-sub">${esc(path)}</div>
@@ -453,6 +455,8 @@ async function toggleWatchdog(id, btn) {
   btn.classList.toggle('on', enabling);
   btn.innerHTML = enabling ? eyeOn : eyeOff;
   btn.title = enabling ? 'Watchdog включён' : 'Watchdog выключен';
+  const dot = document.getElementById(`dot-${id}`);
+  if (dot) dot.classList.toggle('watching', enabling);
 }
 
 // ── Reindex folder ───────────────────────────────────────────────────────────
