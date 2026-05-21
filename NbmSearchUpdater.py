@@ -48,7 +48,13 @@ def main() -> None:
     # 2. Download new exe next to target
     tmp_path = exe_path + ".new"
     try:
-        urllib.request.urlretrieve(download_url, tmp_path)
+        import ssl
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        with urllib.request.urlopen(download_url, context=ctx, timeout=120) as r:
+            with open(tmp_path, "wb") as f:
+                f.write(r.read())
     except Exception:
         sys.exit(1)
 

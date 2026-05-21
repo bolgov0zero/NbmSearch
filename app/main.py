@@ -354,9 +354,13 @@ def _fetch_latest_release() -> dict:
     """Blocking GitHub API call — run in thread executor."""
     import urllib.request as _req
     import json as _json
+    import ssl as _ssl
+    ctx = _ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = _ssl.CERT_NONE
     url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
     req = _req.Request(url, headers={"User-Agent": "NbmSearch"})
-    with _req.urlopen(req, timeout=15) as r:
+    with _req.urlopen(req, timeout=15, context=ctx) as r:
         return _json.loads(r.read())
 
 
