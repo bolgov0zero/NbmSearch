@@ -350,20 +350,26 @@ def _version_gt(a: str, b: str) -> bool:
         return False
 
 
+def _fetch_latest_release() -> dict:
+    """Blocking GitHub API call — run in thread executor."""
+    import urllib.request as _req
+    import json as _json
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+    req = _req.Request(url, headers={"User-Agent": "NbmSearch"})
+    with _req.urlopen(req, timeout=15) as r:
+        return _json.loads(r.read())
+
+
 @app.get("/api/update/check")
 async def api_update_check(request: Request):
     if not _is_auth(request):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
-    import urllib.request as _req
-    import json as _json
+    import asyncio
     try:
-        url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-        req = _req.Request(url, headers={"User-Agent": "NbmSearch"})
-        with _req.urlopen(req, timeout=10) as r:
-            data = _json.loads(r.read())
+        loop = asyncio.get_event_loop()
+        data = await loop.run_in_executor(None, _fetch_latest_release)
         latest_tag = data.get("tag_name", "").lstrip("v")
         assets = data.get("assets", [])
-        # Find NbmSearch exe asset (not the opener)
         download_url = next(
             (a["browser_download_url"] for a in assets
              if a["name"].lower().startswith("nbmsearch")
