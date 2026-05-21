@@ -120,6 +120,9 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
   transition:border-color .15s,color .15s,background .15s}
 .btn-icon:hover{border-color:var(--red);color:var(--red);background:var(--red-bg)}
 .btn-icon.reindex:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+.btn-icon.watchdog{color:var(--text-dim)}
+.btn-icon.watchdog.on{border-color:var(--green);color:var(--green);background:rgba(46,204,113,.1)}
+.btn-icon.watchdog:hover{border-color:var(--green);color:var(--green);background:rgba(46,204,113,.1)}
 
 /* ── Progress ── */
 .prog-wrap{margin-top:8px}
@@ -241,6 +244,17 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
           </div>
           <div class="item-right">
             <span class="badge" id="cnt-{{ f.id }}">{{ f.file_count }} файлов</span>
+            <button class="btn-icon watchdog {% if f.watchdog_enabled %}on{% endif %}" id="wd-{{ f.id }}"
+              title="Watchdog{% if f.watchdog_enabled %} включён{% else %} выключен{% endif %}"
+              onclick="toggleWatchdog({{ f.id }}, this)">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                {% if f.watchdog_enabled %}
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                {% else %}
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
+                {% endif %}
+              </svg>
+            </button>
             <button class="btn-icon reindex" title="Переиндексировать" onclick="reindexFolder({{ f.id }})">↻</button>
             <button class="btn-icon" title="Удалить индекс" onclick="confirmDeleteFolder({{ f.id }}, '{{ f.name }}')">✕</button>
           </div>
@@ -409,6 +423,9 @@ function appendFolderRow(id, name, path) {
     </div>
     <div class="item-right">
       <span class="badge" id="cnt-${id}">0 файлов</span>
+      <button class="btn-icon watchdog" id="wd-${id}" title="Watchdog выключен" onclick="toggleWatchdog(${id}, this)">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+      </button>
       <button class="btn-icon reindex" title="Переиндексировать" onclick="reindexFolder(${id})">↻</button>
       <button class="btn-icon" title="Удалить" onclick="confirmDeleteFolder(${id},'${esc(name)}')">✕</button>
     </div>`;
@@ -420,6 +437,22 @@ function addFolderOption(id, name) {
   const opt = document.createElement('option');
   opt.value = id; opt.textContent = name;
   sel.appendChild(opt);
+}
+
+// ── Watchdog toggle ──────────────────────────────────────────────────────────
+const eyeOn  = `<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const eyeOff = `<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+
+async function toggleWatchdog(id, btn) {
+  const enabling = !btn.classList.contains('on');
+  const res = await fetch(`/api/folders/${id}/watchdog`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({enabled: enabling})
+  }).catch(() => null);
+  if (!res || !res.ok) return;
+  btn.classList.toggle('on', enabling);
+  btn.innerHTML = enabling ? eyeOn : eyeOff;
+  btn.title = enabling ? 'Watchdog включён' : 'Watchdog выключен';
 }
 
 // ── Reindex folder ───────────────────────────────────────────────────────────

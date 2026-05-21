@@ -100,6 +100,7 @@ def init_db():
         for ddl in (
             "ALTER TABLE folders ADD COLUMN reindex_minutes INTEGER NOT NULL DEFAULT 60",
             "ALTER TABLE folders ADD COLUMN last_reindex_at REAL",
+            "ALTER TABLE folders ADD COLUMN watchdog_enabled INTEGER NOT NULL DEFAULT 0",
         ):
             try:
                 conn.execute(ddl)
@@ -209,10 +210,18 @@ def _make_snippet(text: str, query: str, radius: int = 150) -> str:
 
 # ── Folders CRUD ─────────────────────────────────────────────────────────────
 
+def set_folder_watchdog(folder_id: int, enabled: bool):
+    with _main_lock:
+        conn = _get_main_conn()
+        conn.execute("UPDATE folders SET watchdog_enabled=? WHERE id=?", (1 if enabled else 0, folder_id))
+        conn.commit()
+        conn.close()
+
+
 def get_folders() -> list[dict]:
     conn = _get_main_conn()
     rows = [dict(r) for r in conn.execute(
-        "SELECT id, name, path, reindex_minutes, created_at, last_reindex_at FROM folders ORDER BY created_at"
+        "SELECT id, name, path, reindex_minutes, created_at, last_reindex_at, watchdog_enabled FROM folders ORDER BY created_at"
     ).fetchall()]
     conn.close()
     return rows

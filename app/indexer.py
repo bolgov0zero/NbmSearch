@@ -271,7 +271,7 @@ def restart_watchdog():
                 pass
             _observer = None
 
-        folders = db.get_folders()
+        folders = [f for f in db.get_folders() if f.get("watchdog_enabled")]
         if not folders:
             return
 

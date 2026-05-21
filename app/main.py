@@ -246,6 +246,17 @@ async def api_add_folder(data: FolderIn, request: Request):
     return folder
 
 
+@app.post("/api/folders/{folder_id}/watchdog")
+async def api_toggle_watchdog(folder_id: int, request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    body = await request.json()
+    enabled = bool(body.get("enabled", False))
+    db.set_folder_watchdog(folder_id, enabled)
+    threading.Thread(target=indexer.restart_watchdog, daemon=True).start()
+    return {"folder_id": folder_id, "watchdog_enabled": enabled}
+
+
 @app.get("/api/schedules")
 async def api_get_schedules():
     from datetime import datetime
