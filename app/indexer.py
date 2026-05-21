@@ -79,27 +79,33 @@ def extract_text(path: str) -> str:
         elif ext == ".xlsx":
             import openpyxl
             wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
-            parts = []
-            for ws in wb.worksheets:
-                try:
-                    for row in ws.iter_rows(values_only=True):
-                        try:
-                            parts.append(" ".join(str(c) for c in row if c is not None))
-                        except Exception:
-                            pass
-                except Exception:
-                    pass
-            return "\n".join(parts)
+            try:
+                parts = []
+                for ws in wb.worksheets:
+                    try:
+                        for row in ws.iter_rows(values_only=True):
+                            try:
+                                parts.append(" ".join(str(c) for c in row if c is not None))
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+                return "\n".join(parts)
+            finally:
+                wb.close()
 
         elif ext == ".xls":
             import xlrd
             wb = xlrd.open_workbook(path)
-            parts = []
-            for sheet in wb.sheets():
-                for row_idx in range(sheet.nrows):
-                    parts.append(" ".join(str(sheet.cell_value(row_idx, c))
-                                          for c in range(sheet.ncols)))
-            return "\n".join(parts)
+            try:
+                parts = []
+                for sheet in wb.sheets():
+                    for row_idx in range(sheet.nrows):
+                        parts.append(" ".join(str(sheet.cell_value(row_idx, c))
+                                              for c in range(sheet.ncols)))
+                return "\n".join(parts)
+            finally:
+                wb.release_resources()
 
         elif ext == ".pdf":
             import pdfplumber
@@ -146,6 +152,8 @@ def index_file(folder_id: int, path: str):
         return
     try:
         stat = os.stat(path)
+        if stat.st_size == 0:
+            return  # skip empty files (being written / temp placeholders)
         content = extract_text(path)
         name = os.path.basename(path)
         db.upsert_file(
@@ -238,32 +246,54 @@ _observer: Observer | None = None
 _observer_lock = threading.Lock()
 
 
+_WATCHDOG_DEBOUNCE = 3.0  # seconds to wait after last event before indexing
+
+
 class FileEventHandler(FileSystemEventHandler):
     def __init__(self, folder_id: int):
         self.folder_id = folder_id
+        self._timers: dict[str, threading.Timer] = {}
+        self._timers_lock = threading.Lock()
 
-    def _handle(self, path: str, deleted: bool = False):
-        if deleted:
-            db.delete_file_from_folder(self.folder_id, path)
-        else:
-            index_file(self.folder_id, path)
+    def _schedule(self, path: str):
+        """Debounce: index the file only after DEBOUNCE seconds of silence."""
+        with self._timers_lock:
+            existing = self._timers.pop(path, None)
+            if existing:
+                existing.cancel()
+            t = threading.Timer(_WATCHDOG_DEBOUNCE, self._do_index, args=(path,))
+            self._timers[path] = t
+            t.daemon = True
+            t.start()
+
+    def _do_index(self, path: str):
+        with self._timers_lock:
+            self._timers.pop(path, None)
+        # Skip if file disappeared or is still empty (being written)
+        try:
+            if os.path.getsize(path) == 0:
+                logger.debug("Watchdog: skipping empty file %s", path)
+                return
+        except OSError:
+            return
+        index_file(self.folder_id, path)
 
     def on_created(self, event):
         if not event.is_directory:
-            self._handle(event.src_path)
+            self._schedule(event.src_path)
 
     def on_modified(self, event):
         if not event.is_directory:
-            self._handle(event.src_path)
+            self._schedule(event.src_path)
 
     def on_deleted(self, event):
         if not event.is_directory:
-            self._handle(event.src_path, deleted=True)
+            db.delete_file_from_folder(self.folder_id, event.src_path)
 
     def on_moved(self, event):
         if not event.is_directory:
-            self._handle(event.src_path, deleted=True)
-            self._handle(event.dest_path)
+            db.delete_file_from_folder(self.folder_id, event.src_path)
+            self._schedule(event.dest_path)
 
 
 def restart_watchdog():
