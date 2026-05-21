@@ -214,7 +214,11 @@ def index_folder(folder: dict):
 
     # Remove deleted files
     current_paths = set(all_files)
-    for stale in indexed_paths - current_paths:
+    stale_paths = indexed_paths - current_paths
+    logger.info("Folder '%s' stats: on_disk=%d in_db=%d stale=%d",
+                folder_name, len(all_files), len(indexed_paths), len(stale_paths))
+    for stale in stale_paths:
+        logger.info("Removing stale: %s", stale)
         db.delete_file_from_folder(folder_id, stale)
 
     _set_progress(folder_id, total, total, "done")
