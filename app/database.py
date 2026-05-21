@@ -107,7 +107,20 @@ def init_db():
             except Exception:
                 pass
         conn.commit()
+        # Migrate all existing per-folder DBs (add created_at if missing)
+        folder_ids = [r[0] for r in conn.execute("SELECT id FROM folders").fetchall()]
         conn.close()
+    for fid in folder_ids:
+        try:
+            fconn = _get_folder_conn(fid)
+            try:
+                fconn.execute("ALTER TABLE files ADD COLUMN created_at REAL")
+                fconn.commit()
+            except Exception:
+                pass
+            fconn.close()
+        except Exception:
+            pass
 
 
 def _init_folder_db(folder_id: int):

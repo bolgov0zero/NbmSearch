@@ -806,15 +806,20 @@ function selectPeriod(p) {
 async function loadStats() {
   if (!_statsFolderId) return;
   const loading = document.getElementById('statsLoading');
+  loading.textContent = 'Загрузка…';
   loading.style.display = 'block';
   try {
-    const data = await fetch(`/api/folders/${_statsFolderId}/stats?period=${_statsPeriod}`).then(r => r.json());
+    const res = await fetch(`/api/folders/${_statsFolderId}/stats?period=${_statsPeriod}`);
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      loading.textContent = 'Ошибка: ' + (data.error || res.status);
+      return;
+    }
     renderChart(data.timeline || []);
     renderExtTable(data.extensions || []);
+    loading.style.display = 'none';
   } catch(e) {
     loading.textContent = 'Ошибка загрузки';
-  } finally {
-    loading.style.display = 'none';
   }
 }
 
