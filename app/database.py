@@ -101,6 +101,12 @@ def init_db():
             "ALTER TABLE folders ADD COLUMN reindex_minutes INTEGER NOT NULL DEFAULT 60",
             "ALTER TABLE folders ADD COLUMN last_reindex_at REAL",
             "ALTER TABLE folders ADD COLUMN watchdog_enabled INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE folders ADD COLUMN file_count INTEGER NOT NULL DEFAULT 0",
+            """CREATE TABLE IF NOT EXISTS search_log (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                query       TEXT    NOT NULL,
+                searched_at REAL    NOT NULL
+            )""",
         ):
             try:
                 conn.execute(ddl)
@@ -241,7 +247,7 @@ def set_folder_watchdog(folder_id: int, enabled: bool):
 def get_folders() -> list[dict]:
     conn = _get_main_conn()
     rows = [dict(r) for r in conn.execute(
-        "SELECT id, name, path, reindex_minutes, created_at, last_reindex_at, watchdog_enabled FROM folders ORDER BY created_at"
+        "SELECT id, name, path, reindex_minutes, created_at, last_reindex_at, watchdog_enabled, file_count FROM folders ORDER BY created_at"
     ).fetchall()]
     conn.close()
     return rows
@@ -539,15 +545,92 @@ def search(query: str, folder_names: list[str] | None = None, limit: int = 50) -
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
 
+def update_folder_file_count(folder_id: int) -> None:
+    """Recount files in folder DB and cache the result in the main DB."""
+    try:
+        fconn = _get_folder_conn(folder_id)
+        cnt = fconn.execute("SELECT COUNT(*) FROM files").fetchone()[0]
+        fconn.close()
+    except Exception:
+        cnt = 0
+    with _main_lock:
+        conn = _get_main_conn()
+        conn.execute("UPDATE folders SET file_count=? WHERE id=?", (cnt, folder_id))
+        conn.commit()
+        conn.close()
+
+
 def stats() -> tuple[int, list[dict]]:
+    """Fast stats from main DB only — no folder DB access."""
     folders = get_folders()
-    by_folder = []
-    total = 0
-    for f in folders:
-        cnt = get_file_count(f["id"])
-        total += cnt
-        by_folder.append({"folder_name": f["name"], "folder_id": f["id"], "cnt": cnt})
+    by_folder = [{"folder_name": f["name"], "folder_id": f["id"], "cnt": f.get("file_count", 0)}
+                 for f in folders]
+    total = sum(b["cnt"] for b in by_folder)
     return total, by_folder
+
+
+# ── Search log ────────────────────────────────────────────────────────────────
+
+def log_search(query: str) -> None:
+    if not query.strip():
+        return
+    with _main_lock:
+        conn = _get_main_conn()
+        conn.execute("INSERT INTO search_log (query, searched_at) VALUES (?,?)",
+                     (query.strip(), time.time()))
+        conn.commit()
+        conn.close()
+
+
+def get_search_stats(period: str = "day") -> dict:
+    import datetime as _dt
+    conn = _get_main_conn()
+    try:
+        ts = "searched_at"
+        today = conn.execute(
+            f"SELECT COUNT(*) FROM search_log WHERE date({ts},'unixepoch','localtime')=date('now','localtime')"
+        ).fetchone()[0]
+        week = conn.execute(
+            f"SELECT COUNT(*) FROM search_log WHERE strftime('%Y-%W',{ts},'unixepoch','localtime')=strftime('%Y-%W','now','localtime')"
+        ).fetchone()[0]
+        month = conn.execute(
+            f"SELECT COUNT(*) FROM search_log WHERE strftime('%Y-%m',{ts},'unixepoch','localtime')=strftime('%Y-%m','now','localtime')"
+        ).fetchone()[0]
+
+        if period == "day":
+            rows = conn.execute(
+                f"""SELECT strftime('%H',{ts},'unixepoch','localtime') AS p, COUNT(*) AS cnt
+                    FROM search_log
+                    WHERE date({ts},'unixepoch','localtime')=date('now','localtime')
+                    GROUP BY p ORDER BY p"""
+            ).fetchall()
+            counts = {r["p"]: r["cnt"] for r in rows}
+            timeline = [{"period": f"{h:02d}:00", "cnt": counts.get(f"{h:02d}", 0)} for h in range(24)]
+        elif period == "year":
+            rows = conn.execute(
+                f"""SELECT strftime('%m',{ts},'unixepoch','localtime') AS p, COUNT(*) AS cnt
+                    FROM search_log
+                    WHERE strftime('%Y',{ts},'unixepoch','localtime')=strftime('%Y','now','localtime')
+                    GROUP BY p ORDER BY p"""
+            ).fetchall()
+            counts = {r["p"]: r["cnt"] for r in rows}
+            timeline = [{"period": _MONTH_NAMES[m], "cnt": counts.get(f"{m+1:02d}", 0)} for m in range(12)]
+        else:  # month
+            import calendar
+            now = _dt.datetime.now()
+            days = calendar.monthrange(now.year, now.month)[1]
+            rows = conn.execute(
+                f"""SELECT strftime('%d',{ts},'unixepoch','localtime') AS p, COUNT(*) AS cnt
+                    FROM search_log
+                    WHERE strftime('%Y-%m',{ts},'unixepoch','localtime')=strftime('%Y-%m','now','localtime')
+                    GROUP BY p ORDER BY p"""
+            ).fetchall()
+            counts = {r["p"]: r["cnt"] for r in rows}
+            timeline = [{"period": f"{d:02d}", "cnt": counts.get(f"{d:02d}", 0)} for d in range(1, days + 1)]
+
+        return {"summary": {"today": today, "week": week, "month": month}, "timeline": timeline}
+    finally:
+        conn.close()
 
 
 # ── Sessions ─────────────────────────────────────────────────────────────────

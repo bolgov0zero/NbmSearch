@@ -231,6 +231,7 @@ def index_folder(folder: dict, full: bool = False):
 
     _set_progress(folder_id, total, total, "done")
     db.set_folder_last_reindex(folder_id, time.time())
+    db.update_folder_file_count(folder_id)
     logger.info("Done indexing folder '%s'", folder_name)
 
 
@@ -277,6 +278,7 @@ class FileEventHandler(FileSystemEventHandler):
         except OSError:
             return
         index_file(self.folder_id, path)
+        db.update_folder_file_count(self.folder_id)
 
     def on_created(self, event):
         if not event.is_directory:
@@ -289,6 +291,7 @@ class FileEventHandler(FileSystemEventHandler):
     def on_deleted(self, event):
         if not event.is_directory:
             db.delete_file_from_folder(self.folder_id, event.src_path)
+            db.update_folder_file_count(self.folder_id)
 
     def on_moved(self, event):
         if not event.is_directory:

@@ -386,6 +386,28 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
     </div>
   </div>
 
+  <!-- Search stats -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Статистика запросов</div>
+      <button class="btn btn-primary" style="padding:5px 14px;font-size:.78rem" onclick="openSearchStats()">Статистика</button>
+    </div>
+    <div class="stat-row" id="searchStatRow">
+      <div class="stat-box">
+        <div class="s-label">Сегодня</div>
+        <div class="s-value" id="sqToday" style="color:var(--text)">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="s-label">На этой неделе</div>
+        <div class="s-value" id="sqWeek" style="color:var(--text)">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="s-label">В этом месяце</div>
+        <div class="s-value" id="sqMonth" style="color:var(--text)">—</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Update -->
   <div class="card">
     <div class="card-head"><div class="card-title">Обновление</div></div>
@@ -438,6 +460,25 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
 <footer style="text-align:center;padding:20px 24px 32px;font-size:.75rem;color:var(--text-muted)">
   © 2026 Nebolit LLC &nbsp;·&nbsp; v{{ version }}
 </footer>
+
+<!-- Search stats modal -->
+<div class="stats-overlay" id="searchStatsOverlay">
+  <div class="stats-modal">
+    <div class="stats-modal-head">
+      <div class="stats-modal-title">Статистика запросов</div>
+      <button class="stats-modal-close" onclick="closeSearchStatsModal()">✕</button>
+    </div>
+    <div class="stats-period-tabs">
+      <button class="period-tab active" data-sq-period="day" onclick="selectSearchPeriod('day')">День</button>
+      <button class="period-tab" data-sq-period="month" onclick="selectSearchPeriod('month')">Месяц</button>
+      <button class="period-tab" data-sq-period="year" onclick="selectSearchPeriod('year')">Год</button>
+    </div>
+    <div class="stats-chart-wrap">
+      <canvas id="searchStatsChart"></canvas>
+      <div class="stats-loading" id="searchStatsLoading">Загрузка…</div>
+    </div>
+  </div>
+</div>
 
 <!-- Stats modal -->
 <div class="stats-overlay" id="statsOverlay">
@@ -893,6 +934,94 @@ async function doUpdate() {
     } catch(e) {}
   }, 2000);
 }
+
+// ── Search stats ─────────────────────────────────────────────────────────────
+let _searchStatsChart = null;
+let _searchStatsPeriod = 'day';
+
+async function loadSearchSummary() {
+  try {
+    const data = await fetch('/api/search/stats?period=day').then(r => r.json());
+    const s = data.summary || {};
+    document.getElementById('sqToday').textContent  = (s.today  ?? '—').toLocaleString('ru-RU');
+    document.getElementById('sqWeek').textContent   = (s.week   ?? '—').toLocaleString('ru-RU');
+    document.getElementById('sqMonth').textContent  = (s.month  ?? '—').toLocaleString('ru-RU');
+  } catch(e) {}
+}
+
+function openSearchStats() {
+  if (_searchStatsChart) { _searchStatsChart.destroy(); _searchStatsChart = null; }
+  _searchStatsPeriod = 'day';
+  document.querySelectorAll('[data-sq-period]').forEach(t => t.classList.toggle('active', t.dataset.sqPeriod === 'day'));
+  const loading = document.getElementById('searchStatsLoading');
+  loading.textContent = 'Загрузка…'; loading.style.display = 'block';
+  document.getElementById('searchStatsOverlay').classList.add('visible');
+  loadSearchChart();
+}
+
+function closeSearchStatsModal() {
+  document.getElementById('searchStatsOverlay').classList.remove('visible');
+}
+
+document.getElementById('searchStatsOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('searchStatsOverlay')) closeSearchStatsModal();
+});
+
+function selectSearchPeriod(p) {
+  _searchStatsPeriod = p;
+  document.querySelectorAll('[data-sq-period]').forEach(t => t.classList.toggle('active', t.dataset.sqPeriod === p));
+  loadSearchChart();
+}
+
+async function loadSearchChart() {
+  const loading = document.getElementById('searchStatsLoading');
+  loading.textContent = 'Загрузка…'; loading.style.display = 'block';
+  try {
+    const res  = await fetch(`/api/search/stats?period=${_searchStatsPeriod}`);
+    const data = await res.json();
+    if (!res.ok || data.error) { loading.textContent = 'Ошибка: ' + (data.error || res.status); return; }
+    const timeline = data.timeline || [];
+    const canvas   = document.getElementById('searchStatsChart');
+    if (_searchStatsChart) { _searchStatsChart.destroy(); _searchStatsChart = null; }
+    if (!timeline.length || timeline.every(t => t.cnt === 0)) {
+      loading.textContent = 'Нет данных за этот период'; return;
+    }
+    loading.style.display = 'none';
+    _searchStatsChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: timeline.map(r => r.period),
+        datasets: [{
+          label: 'Запросов',
+          data: timeline.map(r => r.cnt),
+          borderColor: '#2ecc71',
+          backgroundColor: 'rgba(46,204,113,.1)',
+          borderWidth: 2,
+          pointRadius: timeline.length > 30 ? 0 : 3,
+          pointHoverRadius: 5,
+          pointBackgroundColor: '#2ecc71',
+          fill: true,
+          tension: 0.4,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { backgroundColor:'#1a1d27', borderColor:'#2d3148', borderWidth:1,
+                     titleColor:'#e8eaf6', bodyColor:'#8b90b8', padding:10 }
+        },
+        scales: {
+          x: { grid:{color:'rgba(45,49,72,.6)'}, ticks:{color:'#8b90b8', font:{size:11}, maxTicksLimit:12} },
+          y: { grid:{color:'rgba(45,49,72,.6)'}, ticks:{color:'#8b90b8', font:{size:11}, precision:0}, beginAtZero:true }
+        }
+      }
+    });
+  } catch(e) { loading.textContent = 'Ошибка загрузки'; }
+}
+
+loadSearchSummary();
+setInterval(loadSearchSummary, 60000);
 
 // ── Folder stats modal ───────────────────────────────────────────────────────
 let _statsChart = null;

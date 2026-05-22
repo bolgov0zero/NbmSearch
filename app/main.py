@@ -76,12 +76,23 @@ async def search(
 ):
     if not q.strip():
         return {"results": []}
+    threading.Thread(target=db.log_search, args=(q.strip(),), daemon=True).start()
     try:
         results = db.search(q.strip(), folder_names=folders or None)
     except Exception as e:
         logger.error("Search error: %s", e)
         return {"results": [], "error": str(e)}
     return {"results": results}
+
+
+@app.get("/api/search/stats")
+async def api_search_stats(request: Request, period: str = "day"):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    try:
+        return db.get_search_stats(period)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 # ── Admin auth ────────────────────────────────────────────────────────────────
