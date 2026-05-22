@@ -436,8 +436,14 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
 
   <!-- Client setup -->
   <div class="card">
-    <div class="card-head"><div class="card-title">Настройка клиентов</div></div>
-    <div class="card-body">
+    <div class="card-head" onclick="toggleClientSetup()" style="cursor:pointer;user-select:none">
+      <div class="card-title">Настройка клиентов</div>
+      <svg id="clientSetupArrow" width="16" height="16" viewBox="0 0 16 16" fill="none"
+           style="color:var(--text-muted);transition:transform .25s;transform:rotate(-90deg)">
+        <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div id="clientSetupBody" class="card-body" style="display:none">
       <p class="setup-desc">
         Чтобы кнопки <strong style="color:var(--text)">«Открыть»</strong> и
         <strong style="color:var(--text)">«Папка»</strong> работали в браузере —
@@ -1152,6 +1158,14 @@ function renderExtTable(extensions) {
       <td>${e.cnt.toLocaleString('ru-RU')}</td>
     </tr>`;
   }).join('');
+}
+
+function toggleClientSetup() {
+  const body  = document.getElementById('clientSetupBody');
+  const arrow = document.getElementById('clientSetupArrow');
+  const open  = body.style.display !== 'none';
+  body.style.display  = open ? 'none' : '';
+  arrow.style.transform = open ? 'rotate(-90deg)' : 'rotate(0deg)';
 }
 
 function copySetupScript(btn) {
