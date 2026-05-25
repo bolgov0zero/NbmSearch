@@ -48,6 +48,11 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
   border-radius: 7px; padding: 8px 18px; font-size: .875rem; font-weight: 600;
   cursor: pointer; white-space: nowrap; transition: background .15s; }
 .btn-search:hover { background: var(--accent-dim); }
+.btn-clear { display: none; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; color: var(--text-dim);
+  padding: 0 6px; border-radius: 4px; transition: color .15s; flex-shrink: 0; }
+.btn-clear:hover { color: var(--text); }
+.btn-clear.visible { display: flex; }
 
 .search-row { display: flex; gap: 8px; align-items: stretch; }
 .search-container { position: relative; flex: 1; min-width: 0; }
@@ -155,6 +160,11 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
       <div class="search-container">
         <div class="search-wrap">
           <input type="text" id="query" placeholder='Запрос… или "точная фраза"' autocomplete="off" autofocus>
+          <button type="button" class="btn-clear" id="clearBtn" title="Очистить" onclick="clearQuery()">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </button>
           <button type="submit" class="btn-search">Найти</button>
         </div>
       </div>
@@ -217,7 +227,19 @@ function selectedFolders() {
 // ── Search history ──
 const form = document.getElementById('searchForm');
 const input = document.getElementById('query');
+const clearBtn = document.getElementById('clearBtn');
 const spinner = document.getElementById('spinner');
+
+function updateClearBtn() {
+  clearBtn.classList.toggle('visible', input.value.length > 0);
+}
+function clearQuery() {
+  input.value = '';
+  updateClearBtn();
+  input.focus();
+}
+input.addEventListener('input', updateClearBtn);
+updateClearBtn();
 const statusText = document.getElementById('statusText');
 const results = document.getElementById('results');
 const historyBox = document.getElementById('searchHistory');
