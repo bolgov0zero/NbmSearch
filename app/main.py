@@ -230,6 +230,21 @@ async def trigger_full_reindex(folder_id: int, request: Request):
     return {"status": "started"}
 
 
+@app.post("/api/folders/reorder")
+async def api_reorder_folders(request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    body = await request.json()
+    ids = body.get("ids", [])
+    if not isinstance(ids, list):
+        return JSONResponse({"error": "ids must be a list"}, status_code=400)
+    try:
+        db.reorder_folders([int(i) for i in ids])
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+    return {"status": "ok"}
+
+
 @app.patch("/api/folders/{folder_id}")
 async def api_rename_folder(folder_id: int, request: Request):
     if not _is_auth(request):

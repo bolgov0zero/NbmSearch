@@ -213,6 +213,14 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
 .stats-ext-bar{display:inline-block;height:6px;border-radius:3px;
   background:var(--accent);opacity:.7;vertical-align:middle;margin-right:8px}
 .stats-loading{text-align:center;color:var(--text-muted);font-size:.83rem;padding:40px 0}
+
+/* ── Drag-and-drop ── */
+.drag-handle{display:flex;align-items:center;padding:0 6px 0 0;color:var(--text-muted);
+  cursor:grab;flex-shrink:0;opacity:.45;transition:opacity .15s}
+.drag-handle:hover{opacity:1}
+.item-row.dragging{opacity:.35;background:var(--surface2)}
+.item-row.drag-over-top{box-shadow:inset 0 2px 0 0 var(--accent)}
+.item-row.drag-over-bottom{box-shadow:inset 0 -2px 0 0 var(--accent)}
 </style>
 </head>
 <body>
@@ -277,7 +285,14 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
     <div class="item-list" id="folderList">
       {% if folders %}
         {% for f in folders %}
-        <div class="item-row" data-id="{{ f.id }}" data-name="{{ f.name }}">
+        <div class="item-row" data-id="{{ f.id }}" data-name="{{ f.name }}" draggable="true">
+          <div class="drag-handle" title="Перетащить">
+            <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor">
+              <circle cx="4" cy="4" r="1.5"/><circle cx="8" cy="4" r="1.5"/>
+              <circle cx="4" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/>
+              <circle cx="4" cy="12" r="1.5"/><circle cx="8" cy="12" r="1.5"/>
+            </svg>
+          </div>
           <div class="item-dot {% if f.watchdog_enabled %}watching{% endif %}" id="dot-{{ f.id }}"></div>
           <div class="item-info">
             <div class="item-name">{{ f.name }}</div>
@@ -578,7 +593,15 @@ function appendFolderRow(id, name, path) {
   const list = document.getElementById('folderList');
   const div  = document.createElement('div');
   div.className = 'item-row'; div.dataset.id = id; div.dataset.name = name;
+  div.draggable = true;
   div.innerHTML = `
+    <div class="drag-handle" title="Перетащить">
+      <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor">
+        <circle cx="4" cy="4" r="1.5"/><circle cx="8" cy="4" r="1.5"/>
+        <circle cx="4" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/>
+        <circle cx="4" cy="12" r="1.5"/><circle cx="8" cy="12" r="1.5"/>
+      </svg>
+    </div>
     <div class="item-dot" id="dot-${id}"></div>
     <div class="item-info">
       <div class="item-name">${esc(name)}</div>
@@ -1158,6 +1181,71 @@ function renderExtTable(extensions) {
       <td>${e.cnt.toLocaleString('ru-RU')}</td>
     </tr>`;
   }).join('');
+}
+
+// ── Drag-and-drop reorder ─────────────────────────────────────────────────────
+let _dragSrc = null;
+
+(function initDragDrop() {
+  const list = document.getElementById('folderList');
+
+  list.addEventListener('dragstart', e => {
+    const row = e.target.closest('.item-row[data-id]');
+    if (!row) return;
+    _dragSrc = row;
+    row.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+
+  list.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const row = e.target.closest('.item-row[data-id]');
+    if (!row || row === _dragSrc) return;
+    list.querySelectorAll('.drag-over-top,.drag-over-bottom').forEach(r => {
+      r.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+    const rect = row.getBoundingClientRect();
+    row.classList.add(e.clientY < rect.top + rect.height / 2 ? 'drag-over-top' : 'drag-over-bottom');
+  });
+
+  list.addEventListener('dragleave', e => {
+    const row = e.target.closest('.item-row[data-id]');
+    if (row) row.classList.remove('drag-over-top', 'drag-over-bottom');
+  });
+
+  list.addEventListener('drop', e => {
+    e.preventDefault();
+    const target = e.target.closest('.item-row[data-id]');
+    if (!target || target === _dragSrc || !_dragSrc) return;
+    target.classList.remove('drag-over-top', 'drag-over-bottom');
+    const rect = target.getBoundingClientRect();
+    if (e.clientY < rect.top + rect.height / 2) {
+      list.insertBefore(_dragSrc, target);
+    } else {
+      list.insertBefore(_dragSrc, target.nextSibling);
+    }
+    saveFolderOrder();
+  });
+
+  list.addEventListener('dragend', () => {
+    list.querySelectorAll('.item-row').forEach(r =>
+      r.classList.remove('dragging', 'drag-over-top', 'drag-over-bottom')
+    );
+    _dragSrc = null;
+  });
+})();
+
+async function saveFolderOrder() {
+  const ids = [...document.querySelectorAll('#folderList .item-row[data-id]')]
+    .map(r => parseInt(r.dataset.id));
+  try {
+    await fetch('/api/folders/reorder', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ids}),
+    });
+  } catch(e) {}
 }
 
 function toggleClientSetup() {

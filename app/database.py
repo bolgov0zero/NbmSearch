@@ -102,6 +102,7 @@ def init_db():
             "ALTER TABLE folders ADD COLUMN last_reindex_at REAL",
             "ALTER TABLE folders ADD COLUMN watchdog_enabled INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE folders ADD COLUMN file_count INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE folders ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
             """CREATE TABLE IF NOT EXISTS search_log (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
                 query       TEXT    NOT NULL,
@@ -112,6 +113,12 @@ def init_db():
                 conn.execute(ddl)
             except Exception:
                 pass
+        # Initialize sort_order for existing folders that still have default 0
+        conn.execute("""
+            UPDATE folders SET sort_order = (
+                SELECT COUNT(*) FROM folders f2 WHERE f2.id <= folders.id
+            ) WHERE sort_order = 0
+        """)
         conn.commit()
         # Migrate all existing per-folder DBs (add created_at if missing)
         folder_ids = [r[0] for r in conn.execute("SELECT id FROM folders").fetchall()]
@@ -249,7 +256,7 @@ def set_folder_watchdog(folder_id: int, enabled: bool):
 def get_folders() -> list[dict]:
     conn = _get_main_conn()
     rows = [dict(r) for r in conn.execute(
-        "SELECT id, name, path, reindex_minutes, created_at, last_reindex_at, watchdog_enabled, file_count FROM folders ORDER BY created_at"
+        "SELECT id, name, path, reindex_minutes, created_at, last_reindex_at, watchdog_enabled, file_count FROM folders ORDER BY sort_order, id"
     ).fetchall()]
     conn.close()
     return rows
@@ -275,12 +282,22 @@ def set_folder_last_reindex(folder_id: int, ts: float):
         conn.close()
 
 
+def reorder_folders(ids: list) -> None:
+    with _main_lock:
+        conn = _get_main_conn()
+        for order, fid in enumerate(ids):
+            conn.execute("UPDATE folders SET sort_order=? WHERE id=?", (order, fid))
+        conn.commit()
+        conn.close()
+
+
 def add_folder(name: str, path: str) -> dict:
     with _main_lock:
         conn = _get_main_conn()
+        max_order = conn.execute("SELECT COALESCE(MAX(sort_order), 0) FROM folders").fetchone()[0]
         cur = conn.execute(
-            "INSERT INTO folders (name, path, created_at) VALUES (?,?,?)",
-            (name, path, time.time()),
+            "INSERT INTO folders (name, path, created_at, sort_order) VALUES (?,?,?,?)",
+            (name, path, time.time(), max_order + 1),
         )
         folder_id = cur.lastrowid
         conn.commit()
