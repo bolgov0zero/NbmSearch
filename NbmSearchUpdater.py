@@ -40,22 +40,20 @@ def _kill_pid(pid: int, timeout: int = 10) -> bool:
     try:
         import ctypes
         handle = ctypes.windll.kernel32.OpenProcess(0x0001, False, pid)  # PROCESS_TERMINATE
-        if handle:
+        if handle and handle != -1:
             ctypes.windll.kernel32.TerminateProcess(handle, 0)
             ctypes.windll.kernel32.CloseHandle(handle)
     except Exception:
-        try:
-            import signal
-            os.kill(pid, signal.SIGTERM)
-        except Exception:
-            pass
+        pass
 
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
             os.kill(pid, 0)
             time.sleep(0.3)
-        except OSError:
+        except (OSError, SystemError):
+            return True
+        except Exception:
             return True
     return False
 
