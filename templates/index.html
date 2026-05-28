@@ -128,7 +128,6 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
   color: var(--text-dim); font-size: .72rem; cursor: pointer; text-decoration: none;
   transition: border-color .15s, color .15s; white-space: nowrap; }
 .btn-action:hover { border-color: var(--accent); color: var(--text); }
-.btn-action.copied { border-color: var(--green); color: var(--green); }
 </style>
 </head>
 <body>
@@ -289,6 +288,7 @@ historyBox.addEventListener('click', e => {
   const item = e.target.closest('.sh-item');
   if (!item) return;
   input.value = item.dataset.q;
+  updateClearBtn();
   hideHistory();
   doSearch();
 });
@@ -346,7 +346,6 @@ async function doSearch() {
           <div class="rc-actions">
             <a class="btn-action" href="nbmsearch://open/${encPath}">▶ Открыть</a>
             <a class="btn-action" href="nbmsearch://folder/${encPath}">📁 Папка</a>
-            <button class="btn-action" data-copy="${esc(r.path)}">📋 Копировать</button>
           </div>
         </div>
       </div>`;
@@ -357,18 +356,6 @@ async function doSearch() {
   }
 }
 
-// ── Copy ──
-document.addEventListener('click', async e => {
-  const btn = e.target.closest('[data-copy]');
-  if (!btn) return;
-  try {
-    await navigator.clipboard.writeText(btn.dataset.copy);
-    btn.classList.add('copied');
-    const orig = btn.textContent;
-    btn.textContent = '✓ Скопировано';
-    setTimeout(() => { btn.classList.remove('copied'); btn.textContent = orig; }, 1800);
-  } catch(e) {}
-});
 
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function plural(n,one,few,many){ const m=n%100; if(m>=11&&m<=14)return many; const r=n%10; if(r===1)return one; if(r>=2&&r<=4)return few; return many; }

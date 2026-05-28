@@ -540,8 +540,14 @@ def search(query: str, folder_names: list[str] | None = None, limit: int = 50) -
                 "snippet": _make_snippet(text, query),
             })
 
-    # Sort: 1) folder name descending, 2) modified_at descending
-    results.sort(key=lambda x: (x["folder_name"], x["modified_at"] or 0), reverse=True)
+    # Sort: 1) numeric folder names first (ascending by value), 2) alpha names (descending), 3) modified_at descending
+    def _folder_key(name: str):
+        n = name or ""
+        try:
+            return (1, -int(n), "")   # numeric group — higher priority; negate for asc order
+        except ValueError:
+            return (0, 0, n)          # alpha group — lower priority; desc by name via reverse=True
+    results.sort(key=lambda x: (_folder_key(x["folder_name"]), x["modified_at"] or 0), reverse=True)
     return results[:limit]
 
 
