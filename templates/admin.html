@@ -297,6 +297,28 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
   <div class="page-title">Панель управления</div>
   <div class="page-sub">Индексы и расписание переиндексации</div>
 
+  <!-- Search stats -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Статистика запросов</div>
+      <button class="btn btn-primary" style="padding:5px 14px;font-size:.78rem" onclick="openSearchStats()">Статистика</button>
+    </div>
+    <div class="stat-row" id="searchStatRow">
+      <div class="stat-box">
+        <div class="s-label">Сегодня</div>
+        <div class="s-value" id="sqToday" style="color:var(--text)">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="s-label">На этой неделе</div>
+        <div class="s-value" id="sqWeek" style="color:var(--text)">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="s-label">В этом месяце</div>
+        <div class="s-value" id="sqMonth" style="color:var(--text)">—</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Stats -->
   <div class="card">
     <div class="stat-row">
@@ -454,28 +476,6 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
       {% else %}
         <div class="empty" id="emptySchedules">Расписания не настроены</div>
       {% endif %}
-    </div>
-  </div>
-
-  <!-- Search stats -->
-  <div class="card">
-    <div class="card-head">
-      <div class="card-title">Статистика запросов</div>
-      <button class="btn btn-primary" style="padding:5px 14px;font-size:.78rem" onclick="openSearchStats()">Статистика</button>
-    </div>
-    <div class="stat-row" id="searchStatRow">
-      <div class="stat-box">
-        <div class="s-label">Сегодня</div>
-        <div class="s-value" id="sqToday" style="color:var(--text)">—</div>
-      </div>
-      <div class="stat-box">
-        <div class="s-label">На этой неделе</div>
-        <div class="s-value" id="sqWeek" style="color:var(--text)">—</div>
-      </div>
-      <div class="stat-box">
-        <div class="s-label">В этом месяце</div>
-        <div class="s-value" id="sqMonth" style="color:var(--text)">—</div>
-      </div>
     </div>
   </div>
 
