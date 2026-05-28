@@ -433,6 +433,21 @@ async def api_update_check(request: Request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+@app.get("/api/update/status")
+async def api_update_status(request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    import json as _json
+    status_path = BASE_DIR / "update_status.json"
+    if not status_path.exists():
+        return {"stage": "idle", "progress": 0, "message": "", "error": None}
+    try:
+        with open(status_path, encoding="utf-8") as f:
+            return _json.load(f)
+    except Exception:
+        return {"stage": "idle", "progress": 0, "message": "", "error": None}
+
+
 @app.post("/api/update/start")
 async def api_update_start(request: Request):
     if not _is_auth(request):
@@ -447,14 +462,19 @@ async def api_update_start(request: Request):
     updater_path = str(Path(sys.executable).parent / "NbmSearchUpdater.exe")
     if not os.path.exists(updater_path):
         return JSONResponse({"error": "NbmSearchUpdater.exe не найден рядом с приложением"}, status_code=500)
+    # Clear previous status
+    try:
+        (BASE_DIR / "update_status.json").unlink(missing_ok=True)
+    except Exception:
+        pass
     import subprocess as _sp
     pid = os.getpid()
     _sp.Popen(
-        [updater_path, str(pid), download_url, exe_path],
+        [updater_path, str(pid), download_url, exe_path, str(PORT)],
         creationflags=_sp.DETACHED_PROCESS | _sp.CREATE_NEW_PROCESS_GROUP,
     )
-    threading.Timer(1.0, lambda: os._exit(0)).start()
-    return {"status": "updating"}
+    # Updater will kill us after download completes — no need for os._exit here
+    return {"status": "started"}
 
 
 # ── Client setup ──────────────────────────────────────────────────────────────

@@ -214,6 +214,46 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
   background:var(--accent);opacity:.7;vertical-align:middle;margin-right:8px}
 .stats-loading{text-align:center;color:var(--text-muted);font-size:.83rem;padding:40px 0}
 
+/* ── Update block ── */
+.update-versions{display:flex;gap:28px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px}
+.update-ver-group{display:flex;flex-direction:column;gap:3px}
+.update-ver-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted)}
+.update-ver-value{font-size:1.1rem;font-weight:700;color:var(--text)}
+.update-ver-value.new{color:var(--green)}
+.update-arrow{font-size:1.1rem;color:var(--text-muted);padding-bottom:2px;align-self:flex-end}
+.update-actions{margin-left:auto;display:flex;gap:8px;align-items:flex-end}
+.update-msg{font-size:.8rem;min-height:18px;margin-bottom:14px}
+.update-stages{display:flex;flex-direction:column;gap:10px}
+.update-stage{display:flex;align-items:center;gap:12px}
+.ustage-icon{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  font-size:.75rem;color:var(--text-muted);transition:all .3s}
+.ustage-icon.active{border-color:var(--accent);color:var(--accent);animation:spin .8s linear infinite}
+.ustage-icon.done{border-color:var(--green);background:rgba(46,204,113,.15);color:var(--green)}
+.ustage-icon.error{border-color:var(--red);background:rgba(231,76,60,.1);color:var(--red)}
+.ustage-body{flex:1;min-width:0}
+.ustage-label{font-size:.8rem;font-weight:600;color:var(--text-dim);margin-bottom:4px}
+.ustage-label.active{color:var(--text)}
+.ustage-sub{font-size:.73rem;color:var(--text-muted)}
+.ustage-track{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:5px}
+.ustage-fill{height:100%;border-radius:2px;background:var(--accent);
+  transition:width .4s,background .3s;width:0%}
+.ustage-fill.done{background:var(--green)}
+
+/* ── Client setup smooth collapse ── */
+#clientSetupBody{
+  overflow:hidden;
+  max-height:0;
+  transition:max-height .35s ease, padding .35s ease;
+  padding-top:0 !important;
+  padding-bottom:0 !important;
+}
+#clientSetupBody.open{
+  max-height:600px;
+  padding-top:18px !important;
+  padding-bottom:18px !important;
+}
+
 /* ── Watchdog log modal ── */
 .wdlog-table{width:100%;border-collapse:collapse;font-size:.8rem}
 .wdlog-table th{font-size:.65rem;text-transform:uppercase;letter-spacing:.5px;
@@ -443,25 +483,58 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
   <div class="card">
     <div class="card-head"><div class="card-title">Обновление</div></div>
     <div class="card-body">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-        <div>
-          <div style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Текущая версия</div>
-          <div style="font-size:1rem;font-weight:700;color:var(--text)">v{{ version }}</div>
+
+      <!-- Version row -->
+      <div class="update-versions">
+        <div class="update-ver-group">
+          <div class="update-ver-label">Текущая версия</div>
+          <div class="update-ver-value">v{{ version }}</div>
         </div>
-        <div id="updateStatus" style="flex:1;min-width:180px">
-          <div style="font-size:.8rem;color:var(--text-dim)" id="updateMsg">Нажмите «Проверить» для проверки обновлений</div>
+        <div class="update-arrow" id="updateArrow" style="display:none">→</div>
+        <div class="update-ver-group" id="updateLatestGroup" style="display:none">
+          <div class="update-ver-label">Доступна версия</div>
+          <div class="update-ver-value new" id="updateLatestVer">—</div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+        <div class="update-actions">
           <button class="btn btn-primary" id="checkUpdateBtn" onclick="checkUpdate()">Проверить</button>
-          <button class="btn btn-primary" id="doUpdateBtn" onclick="doUpdate()" style="display:none;background:#2ecc71">Обновить</button>
+          <button class="btn btn-primary" id="doUpdateBtn" onclick="doUpdate()"
+                  style="display:none;background:var(--green)">Обновить</button>
         </div>
       </div>
-      <div id="updateProgressWrap" style="display:none;margin-top:14px">
-        <div style="font-size:.78rem;color:var(--text-dim);margin-bottom:6px" id="updateProgressMsg">Загрузка обновления…</div>
-        <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
-          <div id="updateProgressBar" style="height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .3s"></div>
+
+      <!-- Status message -->
+      <div class="update-msg" id="updateMsg"></div>
+
+      <!-- Progress stages (shown during update) -->
+      <div id="updateStages" style="display:none">
+        <div class="update-stages">
+          <div class="update-stage">
+            <div class="ustage-icon" id="uicon-downloading">↓</div>
+            <div class="ustage-body">
+              <div class="ustage-label" id="ulabel-downloading">Скачивание</div>
+              <div class="ustage-sub" id="usub-downloading">Ожидание…</div>
+              <div class="ustage-track"><div class="ustage-fill" id="ufill-downloading"></div></div>
+            </div>
+          </div>
+          <div class="update-stage">
+            <div class="ustage-icon" id="uicon-replacing">⇄</div>
+            <div class="ustage-body">
+              <div class="ustage-label" id="ulabel-replacing">Замена файла</div>
+              <div class="ustage-sub" id="usub-replacing">—</div>
+              <div class="ustage-track"><div class="ustage-fill" id="ufill-replacing"></div></div>
+            </div>
+          </div>
+          <div class="update-stage">
+            <div class="ustage-icon" id="uicon-restarting">↺</div>
+            <div class="ustage-body">
+              <div class="ustage-label" id="ulabel-restarting">Перезапуск</div>
+              <div class="ustage-sub" id="usub-restarting">—</div>
+              <div class="ustage-track"><div class="ustage-fill" id="ufill-restarting"></div></div>
+            </div>
+          </div>
         </div>
       </div>
+
     </div>
   </div>
 
@@ -474,7 +547,7 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
         <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </div>
-    <div id="clientSetupBody" class="card-body" style="display:none">
+    <div id="clientSetupBody" class="card-body">
       <p class="setup-desc">
         Чтобы кнопки <strong style="color:var(--text)">«Открыть»</strong> и
         <strong style="color:var(--text)">«Папка»</strong> работали в браузере —
@@ -916,62 +989,118 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 
 // ── Update ────────────────────────────────────────────────────────────────────
 let _updateDownloadUrl = null;
+let _updatePollTimer   = null;
+
+function _setUpdateMsg(text, color) {
+  const el = document.getElementById('updateMsg');
+  el.textContent  = text;
+  el.style.color  = color || 'var(--text-dim)';
+}
 
 async function checkUpdate() {
-  const btn  = document.getElementById('checkUpdateBtn');
-  const msg  = document.getElementById('updateMsg');
+  const btn = document.getElementById('checkUpdateBtn');
   btn.disabled = true; btn.textContent = 'Проверяю…';
-  msg.style.color = 'var(--text-dim)';
+  _setUpdateMsg('Подключение к серверу обновлений…');
   try {
     const res  = await fetch('/api/update/check');
     const data = await res.json();
     if (!res.ok || data.error) {
-      msg.textContent = 'Ошибка: ' + (data.error || res.status);
-      msg.style.color = 'var(--red)';
+      _setUpdateMsg('Ошибка: ' + (data.error || res.status), 'var(--red)');
+      btn.disabled = false; btn.textContent = 'Проверить';
       return;
     }
     if (data.update_available && data.download_url) {
       _updateDownloadUrl = data.download_url;
-      msg.innerHTML = `Доступна новая версия <strong style="color:var(--text)">v${data.latest}</strong>`;
-      msg.style.color = 'var(--green)';
+      document.getElementById('updateLatestVer').textContent = 'v' + data.latest;
+      document.getElementById('updateLatestGroup').style.display = '';
+      document.getElementById('updateArrow').style.display = '';
       btn.style.display = 'none';
       document.getElementById('doUpdateBtn').style.display = '';
+      _setUpdateMsg('Доступно обновление — нажмите «Обновить» для установки', 'var(--green)');
     } else {
-      msg.textContent = `Версия v${data.latest} — актуальная`;
-      msg.style.color = 'var(--green)';
+      _setUpdateMsg(`Версия v${data.latest} — актуальная`, 'var(--green)');
       btn.disabled = false; btn.textContent = 'Проверить';
     }
   } catch(e) {
-    msg.textContent = 'Нет соединения с сервером';
-    msg.style.color = 'var(--red)';
+    _setUpdateMsg('Нет соединения с сервером обновлений', 'var(--red)');
     btn.disabled = false; btn.textContent = 'Проверить';
   }
 }
 
-async function doUpdate() {
-  if (!_updateDownloadUrl) return;
+// Stage helpers
+const STAGE_ORDER = ['downloading', 'replacing', 'restarting'];
+
+function _stageState(name, state, sub, pct) {
+  const icon  = document.getElementById(`uicon-${name}`);
+  const label = document.getElementById(`ulabel-${name}`);
+  const subEl = document.getElementById(`usub-${name}`);
+  const fill  = document.getElementById(`ufill-${name}`);
+  if (!icon) return;
+  icon.className  = 'ustage-icon' + (state ? ' ' + state : '');
+  label.className = 'ustage-label' + (state === 'active' ? ' active' : '');
+  if (sub  !== undefined) subEl.textContent  = sub  ?? '—';
+  if (pct  !== undefined) fill.style.width   = pct  + '%';
+  if (state === 'done') { fill.style.width = '100%'; fill.classList.add('done'); }
+}
+
+function _applyStatus(s) {
+  const stage = s.stage;
+  if (stage === 'idle') return;
+
+  document.getElementById('updateStages').style.display = '';
   document.getElementById('doUpdateBtn').disabled = true;
   document.getElementById('checkUpdateBtn').style.display = 'none';
 
-  const wrap   = document.getElementById('updateProgressWrap');
-  const bar    = document.getElementById('updateProgressBar');
-  const pmsg   = document.getElementById('updateProgressMsg');
-  wrap.style.display = 'block';
-
-  // Animate progress bar through stages since we can't get real progress
-  const stages = [
-    [500,  10, 'Загрузка обновления…'],
-    [4000, 60, 'Загрузка обновления…'],
-    [2000, 80, 'Установка…'],
-    [1500, 95, 'Перезапуск…'],
-  ];
-  let pos = 0;
-  function nextStage() {
-    if (pos >= stages.length) return;
-    const [delay, pct, text] = stages[pos++];
-    setTimeout(() => { bar.style.width = pct + '%'; pmsg.textContent = text; nextStage(); }, delay);
+  if (stage === 'downloading') {
+    _stageState('downloading', 'active', s.message, s.progress);
+    _stageState('replacing',   '');
+    _stageState('restarting',  '');
+    _setUpdateMsg('Скачивание новой версии — сервер продолжает работать…');
+  } else if (stage === 'replacing') {
+    _stageState('downloading', 'done');
+    _stageState('replacing',   'active', s.message, s.progress - 90);
+    _stageState('restarting',  '');
+    _setUpdateMsg('Установка обновления…');
+  } else if (stage === 'restarting') {
+    _stageState('downloading', 'done');
+    _stageState('replacing',   'done');
+    _stageState('restarting',  'active', s.message, s.progress - 95);
+    _setUpdateMsg('Перезапуск сервера…');
+  } else if (stage === 'done') {
+    _stageState('downloading', 'done');
+    _stageState('replacing',   'done');
+    _stageState('restarting',  'done', 'Готово');
+    _setUpdateMsg('Обновление завершено успешно — перезагружаю страницу…', 'var(--green)');
+    stopUpdatePoll();
+    setTimeout(() => location.reload(), 1500);
+  } else if (stage === 'error') {
+    const errStage = s.progress <= 88 ? 'downloading' : s.progress <= 94 ? 'replacing' : 'restarting';
+    STAGE_ORDER.forEach(n => {
+      if (STAGE_ORDER.indexOf(n) < STAGE_ORDER.indexOf(errStage)) _stageState(n, 'done');
+      else if (n === errStage) _stageState(n, 'error', s.error);
+      else _stageState(n, '');
+    });
+    _setUpdateMsg(s.error || 'Произошла ошибка', 'var(--red)');
+    stopUpdatePoll();
+    // Re-enable check button after error
+    const btn = document.getElementById('checkUpdateBtn');
+    btn.style.display = ''; btn.disabled = false; btn.textContent = 'Проверить снова';
+    document.getElementById('doUpdateBtn').style.display = 'none';
   }
-  nextStage();
+}
+
+function stopUpdatePoll() {
+  if (_updatePollTimer) { clearInterval(_updatePollTimer); _updatePollTimer = null; }
+}
+
+async function doUpdate() {
+  if (!_updateDownloadUrl) return;
+  document.getElementById('doUpdateBtn').style.display = 'none';
+  document.getElementById('updateStages').style.display = '';
+  _stageState('downloading', '', 'Ожидание…', 0);
+  _stageState('replacing',   '', '—', 0);
+  _stageState('restarting',  '', '—', 0);
+  _setUpdateMsg('Запуск обновления…');
 
   try {
     await fetch('/api/update/start', {
@@ -979,24 +1108,18 @@ async function doUpdate() {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({download_url: _updateDownloadUrl}),
     });
-  } catch(e) {
-    // Expected — server shutting down
-  }
+  } catch(e) { /* server may be shutting down */ }
 
-  // Poll until server is back, then reload
-  pmsg.textContent = 'Ожидание перезапуска…';
-  bar.style.width = '98%';
-  const poll = setInterval(async () => {
+  // Poll status every 1.5s
+  _updatePollTimer = setInterval(async () => {
     try {
-      const r = await fetch('/api/update/check', {signal: AbortSignal.timeout(2000)});
-      if (r.ok) {
-        clearInterval(poll);
-        bar.style.width = '100%';
-        pmsg.textContent = 'Готово! Перезагружаю страницу…';
-        setTimeout(() => location.reload(), 1000);
-      }
-    } catch(e) {}
-  }, 2000);
+      const res = await fetch('/api/update/status', {signal: AbortSignal.timeout(2000)});
+      if (res.ok) _applyStatus(await res.json());
+    } catch(e) {
+      // Server is down — likely in replace/restart stage, keep polling
+      _stageState('replacing', 'active', 'Замена файла…');
+    }
+  }, 1500);
 }
 
 // ── Search stats ─────────────────────────────────────────────────────────────
@@ -1346,10 +1469,10 @@ function toggleClientSetup() {
   const body  = document.getElementById('clientSetupBody');
   const arrow = document.getElementById('clientSetupArrow');
   const head  = document.getElementById('clientSetupHead');
-  const open  = body.style.display !== 'none';
-  body.style.display       = open ? 'none' : '';
-  arrow.style.transform    = open ? 'rotate(-90deg)' : 'rotate(0deg)';
-  head.style.borderBottom  = open ? 'none' : '1px solid var(--border)';
+  const open  = body.classList.contains('open');
+  body.classList.toggle('open', !open);
+  arrow.style.transform   = open ? 'rotate(-90deg)' : 'rotate(0deg)';
+  head.style.borderBottom = open ? 'none' : '1px solid var(--border)';
 }
 
 function copySetupScript(btn) {
