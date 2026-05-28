@@ -356,6 +356,22 @@ async def api_folder_progress(folder_id: int):
     return indexer.get_progress(folder_id)
 
 
+@app.get("/api/folders/{folder_id}/watchdog-log")
+async def api_watchdog_log(folder_id: int, request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    entries = indexer.get_watchdog_log(folder_id)
+    return {"entries": entries}
+
+
+@app.delete("/api/folders/{folder_id}/watchdog-log")
+async def api_clear_watchdog_log(folder_id: int, request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    indexer.clear_watchdog_log(folder_id)
+    return {"status": "cleared"}
+
+
 @app.get("/api/folders/{folder_id}/stats")
 async def api_folder_stats(folder_id: int, request: Request, period: str = "month"):
     if not _is_auth(request):

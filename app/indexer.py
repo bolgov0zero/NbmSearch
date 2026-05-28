@@ -14,6 +14,37 @@ logger = logging.getLogger(__name__)
 
 SUPPORTED_EXTENSIONS = {".docx", ".doc", ".xlsx", ".xls", ".pdf", ".rtf", ".txt", ".csv"}
 
+# ── Watchdog event log ────────────────────────────────────────────────────────
+# folder_id → list of {"ts": float, "type": str, "name": str, "path": str}
+_LOG_TTL = 7 * 24 * 3600   # 7 days in seconds
+_LOG_MAX = 1000             # max entries per folder (oldest pruned first)
+
+_watchdog_log: dict[int, list] = {}
+_watchdog_log_lock = threading.Lock()
+
+
+def _log_event(folder_id: int, event_type: str, path: str):
+    name = os.path.basename(path)
+    entry = {"ts": time.time(), "type": event_type, "name": name, "path": path}
+    with _watchdog_log_lock:
+        log = _watchdog_log.setdefault(folder_id, [])
+        log.insert(0, entry)
+        # Prune entries older than TTL and keep max size
+        cutoff = time.time() - _LOG_TTL
+        _watchdog_log[folder_id] = [e for e in log if e["ts"] >= cutoff][:_LOG_MAX]
+
+
+def get_watchdog_log(folder_id: int) -> list:
+    cutoff = time.time() - _LOG_TTL
+    with _watchdog_log_lock:
+        return [e for e in _watchdog_log.get(folder_id, []) if e["ts"] >= cutoff]
+
+
+def clear_watchdog_log(folder_id: int):
+    with _watchdog_log_lock:
+        _watchdog_log[folder_id] = []
+
+
 # ── Progress tracking ─────────────────────────────────────────────────────────
 # folder_id → {"total": int, "done": int, "status": "idle"|"indexing"|"done"}
 _progress: dict[int, dict] = {}
@@ -256,18 +287,18 @@ class FileEventHandler(FileSystemEventHandler):
         self._timers: dict[str, threading.Timer] = {}
         self._timers_lock = threading.Lock()
 
-    def _schedule(self, path: str):
+    def _schedule(self, path: str, event_type: str = "modified"):
         """Debounce: index the file only after DEBOUNCE seconds of silence."""
         with self._timers_lock:
             existing = self._timers.pop(path, None)
             if existing:
                 existing.cancel()
-            t = threading.Timer(_WATCHDOG_DEBOUNCE, self._do_index, args=(path,))
+            t = threading.Timer(_WATCHDOG_DEBOUNCE, self._do_index, args=(path, event_type))
             self._timers[path] = t
             t.daemon = True
             t.start()
 
-    def _do_index(self, path: str):
+    def _do_index(self, path: str, event_type: str = "modified"):
         with self._timers_lock:
             self._timers.pop(path, None)
         # Skip if file disappeared or is still empty (being written)
@@ -279,24 +310,26 @@ class FileEventHandler(FileSystemEventHandler):
             return
         index_file(self.folder_id, path)
         db.update_folder_file_count(self.folder_id)
+        _log_event(self.folder_id, event_type, path)
 
     def on_created(self, event):
         if not event.is_directory:
-            self._schedule(event.src_path)
+            self._schedule(event.src_path, "created")
 
     def on_modified(self, event):
         if not event.is_directory:
-            self._schedule(event.src_path)
+            self._schedule(event.src_path, "modified")
 
     def on_deleted(self, event):
         if not event.is_directory:
             db.delete_file_from_folder(self.folder_id, event.src_path)
             db.update_folder_file_count(self.folder_id)
+            _log_event(self.folder_id, "deleted", event.src_path)
 
     def on_moved(self, event):
         if not event.is_directory:
             db.delete_file_from_folder(self.folder_id, event.src_path)
-            self._schedule(event.dest_path)
+            self._schedule(event.dest_path, "moved")
 
 
 def restart_watchdog():

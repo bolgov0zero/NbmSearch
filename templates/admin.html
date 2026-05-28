@@ -214,6 +214,21 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
   background:var(--accent);opacity:.7;vertical-align:middle;margin-right:8px}
 .stats-loading{text-align:center;color:var(--text-muted);font-size:.83rem;padding:40px 0}
 
+/* ── Watchdog log modal ── */
+.wdlog-table{width:100%;border-collapse:collapse;font-size:.8rem}
+.wdlog-table th{font-size:.65rem;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--text-muted);text-align:left;padding:6px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+.wdlog-table td{padding:7px 10px;border-bottom:1px solid rgba(45,49,72,.4);color:var(--text-dim);vertical-align:middle}
+.wdlog-table tr:last-child td{border-bottom:none}
+.wdlog-table td.wdlog-time{white-space:nowrap;font-size:.75rem;color:var(--text-muted)}
+.wdlog-table td.wdlog-name{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wdlog-badge{display:inline-block;padding:1px 7px;border-radius:4px;font-size:.68rem;font-weight:600;white-space:nowrap}
+.wdlog-created{background:rgba(46,204,113,.15);color:#2ecc71}
+.wdlog-modified{background:rgba(91,106,240,.15);color:#7b8cf8}
+.wdlog-deleted{background:rgba(231,76,60,.15);color:#e74c3c}
+.wdlog-moved{background:rgba(241,196,15,.15);color:#f1c40f}
+.wdlog-empty{text-align:center;padding:32px;color:var(--text-muted);font-size:.83rem}
+
 /* ── Drag-and-drop ── */
 .drag-handle{display:flex;align-items:center;padding:0 6px 0 0;color:var(--text-muted);
   cursor:grab;flex-shrink:0;opacity:.45;transition:opacity .15s}
@@ -312,6 +327,7 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
               <button class="btn-icon" onclick="toggleFolderMenu({{ f.id }}, this)">···</button>
               <div class="folder-menu" id="fmenu-{{ f.id }}">
                 <button class="fm-item {% if f.watchdog_enabled %}green{% endif %}" id="wd-{{ f.id }}" onclick="toggleWatchdog({{ f.id }}, this)">Следить</button>
+                {% if f.watchdog_enabled %}<button class="fm-item" id="wdlog-{{ f.id }}" onclick="closeFolderMenu({{ f.id }}); openWatchdogLog({{ f.id }}, '{{ f.name }}')">Лог</button>{% else %}<button class="fm-item" id="wdlog-{{ f.id }}" style="display:none" onclick="closeFolderMenu({{ f.id }}); openWatchdogLog({{ f.id }}, '{{ f.name }}')">Лог</button>{% endif %}
                 <div class="fm-sep"></div>
                 <button class="fm-item" onclick="closeFolderMenu({{ f.id }}); reindexFolder({{ f.id }})">Индексировать</button>
                 <button class="fm-item" onclick="closeFolderMenu({{ f.id }}); fullReindexFolder({{ f.id }})">Сброс</button>
@@ -482,6 +498,22 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
   © 2026 Nebolit LLC &nbsp;·&nbsp; v{{ version }}
 </footer>
 
+<!-- Watchdog log modal -->
+<div class="stats-overlay" id="wdlogOverlay">
+  <div class="stats-modal" style="width:min(700px,95vw)">
+    <div class="stats-modal-head">
+      <div class="stats-modal-title" id="wdlogTitle">Лог watchdog</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn" style="padding:4px 12px;font-size:.75rem;background:var(--surface2);color:var(--text-dim);border:1px solid var(--border)" onclick="clearWatchdogLog()">Очистить</button>
+        <button class="stats-modal-close" onclick="closeWdlogModal()">✕</button>
+      </div>
+    </div>
+    <div id="wdlogBody">
+      <div class="wdlog-empty">Загрузка…</div>
+    </div>
+  </div>
+</div>
+
 <!-- Search stats modal -->
 <div class="stats-overlay" id="searchStatsOverlay">
   <div class="stats-modal">
@@ -617,6 +649,7 @@ function appendFolderRow(id, name, path) {
         <button class="btn-icon" onclick="toggleFolderMenu(${id}, this)">···</button>
         <div class="folder-menu" id="fmenu-${id}">
           <button class="fm-item" id="wd-${id}" onclick="toggleWatchdog(${id}, this)">Следить</button>
+          <button class="fm-item" id="wdlog-${id}" style="display:none" onclick="closeFolderMenu(${id}); openWatchdogLog(${id}, '${esc(name)}')">Лог</button>
           <div class="fm-sep"></div>
           <button class="fm-item" onclick="closeFolderMenu(${id}); reindexFolder(${id})">Индексировать</button>
           <button class="fm-item" onclick="closeFolderMenu(${id}); fullReindexFolder(${id})">Сброс</button>
@@ -664,6 +697,8 @@ async function toggleWatchdog(id, btn) {
   btn.classList.toggle('green', enabling);
   const dot = document.getElementById(`dot-${id}`);
   if (dot) dot.classList.toggle('watching', enabling);
+  const logBtn = document.getElementById(`wdlog-${id}`);
+  if (logBtn) logBtn.style.display = enabling ? '' : 'none';
   closeFolderMenu(id);
 }
 
@@ -1246,6 +1281,65 @@ async function saveFolderOrder() {
       body: JSON.stringify({ids}),
     });
   } catch(e) {}
+}
+
+// ── Watchdog log modal ────────────────────────────────────────────────────────
+let _wdlogFolderId = null;
+
+async function openWatchdogLog(id, name) {
+  _wdlogFolderId = id;
+  document.getElementById('wdlogTitle').textContent = `Лог watchdog — ${name}`;
+  document.getElementById('wdlogBody').innerHTML = '<div class="wdlog-empty">Загрузка…</div>';
+  document.getElementById('wdlogOverlay').classList.add('visible');
+  await loadWatchdogLog();
+}
+
+function closeWdlogModal() {
+  document.getElementById('wdlogOverlay').classList.remove('visible');
+  _wdlogFolderId = null;
+}
+
+document.getElementById('wdlogOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('wdlogOverlay')) closeWdlogModal();
+});
+
+async function loadWatchdogLog() {
+  if (!_wdlogFolderId) return;
+  try {
+    const res  = await fetch(`/api/folders/${_wdlogFolderId}/watchdog-log`);
+    const data = await res.json();
+    const entries = data.entries || [];
+    const body = document.getElementById('wdlogBody');
+    if (!entries.length) {
+      body.innerHTML = '<div class="wdlog-empty">Событий нет — watchdog ещё ничего не зафиксировал</div>';
+      return;
+    }
+    const TYPE_LABELS = {created:'добавлен', modified:'изменён', deleted:'удалён', moved:'перемещён'};
+    const TYPE_CSS    = {created:'wdlog-created', modified:'wdlog-modified', deleted:'wdlog-deleted', moved:'wdlog-moved'};
+    body.innerHTML = `<div style="overflow-x:auto"><table class="wdlog-table">
+      <thead><tr><th>Время</th><th>Событие</th><th>Файл</th></tr></thead>
+      <tbody>${entries.map(e => {
+        const d = new Date(e.ts * 1000);
+        const timeStr = d.toLocaleDateString('ru-RU', {day:'2-digit',month:'2-digit'}) + ' '
+                      + d.toLocaleTimeString('ru-RU', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+        const label = TYPE_LABELS[e.type] || e.type;
+        const cls   = TYPE_CSS[e.type]   || '';
+        return `<tr>
+          <td class="wdlog-time">${timeStr}</td>
+          <td><span class="wdlog-badge ${cls}">${label}</span></td>
+          <td class="wdlog-name" title="${esc(e.path)}">${esc(e.name)}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+  } catch(e) {
+    document.getElementById('wdlogBody').innerHTML = '<div class="wdlog-empty">Ошибка загрузки</div>';
+  }
+}
+
+async function clearWatchdogLog() {
+  if (!_wdlogFolderId) return;
+  await fetch(`/api/folders/${_wdlogFolderId}/watchdog-log`, {method:'DELETE'}).catch(()=>{});
+  await loadWatchdogLog();
 }
 
 function toggleClientSetup() {
