@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NbmSearch</title>
 <link rel="icon" type="image/png" href="/icon.png">
+<script>if(localStorage.getItem('nbm_theme')==='light')document.documentElement.setAttribute('data-theme','light');</script>
 <style>
 :root {
   --bg:       #0f1117; --surface:  #1a1d27; --surface2: #22263a;
@@ -13,7 +14,18 @@
   --mark-bg:  #f0c040; --mark-fg:  #1a1d27;
   --green:    #2ecc71; --radius: 10px; --radius-sm: 6px;
 }
+[data-theme="light"] {
+  --bg:       #f2f3f8; --surface:  #ffffff; --surface2: #e8eaf4;
+  --border:   #d0d4ea; --accent:   #5b6af0; --accent-dim:#3d4ab0;
+  --text:     #1a1d2e; --text-dim: #5a6080;
+  --mark-bg:  #f0c040; --mark-fg:  #1a1d27;
+  --green:    #1daa5c;
+}
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { transition: background-color .25s, color .25s; }
+body, header, .search-wrap, .result-card, .search-history,
+.folder-chip, .btn-history, .rc-snippet, .rc-badge {
+  transition: background-color .25s, border-color .25s, color .25s; }
 html, body { height: 100%; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg); color: var(--text);
@@ -28,10 +40,21 @@ header { flex-shrink: 0; z-index: 100; background: var(--surface);
   font-size: 1rem; color: var(--text); text-decoration: none; }
 .logo-icon { width: 26px; height: 26px; border-radius: 6px; overflow: hidden; }
 .logo-icon img { width: 100%; height: 100%; object-fit: cover; }
+nav { display: flex; align-items: center; gap: 8px; }
 nav a { color: var(--text-dim); text-decoration: none; font-size: .82rem;
   padding: 5px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
   transition: background .15s, color .15s, border-color .15s; }
 nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d4168; }
+.btn-theme { background: none; border: 1px solid var(--border); color: var(--text-dim);
+  width: 32px; height: 32px; border-radius: var(--radius-sm); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  transition: background .15s, color .15s, border-color .15s; }
+.btn-theme:hover { background: var(--surface2); color: var(--text); border-color: #3d4168; }
+.btn-theme svg { transition: transform .35s, opacity .2s; }
+.btn-theme .icon-sun { display: none; }
+.btn-theme .icon-moon { display: block; }
+[data-theme="light"] .btn-theme .icon-sun  { display: block; }
+[data-theme="light"] .btn-theme .icon-moon { display: none; }
 
 .hero { padding: 36px 28px 0; max-width: 760px; margin: 0 auto; }
 .hero-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
@@ -137,7 +160,24 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
     <div class="logo-icon"><img src="/icon.png" alt=""></div>
     NbmSearch
   </a>
-  <nav><a href="/admin">Управление</a></nav>
+  <nav>
+    <button class="btn-theme" id="themeBtn" onclick="toggleTheme()" title="Сменить тему">
+      <svg class="icon-moon" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <svg class="icon-sun" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3" stroke-linecap="round"/>
+        <line x1="12" y1="21" x2="12" y2="23" stroke-linecap="round"/>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke-linecap="round"/>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke-linecap="round"/>
+        <line x1="1" y1="12" x2="3" y2="12" stroke-linecap="round"/>
+        <line x1="21" y1="12" x2="23" y2="12" stroke-linecap="round"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke-linecap="round"/>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <a href="/admin">Управление</a>
+  </nav>
 </header>
 
 <div class="top-panel">
@@ -359,6 +399,24 @@ async function doSearch() {
 
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function plural(n,one,few,many){ const m=n%100; if(m>=11&&m<=14)return many; const r=n%10; if(r===1)return one; if(r>=2&&r<=4)return few; return many; }
+
+// ── Theme ──
+(function() {
+  const saved = localStorage.getItem('nbm_theme');
+  if (saved === 'light') document.documentElement.setAttribute('data-theme', 'light');
+})();
+
+function toggleTheme() {
+  const html = document.documentElement;
+  const isLight = html.getAttribute('data-theme') === 'light';
+  if (isLight) {
+    html.removeAttribute('data-theme');
+    localStorage.setItem('nbm_theme', 'dark');
+  } else {
+    html.setAttribute('data-theme', 'light');
+    localStorage.setItem('nbm_theme', 'light');
+  }
+}
 </script>
 </body>
 </html>
