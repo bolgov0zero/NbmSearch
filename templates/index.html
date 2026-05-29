@@ -13,7 +13,7 @@
   --text:     #e8eaf6; --text-dim: #8b90b8;
   --mark-bg:  #f0c040; --mark-fg:  #1a1d27;
   --green:    #2ecc71; --radius: 10px; --radius-sm: 6px;
-  --sidebar-w: 200px;
+  --sidebar-w: 196px;
 }
 [data-theme="light"] {
   --bg:       #f2f3f8; --surface:  #ffffff; --surface2: #e8eaf4;
@@ -30,7 +30,7 @@ body, header, .search-wrap, .result-card, .search-history,
 html, body { height: 100%; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg); color: var(--text);
-  display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+  display: flex; flex-direction: column; overflow: hidden; }
 
 /* ── Header ── */
 header { flex-shrink: 0; z-index: 100; background: var(--surface);
@@ -55,21 +55,29 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
 [data-theme="light"] .btn-theme .icon-sun  { display: block; }
 [data-theme="light"] .btn-theme .icon-moon { display: none; }
 
-/* ── Layout ── */
-.layout { flex: 1; overflow-y: auto; min-height: 0; }
-.content-wrap { max-width: 980px; margin: 0 auto; padding: 28px 24px 40px;
-  display: flex; gap: 20px; align-items: flex-start; }
+/* ── Page ── */
+.page { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+/* ── Hero texts (above the sidebar row) ── */
+.hero-texts { flex-shrink: 0; max-width: 760px; margin: 0 auto;
+  width: 100%; padding: 32px 0 20px; }
+.hero-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
+.hero-sub   { color: var(--text-dim); font-size: .85rem; }
+
+/* ── Body row: sidebar + main ── */
+.page-body { flex: 1; overflow: hidden; display: flex;
+  justify-content: center; align-items: flex-start; gap: 16px;
+  padding: 0 24px; }
 
 /* ── Sidebar ── */
 .sidebar { width: var(--sidebar-w); flex-shrink: 0;
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); overflow: hidden;
-  position: sticky; top: 0; }
-.sidebar-head { padding: 12px 14px 8px;
+  border-radius: var(--radius); overflow: hidden; }
+.sidebar-head { padding: 10px 14px 8px;
   font-size: .62rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: .9px; color: var(--text-dim);
   border-bottom: 1px solid var(--border); }
-.sidebar-list { overflow-y: auto; max-height: calc(100vh - 140px); }
+.sidebar-list { overflow-y: auto; max-height: calc(100vh - 200px); }
 .sc-item { display: flex; align-items: center; gap: 9px; padding: 8px 14px;
   cursor: pointer; user-select: none;
   border-left: 2px solid transparent;
@@ -80,8 +88,7 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
   background: var(--border); transition: background .15s; }
 .sc-item.active .sc-dot { background: var(--accent); }
 .sc-name { flex: 1; font-size: .82rem; color: var(--text-dim);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  transition: color .15s; }
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color .15s; }
 .sc-item.active .sc-name,
 .sc-item:hover .sc-name { color: var(--text); }
 .sc-badge { font-size: .65rem; font-weight: 700; padding: 1px 6px;
@@ -93,13 +100,9 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
   color: var(--text-dim); font-style: italic; line-height: 1.5; }
 .sidebar-empty a { color: var(--accent); }
 
-/* ── Main area ── */
-.main-area { flex: 1; min-width: 0; }
-
-/* ── Hero ── */
-.hero { padding: 0 0 0; margin-bottom: 14px; }
-.hero-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
-.hero-sub { color: var(--text-dim); font-size: .85rem; margin-bottom: 20px; }
+/* ── Main column ── */
+.main-col { width: 760px; max-width: 760px; flex-shrink: 1;
+  display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 
 /* ── Search ── */
 .search-wrap { display: flex; gap: 8px; background: var(--surface);
@@ -119,7 +122,7 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
 .btn-clear:hover { color: var(--text); }
 .btn-clear.visible { display: flex; }
 
-.search-row { display: flex; gap: 8px; align-items: stretch; }
+.search-row { display: flex; gap: 8px; align-items: stretch; flex-shrink: 0; }
 .search-container { position: relative; flex: 1; min-width: 0; }
 .btn-history { width: 100%; display: flex; align-items: center;
   justify-content: center; background: var(--surface); border: 1px solid var(--border);
@@ -141,15 +144,16 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
 .sh-icon { flex-shrink: 0; opacity: .45; }
 
 /* ── Status bar ── */
-.status-bar { margin: 10px 0 0; min-height: 18px; font-size: .78rem;
-  color: var(--text-dim); display: flex; align-items: center; gap: 7px; }
+.status-bar { flex-shrink: 0; margin: 10px 0 0; min-height: 18px;
+  font-size: .78rem; color: var(--text-dim); display: flex; align-items: center; gap: 7px; }
 .spinner { width: 13px; height: 13px; border: 2px solid var(--border);
   border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; display: none; }
 .spinner.visible { display: block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Results ── */
-#results { width: 100%; margin-top: 14px; }
+/* ── Results (only this scrolls) ── */
+.results-panel { flex: 1; overflow-y: auto; min-height: 0; margin-top: 14px; }
+#results { padding-bottom: 32px; }
 .no-results { text-align: center; padding: 50px 0; color: var(--text-dim); }
 .no-results svg { opacity: .3; margin-bottom: 10px; display: block; margin-left: auto; margin-right: auto; }
 
@@ -210,40 +214,44 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
   </nav>
 </header>
 
-<div class="layout">
-<div class="content-wrap">
+<div class="page">
 
-  <!-- Sidebar -->
-  <div class="sidebar">
-    <div class="sidebar-head">Область поиска</div>
-    <div class="sidebar-list" id="sidebarList">
-      {% if folders %}
-        <div class="sc-item active" data-folder="__all__">
-          <span class="sc-dot"></span>
-          <span class="sc-name">Везде</span>
-          <span class="sc-badge" id="scb-__all__"></span>
-        </div>
-        {% for f in folders %}
-        <div class="sc-item" data-folder="{{ f.name }}">
-          <span class="sc-dot"></span>
-          <span class="sc-name">{{ f.name }}</span>
-          <span class="sc-badge" id="scb-{{ loop.index }}"></span>
-        </div>
-        {% endfor %}
-      {% else %}
-        <div class="sidebar-empty">
-          Папки не добавлены —<br><a href="/admin">настройте</a>
-        </div>
-      {% endif %}
-    </div>
+  <!-- Title above sidebar row -->
+  <div class="hero-texts">
+    <h1 class="hero-title">Поиск по файлам</h1>
+    <p class="hero-sub">Документы, таблицы, PDF — всё в одном месте</p>
   </div>
 
-  <!-- Main area -->
-  <div class="main-area">
-    <div class="hero">
-      <h1 class="hero-title">Поиск по файлам</h1>
-      <p class="hero-sub">Документы, таблицы, PDF — всё в одном месте</p>
+  <!-- Sidebar + main -->
+  <div class="page-body">
 
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-head">Область поиска</div>
+      <div class="sidebar-list" id="sidebarList">
+        {% if folders %}
+          <div class="sc-item active" data-folder="__all__">
+            <span class="sc-dot"></span>
+            <span class="sc-name">Везде</span>
+            <span class="sc-badge" id="scb-__all__"></span>
+          </div>
+          {% for f in folders %}
+          <div class="sc-item" data-folder="{{ f.name }}">
+            <span class="sc-dot"></span>
+            <span class="sc-name">{{ f.name }}</span>
+            <span class="sc-badge" id="scb-{{ loop.index }}"></span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="sidebar-empty">
+            Папки не добавлены —<br><a href="/admin">настройте</a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Main column -->
+    <div class="main-col">
       <form id="searchForm">
         <div class="search-row">
           <div style="position:relative;flex-shrink:0;display:flex" id="historyWrap">
@@ -268,18 +276,19 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
           </div>
         </div>
       </form>
+
+      <div class="status-bar">
+        <div class="spinner" id="spinner"></div>
+        <span id="statusText"></span>
+      </div>
+
+      <div class="results-panel">
+        <div id="results"></div>
+      </div>
     </div>
 
-    <div class="status-bar">
-      <div class="spinner" id="spinner"></div>
-      <span id="statusText"></span>
-    </div>
-
-    <div id="results"></div>
   </div>
-
-</div><!-- /content-wrap -->
-</div><!-- /layout -->
+</div>
 
 <script>
 // ── Sidebar chips ──
@@ -308,7 +317,7 @@ function selectedFolders() {
     .map(i => i.dataset.folder);
 }
 
-// ── Search history ──
+// ── Search ──
 const form       = document.getElementById('searchForm');
 const input      = document.getElementById('query');
 const clearBtn   = document.getElementById('clearBtn');
@@ -371,7 +380,6 @@ historyBtn.addEventListener('click', e => {
   e.stopPropagation();
   historyBox.classList.contains('visible') ? hideHistory() : showHistory();
 });
-
 historyBox.addEventListener('click', e => {
   const item = e.target.closest('.sh-item');
   if (!item) return;
@@ -380,7 +388,6 @@ historyBox.addEventListener('click', e => {
   hideHistory();
   doSearch();
 });
-
 document.addEventListener('click', e => {
   if (!historyBox.contains(e.target) && e.target !== historyBtn) hideHistory();
 });
@@ -449,15 +456,11 @@ async function doSearch() {
 function updateChipCounts(items) {
   const counts = {};
   items.forEach(r => { if (r.folder_name) counts[r.folder_name] = (counts[r.folder_name] || 0) + 1; });
-
-  // "Везде" badge
   const allBadge = document.getElementById('scb-__all__');
   if (allBadge) {
     allBadge.textContent = items.length;
     allBadge.classList.toggle('visible', items.length > 0);
   }
-
-  // Per-folder badges
   let idx = 1;
   document.querySelectorAll('.sc-item[data-folder]').forEach(item => {
     const name = item.dataset.folder;
@@ -471,11 +474,9 @@ function updateChipCounts(items) {
     idx++;
   });
 }
-
 function resetChipCounts() {
   document.querySelectorAll('.sc-badge').forEach(b => {
-    b.textContent = '';
-    b.classList.remove('visible');
+    b.textContent = ''; b.classList.remove('visible');
   });
 }
 
@@ -484,20 +485,14 @@ function plural(n,one,few,many){ const m=n%100; if(m>=11&&m<=14)return many; con
 
 // ── Theme ──
 (function() {
-  const saved = localStorage.getItem('nbm_theme');
-  if (saved === 'light') document.documentElement.setAttribute('data-theme', 'light');
+  if (localStorage.getItem('nbm_theme') === 'light')
+    document.documentElement.setAttribute('data-theme', 'light');
 })();
-
 function toggleTheme() {
   const html = document.documentElement;
   const isLight = html.getAttribute('data-theme') === 'light';
-  if (isLight) {
-    html.removeAttribute('data-theme');
-    localStorage.setItem('nbm_theme', 'dark');
-  } else {
-    html.setAttribute('data-theme', 'light');
-    localStorage.setItem('nbm_theme', 'light');
-  }
+  if (isLight) { html.removeAttribute('data-theme'); localStorage.setItem('nbm_theme', 'dark'); }
+  else { html.setAttribute('data-theme', 'light'); localStorage.setItem('nbm_theme', 'light'); }
 }
 </script>
 </body>

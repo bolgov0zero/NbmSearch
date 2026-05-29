@@ -54,5 +54,5 @@ _s = load()
 PORT: int = int(_s.get("port", 8080))
 MAX_WORKERS: int = int(_s.get("max_workers", 4))
 
-VERSION = "1.2.3"
+VERSION = "1.2.4"
 GITHUB_REPO = "bolgov0zero/NbmSearch"
