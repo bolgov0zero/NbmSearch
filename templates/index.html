@@ -13,7 +13,6 @@
   --text:     #e8eaf6; --text-dim: #8b90b8;
   --mark-bg:  #f0c040; --mark-fg:  #1a1d27;
   --green:    #2ecc71; --radius: 10px; --radius-sm: 6px;
-  --sidebar-w: 196px;
 }
 [data-theme="light"] {
   --bg:       #f2f3f8; --surface:  #ffffff; --surface2: #e8eaf4;
@@ -55,32 +54,29 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
 [data-theme="light"] .btn-theme .icon-sun  { display: block; }
 [data-theme="light"] .btn-theme .icon-moon { display: none; }
 
-/* ── Page ── */
-.page { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+/* ── Page: flex column, body controls overflow ── */
+.page { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 
-/* ── Hero texts (above the sidebar row) ── */
-.hero-texts { flex-shrink: 0; max-width: 760px; margin: 0 auto;
-  width: 100%; padding: 32px 0 20px; }
+/* ── Centered search zone (title + form) ── */
+.page-search { flex-shrink: 0; max-width: 760px; width: 100%;
+  margin: 0 auto; padding: 28px 24px 0; position: relative; }
+
 .hero-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
-.hero-sub   { color: var(--text-dim); font-size: .85rem; }
+.hero-sub   { color: var(--text-dim); font-size: .85rem; margin-bottom: 20px; }
 
-/* ── Body row: sidebar + main ── */
-.page-body { flex: 1; overflow: hidden; display: flex;
-  justify-content: center; align-items: flex-start; gap: 16px;
-  padding: 0 24px; }
-
-/* ── Sidebar ── */
-.sidebar { width: var(--sidebar-w); flex-shrink: 0;
+/* ── Sidebar: absolute, left of .page-search ── */
+.sidebar { position: absolute; right: calc(100% - 24px + 16px);
+  top: calc(28px + 1.4rem * 1.2 + 4px + .85rem * 1.5 + 20px); /* below title+sub */
+  width: 196px;
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); overflow: hidden; }
+  border-radius: var(--radius); overflow: hidden; z-index: 10; }
 .sidebar-head { padding: 10px 14px 8px;
   font-size: .62rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: .9px; color: var(--text-dim);
   border-bottom: 1px solid var(--border); }
-.sidebar-list { overflow-y: auto; max-height: calc(100vh - 200px); }
+.sidebar-list { overflow-y: auto; max-height: 60vh; }
 .sc-item { display: flex; align-items: center; gap: 9px; padding: 8px 14px;
-  cursor: pointer; user-select: none;
-  border-left: 2px solid transparent;
+  cursor: pointer; user-select: none; border-left: 2px solid transparent;
   transition: background .12s, border-color .15s; }
 .sc-item:hover { background: var(--surface2); }
 .sc-item.active { background: rgba(91,106,240,.08); border-left-color: var(--accent); }
@@ -89,8 +85,7 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
 .sc-item.active .sc-dot { background: var(--accent); }
 .sc-name { flex: 1; font-size: .82rem; color: var(--text-dim);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color .15s; }
-.sc-item.active .sc-name,
-.sc-item:hover .sc-name { color: var(--text); }
+.sc-item.active .sc-name, .sc-item:hover .sc-name { color: var(--text); }
 .sc-badge { font-size: .65rem; font-weight: 700; padding: 1px 6px;
   border-radius: 5px; background: rgba(91,106,240,.15);
   color: var(--accent); border: 1px solid rgba(91,106,240,.2);
@@ -100,11 +95,7 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
   color: var(--text-dim); font-style: italic; line-height: 1.5; }
 .sidebar-empty a { color: var(--accent); }
 
-/* ── Main column ── */
-.main-col { width: 760px; max-width: 760px; flex-shrink: 1;
-  display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
-
-/* ── Search ── */
+/* ── Search form ── */
 .search-wrap { display: flex; gap: 8px; background: var(--surface);
   border: 1px solid var(--border); border-radius: var(--radius);
   padding: 5px 5px 5px 14px; transition: border-color .2s; }
@@ -121,8 +112,7 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
   padding: 0 6px; border-radius: 4px; transition: color .15s; flex-shrink: 0; }
 .btn-clear:hover { color: var(--text); }
 .btn-clear.visible { display: flex; }
-
-.search-row { display: flex; gap: 8px; align-items: stretch; flex-shrink: 0; }
+.search-row { display: flex; gap: 8px; align-items: stretch; }
 .search-container { position: relative; flex: 1; min-width: 0; }
 .btn-history { width: 100%; display: flex; align-items: center;
   justify-content: center; background: var(--surface); border: 1px solid var(--border);
@@ -130,11 +120,13 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
   transition: border-color .15s, color .15s, background .15s; padding: 0; }
 .btn-history:hover { border-color: var(--accent); color: var(--text); background: var(--surface2); }
 .btn-history.active { border-color: var(--accent); color: var(--accent); background: rgba(91,106,240,.12); }
+
+/* History dropdown — high z-index, no clip */
 .search-history { position: absolute; top: calc(100% + 6px); left: 0;
   width: max-content; min-width: 180px; max-width: 360px;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-  z-index: 200; overflow: hidden; display: none;
-  box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+  z-index: 500; overflow: hidden; display: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,.35); }
 .search-history.visible { display: block; }
 .sh-item { padding: 10px 14px; font-size: .88rem; color: var(--text-dim); cursor: pointer;
   display: flex; align-items: center; gap: 10px; transition: background .12s, color .12s;
@@ -144,18 +136,22 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
 .sh-icon { flex-shrink: 0; opacity: .45; }
 
 /* ── Status bar ── */
-.status-bar { flex-shrink: 0; margin: 10px 0 0; min-height: 18px;
-  font-size: .78rem; color: var(--text-dim); display: flex; align-items: center; gap: 7px; }
+.status-bar { flex-shrink: 0; max-width: 760px; width: 100%;
+  margin: 10px auto 0; padding: 0 24px;
+  min-height: 18px; font-size: .78rem; color: var(--text-dim);
+  display: flex; align-items: center; gap: 7px; }
 .spinner { width: 13px; height: 13px; border: 2px solid var(--border);
-  border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; display: none; }
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin .6s linear infinite; display: none; }
 .spinner.visible { display: block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Results (only this scrolls) ── */
-.results-panel { flex: 1; overflow-y: auto; min-height: 0; margin-top: 14px; }
-#results { padding-bottom: 32px; }
+/* ── Results — only this scrolls ── */
+.results-panel { flex: 1; overflow-y: auto; min-height: 0; }
+#results { max-width: 760px; width: 100%; margin: 14px auto 0; padding: 0 24px 40px; }
 .no-results { text-align: center; padding: 50px 0; color: var(--text-dim); }
-.no-results svg { opacity: .3; margin-bottom: 10px; display: block; margin-left: auto; margin-right: auto; }
+.no-results svg { opacity: .3; margin-bottom: 10px; display: block;
+  margin-left: auto; margin-right: auto; }
 
 /* ── Result card ── */
 .result-card { background: var(--surface); border: 1px solid var(--border);
@@ -216,17 +212,11 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
 
 <div class="page">
 
-  <!-- Title above sidebar row -->
-  <div class="hero-texts">
-    <h1 class="hero-title">Поиск по файлам</h1>
-    <p class="hero-sub">Документы, таблицы, PDF — всё в одном месте</p>
-  </div>
+  <!-- Centered: title + search form. Sidebar is absolute to the left of this block. -->
+  <div class="page-search" id="pageSearch">
 
-  <!-- Sidebar + main -->
-  <div class="page-body">
-
-    <!-- Sidebar -->
-    <div class="sidebar">
+    <!-- Sidebar (positioned absolute, left of .page-search) -->
+    <div class="sidebar" id="sidebar">
       <div class="sidebar-head">Область поиска</div>
       <div class="sidebar-list" id="sidebarList">
         {% if folders %}
@@ -243,54 +233,74 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
           </div>
           {% endfor %}
         {% else %}
-          <div class="sidebar-empty">
-            Папки не добавлены —<br><a href="/admin">настройте</a>
-          </div>
+          <div class="sidebar-empty">Папки не добавлены —<br><a href="/admin">настройте</a></div>
         {% endif %}
       </div>
     </div>
 
-    <!-- Main column -->
-    <div class="main-col">
-      <form id="searchForm">
-        <div class="search-row">
-          <div style="position:relative;flex-shrink:0;display:flex" id="historyWrap">
-            <button type="button" class="btn-history" id="historyBtn" title="История поиска">
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <polyline points="12 8 12 12 14 14"/>
-                <path d="M3.05 11a9 9 0 1 0 .5-4" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Title (above search form) -->
+    <h1 class="hero-title">Поиск по файлам</h1>
+    <p class="hero-sub">Документы, таблицы, PDF — всё в одном месте</p>
+
+    <!-- Search form -->
+    <form id="searchForm">
+      <div class="search-row">
+        <div style="position:relative;flex-shrink:0;display:flex" id="historyWrap">
+          <button type="button" class="btn-history" id="historyBtn" title="История поиска">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <polyline points="12 8 12 12 14 14"/>
+              <path d="M3.05 11a9 9 0 1 0 .5-4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div class="search-history" id="searchHistory"></div>
+        </div>
+        <div class="search-container">
+          <div class="search-wrap">
+            <input type="text" id="query" placeholder='Запрос… или "точная фраза"' autocomplete="off" autofocus>
+            <button type="button" class="btn-clear" id="clearBtn" title="Очистить" onclick="clearQuery()">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
               </svg>
             </button>
-            <div class="search-history" id="searchHistory"></div>
-          </div>
-          <div class="search-container">
-            <div class="search-wrap">
-              <input type="text" id="query" placeholder='Запрос… или "точная фраза"' autocomplete="off" autofocus>
-              <button type="button" class="btn-clear" id="clearBtn" title="Очистить" onclick="clearQuery()">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                </svg>
-              </button>
-              <button type="submit" class="btn-search">Найти</button>
-            </div>
+            <button type="submit" class="btn-search">Найти</button>
           </div>
         </div>
-      </form>
-
-      <div class="status-bar">
-        <div class="spinner" id="spinner"></div>
-        <span id="statusText"></span>
       </div>
-
-      <div class="results-panel">
-        <div id="results"></div>
-      </div>
-    </div>
-
+    </form>
   </div>
+
+  <!-- Status -->
+  <div class="status-bar">
+    <div class="spinner" id="spinner"></div>
+    <span id="statusText"></span>
+  </div>
+
+  <!-- Results (only this scrolls) -->
+  <div class="results-panel">
+    <div id="results"></div>
+  </div>
+
 </div>
 
 <script>
+// ── Position sidebar relative to search form ──
+(function() {
+  function positionSidebar() {
+    const ps = document.getElementById('pageSearch');
+    const sb = document.getElementById('sidebar');
+    if (!ps || !sb) return;
+    const rect = ps.getBoundingClientRect();
+    // Top: align with search form (below title + subtitle + gap = ~72px of padding-top included)
+    const form = document.getElementById('searchForm');
+    if (form) {
+      const formRect = form.getBoundingClientRect();
+      sb.style.top = (formRect.top - rect.top) + 'px';
+    }
+  }
+  window.addEventListener('load', positionSidebar);
+  window.addEventListener('resize', positionSidebar);
+})();
+
 // ── Sidebar chips ──
 const allItem = document.querySelector('.sc-item[data-folder="__all__"]');
 
@@ -341,7 +351,6 @@ function clearQuery() {
 input.addEventListener('input', updateClearBtn);
 updateClearBtn();
 
-// Square history button
 (function() {
   const wrap = document.getElementById('historyWrap');
   const h = document.querySelector('.search-wrap').offsetHeight;
@@ -457,27 +466,18 @@ function updateChipCounts(items) {
   const counts = {};
   items.forEach(r => { if (r.folder_name) counts[r.folder_name] = (counts[r.folder_name] || 0) + 1; });
   const allBadge = document.getElementById('scb-__all__');
-  if (allBadge) {
-    allBadge.textContent = items.length;
-    allBadge.classList.toggle('visible', items.length > 0);
-  }
+  if (allBadge) { allBadge.textContent = items.length; allBadge.classList.toggle('visible', items.length > 0); }
   let idx = 1;
   document.querySelectorAll('.sc-item[data-folder]').forEach(item => {
     const name = item.dataset.folder;
     if (name === '__all__') return;
     const badge = document.getElementById(`scb-${idx}`);
-    if (badge) {
-      const n = counts[name] || 0;
-      badge.textContent = n;
-      badge.classList.toggle('visible', n > 0);
-    }
+    if (badge) { const n = counts[name] || 0; badge.textContent = n; badge.classList.toggle('visible', n > 0); }
     idx++;
   });
 }
 function resetChipCounts() {
-  document.querySelectorAll('.sc-badge').forEach(b => {
-    b.textContent = ''; b.classList.remove('visible');
-  });
+  document.querySelectorAll('.sc-badge').forEach(b => { b.textContent = ''; b.classList.remove('visible'); });
 }
 
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
