@@ -128,7 +128,7 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
 .rc-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .rc-name { font-weight: 600; font-size: .9rem; flex: 1; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rc-badge { flex-shrink: 0; font-size: .68rem; padding: 2px 7px; border-radius: 10px;
+.rc-badge { flex-shrink: 0; font-size: .68rem; padding: 2px 7px; border-radius: 6px;
   border: 1px solid var(--border); color: var(--text-dim); background: var(--surface2); }
 .ext-pdf  { border-color: #c0392b44; color: #e74c3c; }
 .ext-docx,.ext-doc { border-color: #2980b944; color: #3498db; }
@@ -214,9 +214,9 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
     <span class="folder-label">Где искать:</span>
     <div id="chipContainer">
       {% if folders %}
-        <div class="folder-chip active" data-folder="__all__"><span class="dot"></span>Везде</div>
+        <div class="folder-chip active" data-folder="__all__"><span class="dot"></span><span class="chip-label">Везде</span></div>
         {% for f in folders %}
-        <div class="folder-chip" data-folder="{{ f.name }}"><span class="dot"></span>{{ f.name }}</div>
+        <div class="folder-chip" data-folder="{{ f.name }}"><span class="dot"></span><span class="chip-label">{{ f.name }}</span></div>
         {% endfor %}
       {% else %}
         <span style="font-size:.78rem;color:var(--text-dim);font-style:italic">
@@ -276,6 +276,9 @@ function clearQuery() {
   input.value = '';
   updateClearBtn();
   input.focus();
+  results.innerHTML = '';
+  statusText.textContent = '';
+  resetChipCounts();
 }
 input.addEventListener('input', updateClearBtn);
 updateClearBtn();
@@ -359,6 +362,7 @@ async function doSearch() {
     statusText.textContent = items.length
       ? `Найдено: ${items.length} ${plural(items.length,'результат','результата','результатов')}`
       : 'Ничего не найдено';
+    updateChipCounts(items);
     if (!items.length) {
       results.innerHTML = `<div class="no-results">
         <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -396,6 +400,30 @@ async function doSearch() {
   }
 }
 
+
+// ── Chip counts ──
+function updateChipCounts(items) {
+  const counts = {};
+  items.forEach(r => { if (r.folder_name) counts[r.folder_name] = (counts[r.folder_name] || 0) + 1; });
+  document.querySelectorAll('.folder-chip[data-folder]').forEach(chip => {
+    const name = chip.dataset.folder;
+    if (name === '__all__') {
+      const label = chip.querySelector('.chip-label');
+      if (label) label.textContent = items.length ? `Везде (${items.length})` : 'Везде';
+    } else {
+      const label = chip.querySelector('.chip-label');
+      const n = counts[name];
+      if (label) label.textContent = n !== undefined ? `${name} (${n})` : name;
+    }
+  });
+}
+function resetChipCounts() {
+  document.querySelectorAll('.folder-chip[data-folder]').forEach(chip => {
+    const name = chip.dataset.folder;
+    const label = chip.querySelector('.chip-label');
+    if (label) label.textContent = name === '__all__' ? 'Везде' : name;
+  });
+}
 
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function plural(n,one,few,many){ const m=n%100; if(m>=11&&m<=14)return many; const r=n%10; if(r===1)return one; if(r>=2&&r<=4)return few; return many; }
