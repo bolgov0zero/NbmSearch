@@ -290,16 +290,13 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
   function positionSidebar() {
     const ps = document.getElementById('pageSearch');
     const sb = document.getElementById('sidebar');
-    if (!ps || !sb) return;
-    const rect = ps.getBoundingClientRect();
-    // Top: align with search form (below title + subtitle + gap = ~72px of padding-top included)
     const form = document.getElementById('searchForm');
-    if (form) {
-      const formRect = form.getBoundingClientRect();
-      sb.style.top = (formRect.top - rect.top) + 'px';
-    }
+    if (!ps || !sb || !form) return;
+    const rect = ps.getBoundingClientRect();
+    const formRect = form.getBoundingClientRect();
+    sb.style.top = (formRect.top - rect.top) + 'px';
   }
-  window.addEventListener('load', positionSidebar);
+  positionSidebar();
   window.addEventListener('resize', positionSidebar);
 })();
 
