@@ -22,8 +22,8 @@
   --green:    #1daa5c;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { user-select: none; }
-input, .rc-snippet, .rc-name, .rc-meta { user-select: text; }
+body, body * { user-select: none !important; -webkit-user-select: none !important; }
+input[type="text"], input[type="text"] * { user-select: text !important; -webkit-user-select: text !important; }
 html { transition: background-color .25s, color .25s; }
 body, header, .search-wrap, .result-card, .search-history,
 .sc-item, .btn-history, .rc-snippet, .rc-badge, .sidebar {
