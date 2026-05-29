@@ -13,6 +13,7 @@
   --text:     #e8eaf6; --text-dim: #8b90b8;
   --mark-bg:  #f0c040; --mark-fg:  #1a1d27;
   --green:    #2ecc71; --radius: 10px; --radius-sm: 6px;
+  --sidebar-w: 200px;
 }
 [data-theme="light"] {
   --bg:       #f2f3f8; --surface:  #ffffff; --surface2: #e8eaf4;
@@ -24,18 +25,17 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { transition: background-color .25s, color .25s; }
 body, header, .search-wrap, .result-card, .search-history,
-.folder-chip, .btn-history, .rc-snippet, .rc-badge {
+.sc-item, .btn-history, .rc-snippet, .rc-badge, .sidebar {
   transition: background-color .25s, border-color .25s, color .25s; }
 html, body { height: 100%; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg); color: var(--text);
   display: flex; flex-direction: column; overflow: hidden; }
 
+/* ── Header ── */
 header { flex-shrink: 0; z-index: 100; background: var(--surface);
   border-bottom: 1px solid var(--border); padding: 0 28px; height: 52px;
   display: flex; align-items: center; justify-content: space-between; }
-.top-panel { flex-shrink: 0; }
-.results-panel { flex: 1; overflow-y: auto; min-height: 0; }
 .logo { display: flex; align-items: center; gap: 9px; font-weight: 700;
   font-size: 1rem; color: var(--text); text-decoration: none; }
 .logo-icon { width: 26px; height: 26px; border-radius: 6px; overflow: hidden; }
@@ -50,16 +50,56 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   transition: background .15s, color .15s, border-color .15s; }
 .btn-theme:hover { background: var(--surface2); color: var(--text); border-color: #3d4168; }
-.btn-theme svg { transition: transform .35s, opacity .2s; }
 .btn-theme .icon-sun { display: none; }
 .btn-theme .icon-moon { display: block; }
 [data-theme="light"] .btn-theme .icon-sun  { display: block; }
 [data-theme="light"] .btn-theme .icon-moon { display: none; }
 
-.hero { padding: 36px 28px 0; max-width: 760px; margin: 0 auto; }
+/* ── Layout ── */
+.layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+
+/* ── Sidebar ── */
+.sidebar { width: var(--sidebar-w); flex-shrink: 0;
+  background: var(--surface); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden; }
+.sidebar-head { padding: 16px 16px 8px;
+  font-size: .62rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .9px; color: var(--text-dim); flex-shrink: 0; }
+.sidebar-list { overflow-y: auto; flex: 1; }
+.sc-item { display: flex; align-items: center; gap: 9px; padding: 8px 16px;
+  cursor: pointer; user-select: none; position: relative;
+  border-left: 2px solid transparent;
+  transition: background .12s, border-color .15s; }
+.sc-item:hover { background: var(--surface2); }
+.sc-item.active { background: rgba(91,106,240,.08); border-left-color: var(--accent); }
+.sc-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  background: var(--border); transition: background .15s; }
+.sc-item.active .sc-dot { background: var(--accent); }
+.sc-name { flex: 1; font-size: .82rem; color: var(--text-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color .15s; }
+.sc-item.active .sc-name,
+.sc-item:hover .sc-name { color: var(--text); }
+.sc-badge { font-size: .65rem; font-weight: 700; padding: 1px 6px;
+  border-radius: 5px; background: rgba(91,106,240,.15);
+  color: var(--accent); border: 1px solid rgba(91,106,240,.2);
+  display: none; flex-shrink: 0; }
+.sc-badge.visible { display: inline-block; }
+.sidebar-empty { padding: 12px 16px; font-size: .78rem;
+  color: var(--text-dim); font-style: italic; line-height: 1.5; }
+.sidebar-empty a { color: var(--accent); }
+
+/* ── Main area ── */
+.main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+.top-panel { flex-shrink: 0; }
+.results-panel { flex: 1; overflow-y: auto; min-height: 0; }
+
+/* ── Hero ── */
+.hero { padding: 32px 28px 0; max-width: 760px; margin: 0 auto; width: 100%; }
 .hero-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
 .hero-sub { color: var(--text-dim); font-size: .85rem; margin-bottom: 20px; }
 
+/* ── Search ── */
 .search-wrap { display: flex; gap: 8px; background: var(--surface);
   border: 1px solid var(--border); border-radius: var(--radius);
   padding: 5px 5px 5px 14px; transition: border-color .2s; }
@@ -98,24 +138,15 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
 .sh-item:hover { background: var(--surface2); color: var(--text); }
 .sh-icon { flex-shrink: 0; opacity: .45; }
 
-.folder-bar { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
-.folder-label { font-size: .75rem; color: var(--text-dim); margin-right: 2px; }
-.folder-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px;
-  border-radius: 6px; border: 1px solid var(--border); background: var(--surface2);
-  color: var(--text-dim); font-size: .8rem; cursor: pointer; user-select: none;
-  transition: border-color .15s, color .15s, background .15s; }
-.folder-chip:hover { border-color: var(--accent); color: var(--text); }
-.folder-chip.active { border-color: var(--accent); background: rgba(91,106,240,.15); color: var(--text); }
-.folder-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: background .15s; }
-.folder-chip.active .dot { background: var(--accent); }
-
-.status-bar { max-width: 760px; margin: 14px auto 0; padding: 0 28px;
+/* ── Status bar ── */
+.status-bar { max-width: 760px; margin: 14px auto 0; padding: 0 28px; width: 100%;
   min-height: 18px; font-size: .78rem; color: var(--text-dim); display: flex; align-items: center; gap: 7px; }
 .spinner { width: 13px; height: 13px; border: 2px solid var(--border);
   border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; display: none; }
 .spinner.visible { display: block; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Results ── */
 #results { max-width: 760px; width: 100%; margin: 0 auto; padding: 0 28px 32px; }
 .no-results { text-align: center; padding: 50px 0; color: var(--text-dim); }
 .no-results svg { opacity: .3; margin-bottom: 10px; display: block; margin-left: auto; margin-right: auto; }
@@ -124,7 +155,6 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
 .result-card { background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 13px 16px; margin-bottom: 8px; transition: border-color .15s; }
 .result-card:hover { border-color: #3d4168; }
-
 .rc-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .rc-name { font-weight: 600; font-size: .9rem; flex: 1; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -136,13 +166,11 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
 .ext-txt  { border-color: #7f8c8d44; color: #95a5a6; }
 .ext-csv  { border-color: #16a08544; color: #1abc9c; }
 .ext-rtf  { border-color: #8e44ad44; color: #9b59b6; }
-
 .rc-snippet { font-size: .82rem; color: var(--text-dim); line-height: 1.6;
   background: var(--surface2); border-left: 2px solid var(--accent);
   padding: 6px 10px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-bottom: 8px; }
 .rc-snippet mark { background: var(--mark-bg); color: var(--mark-fg);
   border-radius: 2px; padding: 0 2px; font-style: normal; }
-
 .rc-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .rc-meta { display: flex; gap: 12px; font-size: .73rem; color: var(--text-dim); flex-wrap: wrap; }
 .rc-actions { display: flex; gap: 5px; flex-wrap: wrap; }
@@ -180,94 +208,115 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
   </nav>
 </header>
 
-<div class="top-panel">
-<div class="hero">
-  <h1 class="hero-title">Поиск по файлам</h1>
-  <p class="hero-sub">Документы, таблицы, PDF — всё в одном месте</p>
+<div class="layout">
 
-  <form id="searchForm">
-    <div class="search-row">
-      <div style="position:relative;flex-shrink:0;display:flex" id="historyWrap">
-        <button type="button" class="btn-history" id="historyBtn" title="История поиска">
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <polyline points="12 8 12 12 14 14"/>
-            <path d="M3.05 11a9 9 0 1 0 .5-4" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-        <div class="search-history" id="searchHistory"></div>
-      </div>
-      <div class="search-container">
-        <div class="search-wrap">
-          <input type="text" id="query" placeholder='Запрос… или "точная фраза"' autocomplete="off" autofocus>
-          <button type="button" class="btn-clear" id="clearBtn" title="Очистить" onclick="clearQuery()">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-            </svg>
-          </button>
-          <button type="submit" class="btn-search">Найти</button>
-        </div>
-      </div>
-    </div>
-  </form>
-
-  <div class="folder-bar">
-    <span class="folder-label">Где искать:</span>
-    <div id="chipContainer">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-head">Область поиска</div>
+    <div class="sidebar-list" id="sidebarList">
       {% if folders %}
-        <div class="folder-chip active" data-folder="__all__"><span class="dot"></span><span class="chip-label">Везде</span></div>
+        <div class="sc-item active" data-folder="__all__">
+          <span class="sc-dot"></span>
+          <span class="sc-name">Везде</span>
+          <span class="sc-badge" id="scb-__all__"></span>
+        </div>
         {% for f in folders %}
-        <div class="folder-chip" data-folder="{{ f.name }}"><span class="dot"></span><span class="chip-label">{{ f.name }}</span></div>
+        <div class="sc-item" data-folder="{{ f.name }}">
+          <span class="sc-dot"></span>
+          <span class="sc-name">{{ f.name }}</span>
+          <span class="sc-badge" id="scb-{{ loop.index }}"></span>
+        </div>
         {% endfor %}
       {% else %}
-        <span style="font-size:.78rem;color:var(--text-dim);font-style:italic">
-          Папки не добавлены — <a href="/admin" style="color:var(--accent)">настройте</a>
-        </span>
+        <div class="sidebar-empty">
+          Папки не добавлены —<br><a href="/admin">настройте</a>
+        </div>
       {% endif %}
     </div>
   </div>
-</div>
 
-<div class="status-bar">
-  <div class="spinner" id="spinner"></div>
-  <span id="statusText"></span>
-</div>
-</div><!-- /top-panel -->
+  <!-- Main area -->
+  <div class="main-area">
+    <div class="top-panel">
+      <div class="hero">
+        <h1 class="hero-title">Поиск по файлам</h1>
+        <p class="hero-sub">Документы, таблицы, PDF — всё в одном месте</p>
 
-<div class="results-panel">
-<div id="results"></div>
-</div>
+        <form id="searchForm">
+          <div class="search-row">
+            <div style="position:relative;flex-shrink:0;display:flex" id="historyWrap">
+              <button type="button" class="btn-history" id="historyBtn" title="История поиска">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <polyline points="12 8 12 12 14 14"/>
+                  <path d="M3.05 11a9 9 0 1 0 .5-4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <div class="search-history" id="searchHistory"></div>
+            </div>
+            <div class="search-container">
+              <div class="search-wrap">
+                <input type="text" id="query" placeholder='Запрос… или "точная фраза"' autocomplete="off" autofocus>
+                <button type="button" class="btn-clear" id="clearBtn" title="Очистить" onclick="clearQuery()">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  </svg>
+                </button>
+                <button type="submit" class="btn-search">Найти</button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="status-bar">
+        <div class="spinner" id="spinner"></div>
+        <span id="statusText"></span>
+      </div>
+    </div>
+
+    <div class="results-panel">
+      <div id="results"></div>
+    </div>
+  </div>
+
+</div><!-- /layout -->
 
 <script>
-// ── Chips ──
-const allChip = document.querySelector('[data-folder="__all__"]');
-document.querySelectorAll('.folder-chip').forEach(chip => {
-  chip.addEventListener('click', () => {
-    const f = chip.dataset.folder;
+// ── Sidebar chips ──
+const allItem = document.querySelector('.sc-item[data-folder="__all__"]');
+
+document.querySelectorAll('.sc-item[data-folder]').forEach(item => {
+  item.addEventListener('click', () => {
+    const f = item.dataset.folder;
     if (f === '__all__') {
-      document.querySelectorAll('.folder-chip').forEach(c => c.classList.remove('active'));
-      allChip && allChip.classList.add('active');
+      document.querySelectorAll('.sc-item').forEach(i => i.classList.remove('active'));
+      allItem && allItem.classList.add('active');
     } else {
-      allChip && allChip.classList.remove('active');
-      chip.classList.toggle('active');
-      const any = [...document.querySelectorAll('.folder-chip')]
-        .some(c => c.dataset.folder !== '__all__' && c.classList.contains('active'));
-      if (!any && allChip) allChip.classList.add('active');
+      allItem && allItem.classList.remove('active');
+      item.classList.toggle('active');
+      const any = [...document.querySelectorAll('.sc-item[data-folder]')]
+        .some(i => i.dataset.folder !== '__all__' && i.classList.contains('active'));
+      if (!any && allItem) allItem.classList.add('active');
     }
   });
 });
 
 function selectedFolders() {
-  if (!allChip || allChip.classList.contains('active')) return [];
-  return [...document.querySelectorAll('.folder-chip')]
-    .filter(c => c.dataset.folder !== '__all__' && c.classList.contains('active'))
-    .map(c => c.dataset.folder);
+  if (!allItem || allItem.classList.contains('active')) return [];
+  return [...document.querySelectorAll('.sc-item[data-folder]')]
+    .filter(i => i.dataset.folder !== '__all__' && i.classList.contains('active'))
+    .map(i => i.dataset.folder);
 }
 
 // ── Search history ──
-const form = document.getElementById('searchForm');
-const input = document.getElementById('query');
-const clearBtn = document.getElementById('clearBtn');
-const spinner = document.getElementById('spinner');
+const form       = document.getElementById('searchForm');
+const input      = document.getElementById('query');
+const clearBtn   = document.getElementById('clearBtn');
+const spinner    = document.getElementById('spinner');
+const statusText = document.getElementById('statusText');
+const results    = document.getElementById('results');
+const historyBox = document.getElementById('searchHistory');
+const historyBtn = document.getElementById('historyBtn');
 
 function updateClearBtn() {
   clearBtn.classList.toggle('visible', input.value.length > 0);
@@ -282,10 +331,6 @@ function clearQuery() {
 }
 input.addEventListener('input', updateClearBtn);
 updateClearBtn();
-const statusText = document.getElementById('statusText');
-const results = document.getElementById('results');
-const historyBox = document.getElementById('searchHistory');
-const historyBtn = document.getElementById('historyBtn');
 
 // Square history button
 (function() {
@@ -400,28 +445,37 @@ async function doSearch() {
   }
 }
 
-
 // ── Chip counts ──
 function updateChipCounts(items) {
   const counts = {};
   items.forEach(r => { if (r.folder_name) counts[r.folder_name] = (counts[r.folder_name] || 0) + 1; });
-  document.querySelectorAll('.folder-chip[data-folder]').forEach(chip => {
-    const name = chip.dataset.folder;
-    if (name === '__all__') {
-      const label = chip.querySelector('.chip-label');
-      if (label) label.textContent = items.length ? `Везде (${items.length})` : 'Везде';
-    } else {
-      const label = chip.querySelector('.chip-label');
-      const n = counts[name];
-      if (label) label.textContent = n !== undefined ? `${name} (${n})` : name;
+
+  // "Везде" badge
+  const allBadge = document.getElementById('scb-__all__');
+  if (allBadge) {
+    allBadge.textContent = items.length;
+    allBadge.classList.toggle('visible', items.length > 0);
+  }
+
+  // Per-folder badges
+  let idx = 1;
+  document.querySelectorAll('.sc-item[data-folder]').forEach(item => {
+    const name = item.dataset.folder;
+    if (name === '__all__') return;
+    const badge = document.getElementById(`scb-${idx}`);
+    if (badge) {
+      const n = counts[name] || 0;
+      badge.textContent = n;
+      badge.classList.toggle('visible', n > 0);
     }
+    idx++;
   });
 }
+
 function resetChipCounts() {
-  document.querySelectorAll('.folder-chip[data-folder]').forEach(chip => {
-    const name = chip.dataset.folder;
-    const label = chip.querySelector('.chip-label');
-    if (label) label.textContent = name === '__all__' ? 'Везде' : name;
+  document.querySelectorAll('.sc-badge').forEach(b => {
+    b.textContent = '';
+    b.classList.remove('visible');
   });
 }
 
