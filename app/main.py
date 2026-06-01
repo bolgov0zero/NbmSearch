@@ -46,7 +46,6 @@ async def lifespan(application: FastAPI):
 
 
 def _startup():
-    indexer.full_reindex()
     indexer.reindex_scheduler()
 
 
