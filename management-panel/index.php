@@ -192,7 +192,8 @@ $serverId = $_GET['id'] ?? '';
 <?php
 $server = null;
 foreach ($servers as $s) { if ($s['id'] === $serverId) { $server = $s; break; } }
-if (!$server) { echo '<p style="color:var(--red)">Сервер не найден.</p>'; }
+if (!$server):
+    echo '<p style="color:var(--red)">Сервер не найден.</p>';
 else:
 ?>
 
