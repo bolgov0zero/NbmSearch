@@ -6,8 +6,11 @@
 
 require_once __DIR__ . '/config.php';
 
-session_set_cookie_params(SESSION_LIFETIME);
-session_start();
+session_start([
+    'cookie_lifetime' => SESSION_LIFETIME,
+    'cookie_httponly' => true,
+    'cookie_samesite' => 'Lax',
+]);
 
 header('Content-Type: application/json; charset=utf-8');
 

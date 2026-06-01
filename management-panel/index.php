@@ -1,12 +1,14 @@
 <?php
-/**
- * NbmSearch Management Panel
- */
+ob_start();
+ini_set('display_errors', 0);
 
 require_once __DIR__ . '/config.php';
 
-session_set_cookie_params(SESSION_LIFETIME);
-session_start();
+session_start([
+    'cookie_lifetime' => SESSION_LIFETIME,
+    'cookie_httponly' => true,
+    'cookie_samesite' => 'Lax',
+]);
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
