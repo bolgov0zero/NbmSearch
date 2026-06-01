@@ -220,7 +220,7 @@ switch ($action) {
         $period = $_GET['period'] ?? 'day';
         $server = find_server($id);
         if (!$server) { echo json_encode(['error' => 'Server not found']); exit; }
-        $res = nbm_request($server['url'] . '/api/search/stats?period=' . urlencode($period), $server['token']);
+        $res = nbm_request($server['url'] . '/api/management/search-stats?period=' . urlencode($period), $server['token']);
         echo json_encode($res);
         break;
     }
