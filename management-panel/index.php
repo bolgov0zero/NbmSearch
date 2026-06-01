@@ -181,7 +181,7 @@ $serverId = $_GET['id'] ?? '';
         <button class="btn btn-ghost btn-sm" id="rbtn-<?= h($s['id']) ?>" onclick="confirmRestart('<?= h($s['id']) ?>','<?= h($s['name']) ?>')" disabled>Перезапустить</button>
         <button class="sc-update-btn" id="ubtn-<?= h($s['id']) ?>" onclick="handleUpdate('<?= h($s['id']) ?>')">
           <span class="sc-upd-progress" style="width:0%"></span>
-          <span class="sc-upd-label">Обновление</span>
+          <span class="sc-upd-label">Обновить</span>
         </button>
         <button class="btn btn-ghost btn-sm" onclick="goServer('<?= h($s['id']) ?>')">Подробнее</button>
         <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:transparent" onclick="confirmRemove('<?= h($s['id']) ?>','<?= h($s['name']) ?>')">Удалить</button>
@@ -415,14 +415,14 @@ async function _checkUpdate(id) {
     if (d.error || !d.update_available) {
       _updState[id] = {state: 'idle'};
       _setUpdBtn(id, 'up-to-date', 'Актуально');
-      setTimeout(() => { _setUpdBtn(id, '', 'Обновление', 0); _updState[id] = {state:'idle'}; }, 3000);
+      setTimeout(() => { _setUpdBtn(id, '', 'Обновить', 0); _updState[id] = {state:'idle'}; }, 3000);
     } else {
       _updState[id] = {state: 'available', downloadUrl: d.download_url};
       _setUpdBtn(id, 'available', 'v' + d.latest, 0);
     }
   } catch(e) {
     _updState[id] = {state: 'idle'};
-    _setUpdBtn(id, '', 'Обновление', 0);
+    _setUpdBtn(id, '', 'Обновить', 0);
   }
 }
 
@@ -450,12 +450,12 @@ async function _startUpdate(id) {
         _finished = true;
         clearInterval(timer);
         _setUpdBtn(id, 'done', 'Готово', 100);
-        setTimeout(() => { _setUpdBtn(id, '', 'Обновление', 0); _updState[id] = {state:'idle'}; }, 3000);
+        setTimeout(() => { _setUpdBtn(id, '', 'Обновить', 0); _updState[id] = {state:'idle'}; }, 3000);
       } else if (s.stage === 'error') {
         _finished = true;
         clearInterval(timer);
         _setUpdBtn(id, '', 'Ошибка', 0);
-        setTimeout(() => { _setUpdBtn(id, '', 'Обновление', 0); _updState[id] = {state:'idle'}; }, 3000);
+        setTimeout(() => { _setUpdBtn(id, '', 'Обновить', 0); _updState[id] = {state:'idle'}; }, 3000);
       }
     } catch(e) {
       if (!_finished) _setUpdBtn(id, 'updating', '...');
