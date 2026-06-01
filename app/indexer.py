@@ -268,9 +268,19 @@ def index_folder(folder: dict, full: bool = False, update_last_reindex: bool = T
 
 
 def full_reindex():
-    """Startup catch-up reindex — incremental, does not update last_reindex_at."""
+    """Startup catch-up reindex.
+
+    Only runs for folders that have automatic indexing configured
+    (watchdog or scheduler) OR have never been indexed yet.
+    Does not update last_reindex_at.
+    """
+    scheduled_ids = {s["folder_id"] for s in db.get_schedules()}
     for folder in db.get_folders():
-        index_folder(folder, update_last_reindex=False)
+        never_indexed  = not folder.get("last_reindex_at")
+        has_watchdog   = bool(folder.get("watchdog_enabled"))
+        has_schedule   = folder["id"] in scheduled_ids
+        if never_indexed or has_watchdog or has_schedule:
+            index_folder(folder, update_last_reindex=False)
         _schedule_next(folder["id"], folder["reindex_minutes"])
 
 
