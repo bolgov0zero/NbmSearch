@@ -203,7 +203,7 @@ def index_file(folder_id: int, path: str):
         logger.error("Error indexing %s: %s", path, e)
 
 
-def index_folder(folder: dict, full: bool = False):
+def index_folder(folder: dict, full: bool = False, update_last_reindex: bool = True):
     folder_id = folder["id"]
     folder_path = folder["path"]
     folder_name = folder["name"]
@@ -261,14 +261,16 @@ def index_folder(folder: dict, full: bool = False):
         db.delete_file_from_folder(folder_id, stale)
 
     _set_progress(folder_id, total, total, "done")
-    db.set_folder_last_reindex(folder_id, time.time())
+    if update_last_reindex:
+        db.set_folder_last_reindex(folder_id, time.time())
     db.update_folder_file_count(folder_id)
     logger.info("Done indexing folder '%s'", folder_name)
 
 
 def full_reindex():
+    """Startup catch-up reindex — incremental, does not update last_reindex_at."""
     for folder in db.get_folders():
-        index_folder(folder)
+        index_folder(folder, update_last_reindex=False)
         _schedule_next(folder["id"], folder["reindex_minutes"])
 
 

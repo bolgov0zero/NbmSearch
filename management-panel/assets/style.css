@@ -74,7 +74,7 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
 .sc-name{font-weight:700;font-size:.95rem;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sc-url{font-size:.75rem;color:var(--text-muted);word-break:break-all}
 .sc-badge{display:inline-flex;align-items:center;gap:4px;font-size:.68rem;font-weight:600;
-  padding:2px 8px;border-radius:10px;white-space:nowrap}
+  padding:2px 8px;border-radius:6px;white-space:nowrap}
 .badge-online{background:rgba(46,204,113,.15);color:var(--green);border:1px solid rgba(46,204,113,.2)}
 .badge-offline{background:var(--red-bg);color:var(--red);border:1px solid rgba(231,76,60,.2)}
 .badge-version{background:var(--accent-bg);color:var(--accent);border:1px solid rgba(91,106,240,.2)}
