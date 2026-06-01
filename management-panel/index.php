@@ -461,42 +461,55 @@ async function _startUpdate(id) {
   _updState[id].pollTimer = timer;
 }
 
-// ── Dashboard: load all servers info ──────────────────────────────────────
+// ── Dashboard: load all servers info (parallel per-server fetches) ────────
+function _applyServerData(id, d) {
+  const isOnline = !d._error;
+  const st = document.getElementById('status-' + id);
+  if (st) {
+    st.className = 'sc-badge ' + (isOnline ? 'badge-online' : 'badge-offline');
+    st.innerHTML = `<span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block"></span> ${isOnline ? 'Онлайн' : 'Офлайн'}`;
+  }
+  const card = document.getElementById('card-' + id);
+  if (card) card.classList.toggle('offline', !isOnline);
+  const rb = document.getElementById('rbtn-' + id);
+  if (rb) rb.disabled = !isOnline;
+  const vEl = document.getElementById('ver-' + id);
+  if (vEl && d.version) { vEl.textContent = 'v' + d.version; vEl.style.display = ''; }
+  const setEl = (id2, val) => { const el = document.getElementById(id2); if(el) el.textContent = val; };
+  setEl('fc-'+id,  isOnline ? fmt(d.file_count || 0)        : '—');
+  setEl('idx-'+id, isOnline ? fmt(d.folder_count || 0)      : '—');
+  setEl('sq-'+id,  isOnline ? fmt(d.search_summary?.today)  : '—');
+  return isOnline ? {files: d.file_count||0, searches: d.search_summary?.today||0} : null;
+}
+
+const _sumState = {}; // id → {files, searches, online}
+
 async function loadAllServers() {
-  const servers = await api('get_all');
-  let online = 0, totalFiles = 0, totalSearches = 0;
-  servers.forEach(d => {
-    const id = d._server?.id;
-    if (!id) return;
-    const isOnline = !d._error;
-    if (isOnline) online++;
-    // Status badge
-    const st = document.getElementById('status-' + id);
-    if (st) {
-      st.className = 'sc-badge ' + (isOnline ? 'badge-online' : 'badge-offline');
-      st.innerHTML = `<span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block"></span> ${isOnline ? 'Онлайн' : 'Офлайн'}`;
-    }
-    // Card offline class
-    const card = document.getElementById('card-' + id);
-    if (card) card.classList.toggle('offline', !isOnline);
-    // Restart button
-    const rb = document.getElementById('rbtn-' + id);
-    if (rb) rb.disabled = !isOnline;
-    // Version
-    const vEl = document.getElementById('ver-' + id);
-    if (vEl && d.version) { vEl.textContent = 'v' + d.version; vEl.style.display = ''; }
-    // Stats
-    const fc = d.file_count || 0;
-    const searches = d.search_summary?.today || 0;
-    totalFiles += fc; totalSearches += searches;
-    const setEl = (id2, val) => { const el = document.getElementById(id2); if(el) el.textContent = val; };
-    setEl('fc-'+id,  isOnline ? fmt(fc)                  : '—');
-    setEl('idx-'+id, isOnline ? fmt(d.folder_count || 0) : '—');
-    setEl('sq-'+id,  isOnline ? fmt(searches)            : '—');
+  const cards = [...document.querySelectorAll('.server-card[id^="card-"]')];
+  if (!cards.length) return;
+
+  cards.forEach(card => {
+    const id = card.id.replace('card-', '');
+    // Fire individual requests — each resolves independently
+    apiPost('get_info', {id})
+      .then(d => {
+        const stats = _applyServerData(id, d);
+        _sumState[id] = stats ? {online:true, ...stats} : {online:false, files:0, searches:0};
+        _updateSummary();
+      })
+      .catch(() => {
+        _applyServerData(id, {_error:true});
+        _sumState[id] = {online:false, files:0, searches:0};
+        _updateSummary();
+      });
   });
-  document.getElementById('sumOnline').textContent    = online;
-  document.getElementById('sumFiles').textContent     = fmt(totalFiles);
-  document.getElementById('sumSearches').textContent  = fmt(totalSearches);
+}
+
+function _updateSummary() {
+  const vals = Object.values(_sumState);
+  document.getElementById('sumOnline').textContent   = vals.filter(v=>v.online).length;
+  document.getElementById('sumFiles').textContent    = fmt(vals.reduce((s,v)=>s+(v.files||0),0));
+  document.getElementById('sumSearches').textContent = fmt(vals.reduce((s,v)=>s+(v.searches||0),0));
 }
 
 loadAllServers();

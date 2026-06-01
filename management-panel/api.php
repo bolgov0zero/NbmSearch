@@ -139,7 +139,7 @@ switch ($action) {
 
     // ── Get info from one server ──────────────────────────────────────────────
     case 'get_info': {
-        $id = $_GET['id'] ?? '';
+        $id = $_GET['id'] ?? $input['id'] ?? '';
         $server = find_server($id);
         if (!$server) { echo json_encode(['error' => 'Server not found']); exit; }
         $info = nbm_request($server['url'] . '/api/management/info', $server['token']);
