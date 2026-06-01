@@ -303,33 +303,47 @@ class FileEventHandler(FileSystemEventHandler):
             self._timers.pop(path, None)
         # Skip if file disappeared or is still empty (being written)
         try:
-            if os.path.getsize(path) == 0:
+            stat = os.stat(path)
+            if stat.st_size == 0:
                 logger.debug("Watchdog: skipping empty file %s", path)
                 return
         except OSError:
             return
+        # Skip if mtime and size match what's already indexed (false positive event)
+        meta = db.get_file_meta(self.folder_id, path)
+        if meta is not None:
+            db_mtime, db_size = meta
+            if abs(stat.st_mtime - db_mtime) < 1.0 and stat.st_size == db_size:
+                logger.debug("Watchdog: skipping unchanged file %s", path)
+                return
         index_file(self.folder_id, path)
         db.update_folder_file_count(self.folder_id)
         _log_event(self.folder_id, event_type, path)
 
+    @staticmethod
+    def _is_temp(path: str) -> bool:
+        return os.path.basename(path).startswith("~$")
+
     def on_created(self, event):
-        if not event.is_directory:
+        if not event.is_directory and not self._is_temp(event.src_path):
             self._schedule(event.src_path, "created")
 
     def on_modified(self, event):
-        if not event.is_directory:
+        if not event.is_directory and not self._is_temp(event.src_path):
             self._schedule(event.src_path, "modified")
 
     def on_deleted(self, event):
-        if not event.is_directory:
+        if not event.is_directory and not self._is_temp(event.src_path):
             db.delete_file_from_folder(self.folder_id, event.src_path)
             db.update_folder_file_count(self.folder_id)
             _log_event(self.folder_id, "deleted", event.src_path)
 
     def on_moved(self, event):
         if not event.is_directory:
-            db.delete_file_from_folder(self.folder_id, event.src_path)
-            self._schedule(event.dest_path, "moved")
+            if not self._is_temp(event.src_path):
+                db.delete_file_from_folder(self.folder_id, event.src_path)
+            if not self._is_temp(event.dest_path):
+                self._schedule(event.dest_path, "moved")
 
 
 def restart_watchdog():

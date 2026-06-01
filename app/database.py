@@ -431,6 +431,19 @@ def delete_file_from_folder(folder_id: int, path: str):
         conn.close()
 
 
+def get_file_meta(folder_id: int, path: str) -> tuple[float, int] | None:
+    """Return (modified_at, size) for a file already in the index, or None."""
+    try:
+        conn = _get_folder_conn(folder_id)
+        row = conn.execute(
+            "SELECT modified_at, size FROM files WHERE path=?", (path,)
+        ).fetchone()
+        conn.close()
+        return (row["modified_at"], row["size"]) if row else None
+    except Exception:
+        return None
+
+
 def get_file_count(folder_id: int) -> int:
     try:
         conn = _get_folder_conn(folder_id)
