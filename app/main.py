@@ -479,6 +479,72 @@ async def api_mgmt_info(request: Request):
     }
 
 
+@app.get("/api/management/update-check")
+async def api_mgmt_update_check(request: Request):
+    if not _check_mgmt_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    import asyncio
+    try:
+        loop = asyncio.get_event_loop()
+        data = await loop.run_in_executor(None, _fetch_latest_release)
+        latest_tag = data.get("tag_name", "").lstrip("v")
+        assets = data.get("assets", [])
+        download_url = next(
+            (a["browser_download_url"] for a in assets
+             if a["name"].lower() == "nbmsearch.exe"),
+            None,
+        )
+        return {
+            "current": VERSION,
+            "latest": latest_tag,
+            "update_available": _version_gt(latest_tag, VERSION),
+            "download_url": download_url,
+        }
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/management/update-start")
+async def api_mgmt_update_start(request: Request):
+    if not _check_mgmt_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    if not getattr(sys, "frozen", False):
+        return JSONResponse({"error": "Только в собранном приложении"}, status_code=400)
+    body = await request.json()
+    download_url = body.get("download_url", "").strip()
+    if not download_url:
+        return JSONResponse({"error": "Нет ссылки"}, status_code=400)
+    exe_path     = str(Path(sys.executable))
+    updater_path = str(Path(sys.executable).parent / "NbmSearchUpdater.exe")
+    if not os.path.exists(updater_path):
+        return JSONResponse({"error": "NbmSearchUpdater.exe не найден"}, status_code=500)
+    try:
+        (BASE_DIR / "update_status.json").unlink(missing_ok=True)
+    except Exception:
+        pass
+    import subprocess as _sp
+    _sp.Popen(
+        [updater_path, str(os.getpid()), download_url, exe_path, str(PORT)],
+        creationflags=_sp.DETACHED_PROCESS | _sp.CREATE_NEW_PROCESS_GROUP,
+    )
+    return {"status": "started"}
+
+
+@app.get("/api/management/update-status")
+async def api_mgmt_update_status(request: Request):
+    if not _check_mgmt_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    import json as _json
+    status_path = BASE_DIR / "update_status.json"
+    if not status_path.exists():
+        return {"stage": "idle", "progress": 0, "message": "", "error": None}
+    try:
+        with open(status_path, encoding="utf-8") as f:
+            return _json.load(f)
+    except Exception:
+        return {"stage": "idle", "progress": 0, "message": "", "error": None}
+
+
 @app.get("/api/management/search-stats")
 async def api_mgmt_search_stats(request: Request, period: str = "day"):
     if not _check_mgmt_token(request):

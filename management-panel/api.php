@@ -225,6 +225,38 @@ switch ($action) {
         break;
     }
 
+    // ── Check update ──────────────────────────────────────────────────────────
+    case 'check_update': {
+        $id = $_GET['id'] ?? $input['id'] ?? '';
+        $server = find_server($id);
+        if (!$server) { echo json_encode(['error' => 'Server not found']); exit; }
+        $res = nbm_request($server['url'] . '/api/management/update-check', $server['token']);
+        echo json_encode($res);
+        break;
+    }
+
+    // ── Start update ───────────────────────────────────────────────────────────
+    case 'start_update': {
+        $id           = $input['id'] ?? '';
+        $download_url = $input['download_url'] ?? '';
+        $server = find_server($id);
+        if (!$server) { echo json_encode(['error' => 'Server not found']); exit; }
+        $res = nbm_request($server['url'] . '/api/management/update-start', $server['token'], 'POST',
+                           ['download_url' => $download_url]);
+        echo json_encode($res);
+        break;
+    }
+
+    // ── Get update status ─────────────────────────────────────────────────────
+    case 'get_update_status': {
+        $id = $_GET['id'] ?? $input['id'] ?? '';
+        $server = find_server($id);
+        if (!$server) { echo json_encode(['error' => 'Server not found']); exit; }
+        $res = nbm_request($server['url'] . '/api/management/update-status', $server['token']);
+        echo json_encode($res);
+        break;
+    }
+
     default:
         http_response_code(400);
         echo json_encode(['error' => 'Unknown action']);

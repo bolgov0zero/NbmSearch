@@ -82,7 +82,24 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
 .sc-stat{flex:1;background:var(--surface2);padding:10px 14px;text-align:center}
 .sc-stat-val{font-size:1.1rem;font-weight:700;color:var(--text);display:block}
 .sc-stat-lbl{font-size:.65rem;color:var(--text-muted);display:block;margin-top:2px}
-.sc-actions{padding:12px 18px;display:flex;gap:8px;border-top:1px solid var(--border)}
+.sc-actions{padding:10px 18px;display:grid;grid-template-columns:1fr 1fr;gap:6px;border-top:1px solid var(--border)}
+
+/* ── Update button ── */
+.sc-update-btn{position:relative;overflow:hidden;background:var(--surface2);
+  border:1px solid var(--border);color:var(--text-dim);cursor:pointer;
+  border-radius:var(--radius-sm);font-size:.76rem;font-weight:600;
+  padding:5px 12px;font-family:inherit;white-space:nowrap;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+  transition:border-color .2s,color .2s,background .2s}
+.sc-update-btn:hover{border-color:var(--accent);color:var(--text)}
+.sc-update-btn.checking{color:var(--text-dim);cursor:default}
+.sc-update-btn.up-to-date{background:rgba(46,204,113,.1);border-color:rgba(46,204,113,.3);color:var(--green)}
+.sc-update-btn.available{background:rgba(230,126,34,.1);border-color:rgba(230,126,34,.3);color:#e67e22}
+.sc-update-btn.updating{background:rgba(230,126,34,.1);border-color:rgba(230,126,34,.3);color:#e67e22;cursor:default}
+.sc-update-btn.done{background:rgba(46,204,113,.1);border-color:rgba(46,204,113,.3);color:var(--green)}
+.sc-upd-progress{position:absolute;left:0;top:0;bottom:0;
+  background:rgba(46,204,113,.25);transition:width .4s;pointer-events:none}
+.sc-upd-label{position:relative;z-index:1}
 
 .data-table{width:100%;border-collapse:collapse;font-size:.82rem}
 .data-table th{font-size:.65rem;text-transform:uppercase;letter-spacing:.5px;

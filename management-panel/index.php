@@ -177,9 +177,13 @@ $serverId = $_GET['id'] ?? '';
         </div>
       </div>
       <div class="sc-actions" onclick="event.stopPropagation()">
-        <button class="btn btn-ghost btn-sm" onclick="goServer('<?= h($s['id']) ?>')">Подробнее</button>
         <button class="btn btn-ghost btn-sm" id="rbtn-<?= h($s['id']) ?>" onclick="confirmRestart('<?= h($s['id']) ?>','<?= h($s['name']) ?>')" disabled>Перезапустить</button>
-        <button class="btn btn-ghost btn-sm" style="margin-left:auto;color:var(--red);border-color:transparent" onclick="confirmRemove('<?= h($s['id']) ?>','<?= h($s['name']) ?>')">Удалить</button>
+        <button class="sc-update-btn" id="ubtn-<?= h($s['id']) ?>" onclick="handleUpdate('<?= h($s['id']) ?>')">
+          <span class="sc-upd-progress" style="width:0%"></span>
+          <span class="sc-upd-label">Обновление</span>
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="goServer('<?= h($s['id']) ?>')">Подробнее</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:transparent" onclick="confirmRemove('<?= h($s['id']) ?>','<?= h($s['name']) ?>')">Удалить</button>
       </div>
     </div>
     <?php endforeach; ?>
@@ -381,6 +385,81 @@ function confirmRemove(id, name) {
 }
 
 <?php if ($view === 'dashboard' && !empty($servers)): ?>
+// ── Update button state machine ───────────────────────────────────────────
+const _updState = {}; // id → {state, downloadUrl, pollTimer}
+
+function _setUpdBtn(id, state, label, pct) {
+  const btn = document.getElementById('ubtn-' + id);
+  if (!btn) return;
+  btn.className = 'sc-update-btn' + (state ? ' ' + state : '');
+  btn.querySelector('.sc-upd-label').textContent = label;
+  btn.querySelector('.sc-upd-progress').style.width = (pct ?? 0) + '%';
+  btn.disabled = (state === 'checking' || state === 'updating');
+}
+
+async function handleUpdate(id) {
+  const s = _updState[id]?.state || 'idle';
+  if (s === 'idle') {
+    await _checkUpdate(id);
+  } else if (s === 'available') {
+    await _startUpdate(id);
+  }
+}
+
+async function _checkUpdate(id) {
+  _updState[id] = {state: 'checking'};
+  _setUpdBtn(id, 'checking', '...');
+  try {
+    const d = await apiPost('check_update', {id});
+    if (d.error || !d.update_available) {
+      _updState[id] = {state: 'idle'};
+      _setUpdBtn(id, 'up-to-date', 'Актуально');
+      setTimeout(() => { _setUpdBtn(id, '', 'Обновление', 0); _updState[id] = {state:'idle'}; }, 3000);
+    } else {
+      _updState[id] = {state: 'available', downloadUrl: d.download_url};
+      _setUpdBtn(id, 'available', 'v' + d.latest, 0);
+    }
+  } catch(e) {
+    _updState[id] = {state: 'idle'};
+    _setUpdBtn(id, '', 'Обновление', 0);
+  }
+}
+
+async function _startUpdate(id) {
+  const downloadUrl = _updState[id]?.downloadUrl;
+  if (!downloadUrl) return;
+  _updState[id] = {state: 'updating', downloadUrl};
+  _setUpdBtn(id, 'updating', '0%', 0);
+
+  try {
+    await apiPost('start_update', {id, download_url: downloadUrl});
+  } catch(e) {}
+
+  const timer = setInterval(async () => {
+    try {
+      const s = await apiPost('get_update_status', {id});
+      const pct = s.progress || 0;
+
+      if (s.stage === 'downloading' || s.stage === 'replacing' || s.stage === 'restarting') {
+        _setUpdBtn(id, 'updating', pct + '%', pct);
+      } else if (s.stage === 'done') {
+        clearInterval(timer);
+        _setUpdBtn(id, 'done', 'Готово', 100);
+        setTimeout(() => { _setUpdBtn(id, '', 'Обновление', 0); _updState[id] = {state:'idle'}; }, 3000);
+      } else if (s.stage === 'error') {
+        clearInterval(timer);
+        _setUpdBtn(id, '', 'Ошибка', 0);
+        setTimeout(() => { _setUpdBtn(id, '', 'Обновление', 0); _updState[id] = {state:'idle'}; }, 3000);
+      }
+    } catch(e) {
+      // server restarting — keep polling
+      _setUpdBtn(id, 'updating', '...');
+    }
+  }, 1500);
+
+  _updState[id].pollTimer = timer;
+}
+
 // ── Dashboard: load all servers info ──────────────────────────────────────
 async function loadAllServers() {
   const servers = await api('get_all');
