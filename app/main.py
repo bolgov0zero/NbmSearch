@@ -484,10 +484,32 @@ async def api_mgmt_info(request: Request):
 async def api_mgmt_restart(request: Request):
     if not _check_mgmt_token(request):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
-    if getattr(sys, "frozen", False):
-        import subprocess as _sp
-        _sp.Popen([str(Path(sys.executable))])
-    threading.Timer(1.0, lambda: os._exit(0)).start()
+
+    def _do_restart():
+        time.sleep(1)
+        if getattr(sys, "frozen", False):
+            import subprocess as _sp
+            import tempfile
+            exe = str(Path(sys.executable))
+            # bat: wait for this PID to exit, then launch new instance
+            pid = os.getpid()
+            script = (
+                f'@echo off\r\n'
+                f':wait\r\n'
+                f'tasklist /FI "PID eq {pid}" 2>nul | find "{pid}" >nul\r\n'
+                f'if not errorlevel 1 (timeout /t 1 /nobreak >nul & goto wait)\r\n'
+                f'start "" "{exe}"\r\n'
+            )
+            bat = tempfile.NamedTemporaryFile(suffix='.bat', delete=False, mode='w', encoding='utf-8')
+            bat.write(script)
+            bat.close()
+            _sp.Popen(
+                ['cmd', '/c', bat.name],
+                creationflags=_sp.DETACHED_PROCESS | _sp.CREATE_NEW_PROCESS_GROUP,
+            )
+        os._exit(0)
+
+    threading.Thread(target=_do_restart, daemon=True).start()
     return {"status": "restarting"}
 
 
