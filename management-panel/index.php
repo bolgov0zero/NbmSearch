@@ -382,7 +382,7 @@ function confirmRemove(id, name) {
 
 <?php if ($view === 'dashboard' && !empty($servers)): ?>
 // ── Dashboard: load all servers info ──────────────────────────────────────
-(async function() {
+async function loadAllServers() {
   const servers = await api('get_all');
   let online = 0, totalFiles = 0, totalSearches = 0;
   servers.forEach(d => {
@@ -396,8 +396,12 @@ function confirmRemove(id, name) {
       st.className = 'sc-badge ' + (isOnline ? 'badge-online' : 'badge-offline');
       st.innerHTML = `<span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block"></span> ${isOnline ? 'Онлайн' : 'Офлайн'}`;
     }
+    // Card offline class
     const card = document.getElementById('card-' + id);
-    if (card && !isOnline) card.classList.add('offline');
+    if (card) card.classList.toggle('offline', !isOnline);
+    // Restart button
+    const rb = document.getElementById('rbtn-' + id);
+    if (rb) rb.disabled = !isOnline;
     // Version
     const vEl = document.getElementById('ver-' + id);
     if (vEl && d.version) { vEl.textContent = 'v' + d.version; vEl.style.display = ''; }
@@ -406,20 +410,17 @@ function confirmRemove(id, name) {
     const searches = d.search_summary?.today || 0;
     totalFiles += fc; totalSearches += searches;
     const setEl = (id2, val) => { const el = document.getElementById(id2); if(el) el.textContent = val; };
-    setEl('fc-'+id, fmt(fc));
-    setEl('idx-'+id, fmt(d.folder_count || 0));
-    setEl('sq-'+id, fmt(searches));
-    // Restart button
-    const rb = document.getElementById('rbtn-' + id);
-    if (rb && isOnline) rb.disabled = false;
+    setEl('fc-'+id,  isOnline ? fmt(fc)                  : '—');
+    setEl('idx-'+id, isOnline ? fmt(d.folder_count || 0) : '—');
+    setEl('sq-'+id,  isOnline ? fmt(searches)            : '—');
   });
-  document.getElementById('sumOnline').textContent = online;
-  document.getElementById('sumFiles').textContent  = fmt(totalFiles);
-  document.getElementById('sumSearches').textContent = fmt(totalSearches);
-})();
+  document.getElementById('sumOnline').textContent    = online;
+  document.getElementById('sumFiles').textContent     = fmt(totalFiles);
+  document.getElementById('sumSearches').textContent  = fmt(totalSearches);
+}
 
-// Auto-refresh every 10 seconds
-setInterval(() => location.reload(), 10000);
+loadAllServers();
+setInterval(loadAllServers, 10000);
 <?php endif; ?>
 
 <?php if ($view === 'server' && $server): ?>
