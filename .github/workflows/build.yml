@@ -68,6 +68,10 @@ jobs:
             --icon icon.ico `
             NbmSearchUpdater.py
 
+      - name: Package management panel
+        run: |
+          Compress-Archive -Path management-panel\* -DestinationPath dist\NbmSearchPanel.zip
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -77,5 +81,6 @@ jobs:
             dist/NbmSearch.exe
             dist/NbmSearchHelper.exe
             dist/NbmSearchUpdater.exe
+            dist/NbmSearchPanel.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,11 +1,14 @@
 import sys
 import os
+import time
 import threading
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
+
+_start_time = time.time()
 
 if getattr(sys, "frozen", False):
     # _MEIPASS — временная папка куда PyInstaller распаковывает бандл (шаблоны, иконка)
@@ -23,6 +26,7 @@ from pydantic import BaseModel
 import uvicorn
 
 from app.settings import PORT, verify_password, VERSION, GITHUB_REPO
+import app.settings as settings
 from app import database as db
 from app import indexer
 
@@ -380,6 +384,111 @@ async def api_folder_stats(folder_id: int, request: Request, period: str = "mont
         return db.get_folder_stats(folder_id, period)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ── Management API ───────────────────────────────────────────────────────────
+
+def _check_mgmt_token(request: Request) -> bool:
+    token = request.headers.get("X-Management-Token", "").strip()
+    if not token:
+        return False
+    stored = settings.load().get("management_token", "")
+    return bool(stored) and token == stored
+
+
+@app.post("/api/management/token/generate")
+async def api_mgmt_generate(request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    import secrets as _sec
+    token = _sec.token_hex(32)
+    s = settings.load()
+    s["management_token"] = token
+    s.pop("management_server", None)
+    settings.save(s)
+    return {"token": token}
+
+
+@app.delete("/api/management/token")
+async def api_mgmt_delete_token(request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    s = settings.load()
+    s.pop("management_token", None)
+    s.pop("management_server", None)
+    settings.save(s)
+    return {"status": "ok"}
+
+
+@app.get("/api/management/status")
+async def api_mgmt_status(request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    s = settings.load()
+    return {
+        "has_token": bool(s.get("management_token")),
+        "management_server": s.get("management_server", ""),
+    }
+
+
+@app.post("/api/management/register")
+async def api_mgmt_register(request: Request):
+    if not _check_mgmt_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    body = await request.json()
+    panel_url = body.get("panel_url", "").strip()
+    s = settings.load()
+    s["management_server"] = panel_url
+    settings.save(s)
+    return {"status": "ok"}
+
+
+@app.get("/api/management/info")
+async def api_mgmt_info(request: Request):
+    if not _check_mgmt_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    count, by_folder = db.stats()
+    folders = db.get_folders()
+    try:
+        search_stats = db.get_search_stats("day")
+        summary = search_stats.get("summary", {})
+    except Exception:
+        summary = {}
+    schedules = db.get_schedules()
+    return {
+        "version": VERSION,
+        "file_count": count,
+        "folder_count": len(folders),
+        "uptime": int(time.time() - _start_time),
+        "folders": [
+            {
+                "id": f["id"], "name": f["name"], "path": f["path"],
+                "file_count": f.get("file_count", 0),
+                "watchdog_enabled": f.get("watchdog_enabled", 0),
+                "last_reindex_at": f.get("last_reindex_at"),
+            } for f in folders
+        ],
+        "schedules": [
+            {
+                "id": s["id"], "folder_name": s["folder_name"],
+                "reindex_minutes": s["reindex_minutes"],
+                "last_run_at": s.get("last_run_at"),
+                "next_run_at": s.get("next_run_at"),
+            } for s in schedules
+        ],
+        "search_summary": summary,
+    }
+
+
+@app.post("/api/management/restart")
+async def api_mgmt_restart(request: Request):
+    if not _check_mgmt_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    if getattr(sys, "frozen", False):
+        import subprocess as _sp
+        _sp.Popen([str(Path(sys.executable))])
+    threading.Timer(1.0, lambda: os._exit(0)).start()
+    return {"status": "restarting"}
 
 
 # ── Update ────────────────────────────────────────────────────────────────────

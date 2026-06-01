@@ -214,6 +214,15 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
   background:var(--accent);opacity:.7;vertical-align:middle;margin-right:8px}
 .stats-loading{text-align:center;color:var(--text-muted);font-size:.83rem;padding:40px 0}
 
+/* ── Management block ── */
+.mgmt-token-box{display:flex;align-items:center;gap:8px;background:var(--bg);
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:8px 12px;font-family:monospace;font-size:.82rem;color:var(--text)}
+.mgmt-token-val{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mgmt-connected{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mgmt-status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0}
+.mgmt-server-url{font-size:.82rem;color:var(--text-dim);word-break:break-all}
+
 /* ── Update block ── */
 .update-versions{display:flex;gap:28px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px}
 .update-ver-group{display:flex;flex-direction:column;gap:3px}
@@ -476,6 +485,14 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
       {% else %}
         <div class="empty" id="emptySchedules">Расписания не настроены</div>
       {% endif %}
+    </div>
+  </div>
+
+  <!-- Management server -->
+  <div class="card">
+    <div class="card-head"><div class="card-title">Сервер управления</div></div>
+    <div class="card-body" id="mgmtBody">
+      <div style="font-size:.8rem;color:var(--text-dim)">Загрузка…</div>
     </div>
   </div>
 
@@ -1340,6 +1357,123 @@ function renderExtTable(extensions) {
     </tr>`;
   }).join('');
 }
+
+// ── Management server ─────────────────────────────────────────────────────────
+async function loadMgmtStatus() {
+  try {
+    const res = await fetch('/api/management/status');
+    const d   = await res.json();
+    renderMgmt(d);
+  } catch(e) {}
+}
+
+function renderMgmt(d) {
+  const body = document.getElementById('mgmtBody');
+  if (!body) return;
+
+  if (!d.has_token) {
+    // No token yet
+    body.innerHTML = `
+      <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:14px">
+        Сгенерируйте токен и введите его при добавлении этого сервера в панель управления.
+      </p>
+      <button class="btn btn-primary" onclick="mgmtGenerate()">Создать токен</button>`;
+    return;
+  }
+
+  if (d.management_server) {
+    // Connected
+    body.innerHTML = `
+      <div class="mgmt-connected" style="margin-bottom:14px">
+        <div class="mgmt-status-dot"></div>
+        <div>
+          <div style="font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Подключено к</div>
+          <div class="mgmt-server-url">${esc(d.management_server)}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="mgmtDisconnect()"
+          style="background:var(--surface2);color:var(--text-dim);border:1px solid var(--border)">Отключить</button>
+      </div>`;
+    return;
+  }
+
+  // Token exists but no panel connected yet
+  body.innerHTML = `
+    <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:12px">
+      Токен сгенерирован. Скопируйте его и добавьте сервер в панель управления.
+    </p>
+    <div class="mgmt-token-box" style="margin-bottom:14px">
+      <span class="mgmt-token-val" id="mgmtTokenVal">••••••••••••••••</span>
+      <button onclick="mgmtRevealToken(this)" style="background:none;border:1px solid var(--border);
+        color:var(--text-dim);border-radius:var(--radius-xs);padding:2px 9px;font-size:.72rem;
+        cursor:pointer;white-space:nowrap;font-family:inherit;transition:border-color .15s,color .15s"
+        onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--text)'"
+        onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'"
+        >Показать</button>
+      <button onclick="mgmtCopyToken()" style="background:none;border:1px solid var(--border);
+        color:var(--text-dim);border-radius:var(--radius-xs);padding:2px 9px;font-size:.72rem;
+        cursor:pointer;white-space:nowrap;font-family:inherit;transition:border-color .15s,color .15s"
+        onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--text)'"
+        onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'"
+        >Копировать</button>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="mgmtGenerate()">Пересоздать токен</button>
+      <button class="btn" onclick="mgmtDisconnect()"
+        style="background:var(--surface2);color:var(--text-dim);border:1px solid var(--border)">Удалить токен</button>
+    </div>`;
+}
+
+let _mgmtToken = '';
+
+async function mgmtGenerate() {
+  try {
+    const res = await fetch('/api/management/token/generate', {method:'POST'});
+    const d   = await res.json();
+    if (d.token) { _mgmtToken = d.token; }
+    loadMgmtStatus();
+  } catch(e) {}
+}
+
+async function mgmtDisconnect() {
+  showDialog('Удалить подключение?',
+    'Токен будет удалён. Сервер управления потеряет доступ к этому серверу.',
+    async () => {
+      _mgmtToken = '';
+      await fetch('/api/management/token', {method:'DELETE'}).catch(()=>{});
+      loadMgmtStatus();
+    }
+  );
+}
+
+function mgmtRevealToken(btn) {
+  const el = document.getElementById('mgmtTokenVal');
+  if (!el) return;
+  if (_mgmtToken) {
+    el.textContent = _mgmtToken;
+    btn.textContent = 'Скрыть';
+    btn.onclick = () => { el.textContent = '••••••••••••••••'; btn.textContent = 'Показать'; btn.onclick = () => mgmtRevealToken(btn); };
+  } else {
+    el.textContent = 'Токен недоступен — пересоздайте';
+  }
+}
+
+async function mgmtCopyToken() {
+  if (!_mgmtToken) { alert('Нажмите «Показать» сначала или пересоздайте токен'); return; }
+  try {
+    await navigator.clipboard.writeText(_mgmtToken);
+  } catch(e) {
+    const ta = document.createElement('textarea');
+    ta.value = _mgmtToken;
+    ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+}
+
+loadMgmtStatus();
 
 // ── Drag-and-drop reorder ─────────────────────────────────────────────────────
 let _dragSrc = null;
