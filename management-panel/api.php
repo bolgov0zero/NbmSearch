@@ -157,10 +157,11 @@ switch ($action) {
         foreach ($servers as $s) {
             $ch = curl_init();
             curl_setopt_array($ch, [
-                CURLOPT_URL            => $s['url'] . '/api/management/info',
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT        => CURL_TIMEOUT,
-                CURLOPT_HTTPHEADER     => [
+                CURLOPT_URL             => $s['url'] . '/api/management/info',
+                CURLOPT_RETURNTRANSFER  => true,
+                CURLOPT_CONNECTTIMEOUT  => CURL_TIMEOUT,  // TCP connect timeout
+                CURLOPT_TIMEOUT         => CURL_TIMEOUT,  // total timeout
+                CURLOPT_HTTPHEADER      => [
                     'X-Management-Token: ' . $s['token'],
                     'Accept: application/json',
                 ],
@@ -172,9 +173,12 @@ switch ($action) {
         // Execute all requests in parallel
         $running = null;
         do {
-            curl_multi_exec($mh, $running);
-            curl_multi_select($mh);
-        } while ($running > 0);
+            $status = curl_multi_exec($mh, $running);
+            if ($running > 0) {
+                $ms = curl_multi_select($mh, 0.1);
+                if ($ms === -1) usleep(10000); // fallback if select() fails
+            }
+        } while ($running > 0 && $status === CURLM_OK);
 
         $results = [];
         foreach ($handles as $sid => $item) {
