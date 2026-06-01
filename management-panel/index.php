@@ -184,7 +184,7 @@ $serverId = $_GET['id'] ?? '';
           <span class="sc-upd-label">Обновить</span>
         </button>
         <button class="btn btn-ghost btn-sm" onclick="goServer('<?= h($s['id']) ?>')">Подробнее</button>
-        <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="confirmRemove('<?= h($s['id']) ?>','<?= h($s['name']) ?>')">Удалить</button>
+        <button class="btn btn-ghost-red btn-sm" onclick="confirmRemove('<?= h($s['id']) ?>','<?= h($s['name']) ?>')">Удалить</button>
       </div>
     </div>
     <?php endforeach; ?>
