@@ -146,15 +146,56 @@ switch ($action) {
         break;
     }
 
-    // ── Get info from all servers ─────────────────────────────────────────────
+    // ── Get info from all servers (parallel curl_multi) ──────────────────────
     case 'get_all': {
         $servers = load_servers();
-        $results = [];
+        if (empty($servers)) { echo json_encode([]); break; }
+
+        $mh      = curl_multi_init();
+        $handles = [];
+
         foreach ($servers as $s) {
-            $info = nbm_request($s['url'] . '/api/management/info', $s['token']);
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL            => $s['url'] . '/api/management/info',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => CURL_TIMEOUT,
+                CURLOPT_HTTPHEADER     => [
+                    'X-Management-Token: ' . $s['token'],
+                    'Accept: application/json',
+                ],
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $handles[$s['id']] = ['ch' => $ch, 'server' => $s];
+        }
+
+        // Execute all requests in parallel
+        $running = null;
+        do {
+            curl_multi_exec($mh, $running);
+            curl_multi_select($mh);
+        } while ($running > 0);
+
+        $results = [];
+        foreach ($handles as $sid => $item) {
+            $ch     = $item['ch'];
+            $s      = $item['server'];
+            $body   = curl_multi_getcontent($ch);
+            $code   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $err    = curl_error($ch);
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+
+            if ($err || !$body) {
+                $info = ['_error' => true, '_message' => $err ?: 'No response'];
+            } else {
+                $info = json_decode($body, true) ?? ['_error' => true, '_message' => 'Invalid JSON'];
+                if ($code >= 400) $info['_error'] = true;
+            }
             $info['_server'] = ['id' => $s['id'], 'name' => $s['name'], 'url' => $s['url']];
             $results[] = $info;
         }
+        curl_multi_close($mh);
         echo json_encode($results);
         break;
     }
