@@ -76,6 +76,22 @@ def _verify_started(port: int, timeout: int = 30) -> bool:
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
+    if len(sys.argv) < 3:
+        sys.exit(1)
+
+    # ── Restart-only mode: NbmSearchUpdater.exe --restart <pid> <exe_path> [port] ──
+    if sys.argv[1] == '--restart':
+        pid      = int(sys.argv[2])
+        exe_path = sys.argv[3]
+        port     = int(sys.argv[4]) if len(sys.argv) > 4 else 8080
+        _kill_pid(pid, timeout=15)
+        time.sleep(0.5)
+        try:
+            subprocess.Popen([exe_path])
+        except Exception as e:
+            sys.exit(1)
+        sys.exit(0)
+
     if len(sys.argv) < 4:
         sys.exit(1)
 

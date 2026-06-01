@@ -489,24 +489,14 @@ async def api_mgmt_restart(request: Request):
         time.sleep(1)
         if getattr(sys, "frozen", False):
             import subprocess as _sp
-            import tempfile
-            exe = str(Path(sys.executable))
-            # bat: wait for this PID to exit, then launch new instance
+            exe_path     = str(Path(sys.executable))
+            updater_path = str(Path(sys.executable).parent / "NbmSearchUpdater.exe")
             pid = os.getpid()
-            script = (
-                f'@echo off\r\n'
-                f':wait\r\n'
-                f'tasklist /FI "PID eq {pid}" 2>nul | find "{pid}" >nul\r\n'
-                f'if not errorlevel 1 (timeout /t 1 /nobreak >nul & goto wait)\r\n'
-                f'start "" "{exe}"\r\n'
-            )
-            bat = tempfile.NamedTemporaryFile(suffix='.bat', delete=False, mode='w', encoding='utf-8')
-            bat.write(script)
-            bat.close()
-            _sp.Popen(
-                ['cmd', '/c', bat.name],
-                creationflags=_sp.DETACHED_PROCESS | _sp.CREATE_NEW_PROCESS_GROUP,
-            )
+            if os.path.exists(updater_path):
+                _sp.Popen(
+                    [updater_path, '--restart', str(pid), exe_path, str(PORT)],
+                    creationflags=_sp.DETACHED_PROCESS | _sp.CREATE_NEW_PROCESS_GROUP,
+                )
         os._exit(0)
 
     threading.Thread(target=_do_restart, daemon=True).start()
