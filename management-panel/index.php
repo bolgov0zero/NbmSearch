@@ -436,25 +436,29 @@ async function _startUpdate(id) {
     await apiPost('start_update', {id, download_url: downloadUrl});
   } catch(e) {}
 
+  let _finished = false;
   const timer = setInterval(async () => {
+    if (_finished) return;
     try {
       const s = await apiPost('get_update_status', {id});
-      const pct = s.progress || 0;
+      if (_finished) return; // re-check after await
 
+      const pct = s.progress || 0;
       if (s.stage === 'downloading' || s.stage === 'replacing' || s.stage === 'restarting') {
         _setUpdBtn(id, 'updating', pct + '%', pct);
       } else if (s.stage === 'done') {
+        _finished = true;
         clearInterval(timer);
         _setUpdBtn(id, 'done', 'Готово', 100);
         setTimeout(() => { _setUpdBtn(id, '', 'Обновление', 0); _updState[id] = {state:'idle'}; }, 3000);
       } else if (s.stage === 'error') {
+        _finished = true;
         clearInterval(timer);
         _setUpdBtn(id, '', 'Ошибка', 0);
         setTimeout(() => { _setUpdBtn(id, '', 'Обновление', 0); _updState[id] = {state:'idle'}; }, 3000);
       }
     } catch(e) {
-      // server restarting — keep polling
-      _setUpdBtn(id, 'updating', '...');
+      if (!_finished) _setUpdBtn(id, 'updating', '...');
     }
   }, 1500);
 
