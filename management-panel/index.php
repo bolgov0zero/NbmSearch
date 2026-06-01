@@ -53,7 +53,7 @@ $serverId = $_GET['id'] ?? '';
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NbmSearch — Панель управления серверами</title>
+<title>NbmSearch — Панель управления</title>
 <link rel="stylesheet" href="assets/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 </head>
@@ -417,6 +417,9 @@ function confirmRemove(id, name) {
   document.getElementById('sumFiles').textContent  = fmt(totalFiles);
   document.getElementById('sumSearches').textContent = fmt(totalSearches);
 })();
+
+// Auto-refresh every 10 seconds
+setInterval(() => location.reload(), 10000);
 <?php endif; ?>
 
 <?php if ($view === 'server' && $server): ?>
