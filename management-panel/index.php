@@ -45,6 +45,7 @@ function fmt_uptime(int $secs): string {
 }
 
 $servers = load_servers();
+usort($servers, fn($a, $b) => strcasecmp($a['name'] ?? '', $b['name'] ?? ''));
 $view    = $_GET['view'] ?? 'dashboard';
 $serverId = $_GET['id'] ?? '';
 

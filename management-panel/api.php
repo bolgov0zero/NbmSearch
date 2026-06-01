@@ -26,7 +26,9 @@ if (empty($_SESSION['auth'])) {
 function load_servers(): array {
     if (!file_exists(SERVERS_FILE)) return [];
     $data = json_decode(file_get_contents(SERVERS_FILE), true);
-    return is_array($data) ? $data : [];
+    if (!is_array($data)) return [];
+    usort($data, fn($a, $b) => strcasecmp($a['name'] ?? '', $b['name'] ?? ''));
+    return $data;
 }
 
 function save_servers(array $servers): void {
