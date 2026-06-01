@@ -38,6 +38,8 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
 .btn-primary:disabled{opacity:.45;cursor:not-allowed}
 .btn-ghost{background:var(--surface2);color:var(--text-dim);border:1px solid var(--border)}
 .btn-ghost:hover{border-color:var(--accent);color:var(--text)}
+.btn-ghost-red{background:var(--surface2);color:var(--red);border:1px solid var(--border)}
+.btn-ghost-red:hover{border-color:var(--red);background:var(--red-bg)}
 .btn-danger{background:var(--red);color:#fff}
 .btn-danger:hover{background:var(--red-dim)}
 .btn-sm{padding:5px 12px;font-size:.76rem}
