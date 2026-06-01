@@ -84,8 +84,8 @@ function panel_url(): string {
 
 // ── Router ───────────────────────────────────────────────────────────────────
 
-$action = $_GET['action'] ?? $_POST['action'] ?? '';
 $input  = json_decode(file_get_contents('php://input'), true) ?? [];
+$action = $_GET['action'] ?? $_POST['action'] ?? ($input['action'] ?? '');
 
 switch ($action) {
 
