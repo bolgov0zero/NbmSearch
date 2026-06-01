@@ -285,15 +285,21 @@ class FileEventHandler(FileSystemEventHandler):
     def __init__(self, folder_id: int):
         self.folder_id = folder_id
         self._timers: dict[str, threading.Timer] = {}
+        self._event_types: dict[str, str] = {}   # path → first event type
         self._timers_lock = threading.Lock()
 
     def _schedule(self, path: str, event_type: str = "modified"):
-        """Debounce: index the file only after DEBOUNCE seconds of silence."""
+        """Debounce: index the file only after DEBOUNCE seconds of silence.
+        The first event type wins — created stays created even if modified follows."""
         with self._timers_lock:
             existing = self._timers.pop(path, None)
             if existing:
                 existing.cancel()
-            t = threading.Timer(_WATCHDOG_DEBOUNCE, self._do_index, args=(path, event_type))
+            # Keep the first (most specific) event type
+            if path not in self._event_types:
+                self._event_types[path] = event_type
+            t = threading.Timer(_WATCHDOG_DEBOUNCE, self._do_index,
+                                args=(path, self._event_types[path]))
             self._timers[path] = t
             t.daemon = True
             t.start()
@@ -301,6 +307,7 @@ class FileEventHandler(FileSystemEventHandler):
     def _do_index(self, path: str, event_type: str = "modified"):
         with self._timers_lock:
             self._timers.pop(path, None)
+            self._event_types.pop(path, None)
         # Skip if file disappeared or is still empty (being written)
         try:
             stat = os.stat(path)
