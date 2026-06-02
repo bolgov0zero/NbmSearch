@@ -153,27 +153,24 @@ $serverId = $_GET['id'] ?? '';
         </div>
         <div class="sc-info">
           <div class="sc-name"><?= h($s['name']) ?></div>
-          <div class="sc-url"><?= h($s['url']) ?></div>
+          <a class="sc-url sc-url-link" href="<?= h($s['url']) ?>" target="_blank" rel="noopener" onclick="event.stopPropagation()"><?= h($s['url']) ?></a>
           <div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">
-            <span class="sc-badge badge-offline" id="status-<?= h($s['id']) ?>">
-              <span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block"></span>
-              Загрузка…
-            </span>
+            <span class="sc-badge skel skel-badge" id="status-<?= h($s['id']) ?>"></span>
             <span class="sc-badge badge-version" id="ver-<?= h($s['id']) ?>" style="display:none"></span>
           </div>
         </div>
       </div>
       <div class="sc-stats">
         <div class="sc-stat">
-          <span class="sc-stat-val" id="fc-<?= h($s['id']) ?>">—</span>
+          <span class="sc-stat-val" id="fc-<?= h($s['id']) ?>"><span class="skel skel-num"></span></span>
           <span class="sc-stat-lbl">Файлов</span>
         </div>
         <div class="sc-stat">
-          <span class="sc-stat-val" id="idx-<?= h($s['id']) ?>">—</span>
+          <span class="sc-stat-val" id="idx-<?= h($s['id']) ?>"><span class="skel skel-num"></span></span>
           <span class="sc-stat-lbl">Индексов</span>
         </div>
         <div class="sc-stat">
-          <span class="sc-stat-val" id="sq-<?= h($s['id']) ?>">—</span>
+          <span class="sc-stat-val" id="sq-<?= h($s['id']) ?>"><span class="skel skel-num"></span></span>
           <span class="sc-stat-lbl">Запросов сег.</span>
         </div>
       </div>
@@ -483,6 +480,9 @@ function _applyServerData(id, d) {
   setEl('fc-'+id,  isOnline ? fmt(d.file_count || 0)        : '—');
   setEl('idx-'+id, isOnline ? fmt(d.folder_count || 0)      : '—');
   setEl('sq-'+id,  isOnline ? fmt(d.search_summary?.today)  : '—');
+  // remove skeleton from status badge after data arrives
+  const stEl = document.getElementById('status-' + id);
+  if (stEl) stEl.classList.remove('skel', 'skel-badge');
   return isOnline ? {files: d.file_count||0, searches: d.search_summary?.today||0} : null;
 }
 

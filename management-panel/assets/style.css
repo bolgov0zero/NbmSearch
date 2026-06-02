@@ -75,8 +75,16 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
 .sc-info{flex:1;min-width:0}
 .sc-name{font-weight:700;font-size:.95rem;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sc-url{font-size:.75rem;color:var(--text-muted);word-break:break-all}
+.sc-url-link{text-decoration:none;transition:color .15s}
+.sc-url-link:hover{color:var(--accent)}
 .sc-badge{display:inline-flex;align-items:center;gap:4px;font-size:.68rem;font-weight:600;
   padding:2px 8px;border-radius:6px;white-space:nowrap}
+
+/* ── Skeleton loader ── */
+@keyframes skel-pulse{0%,100%{opacity:.4}50%{opacity:.9}}
+.skel{background:var(--border);border-radius:4px;animation:skel-pulse 1.4s ease-in-out infinite;display:inline-block}
+.skel-num{width:36px;height:1.1rem;vertical-align:middle}
+.skel-badge{width:56px;height:18px;border-radius:6px}
 .badge-online{background:rgba(46,204,113,.15);color:var(--green);border:1px solid rgba(46,204,113,.2)}
 .badge-offline{background:var(--red-bg);color:var(--red);border:1px solid rgba(231,76,60,.2)}
 .badge-version{background:var(--accent-bg);color:var(--accent);border:1px solid rgba(91,106,240,.2)}
