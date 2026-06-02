@@ -7,12 +7,16 @@ from concurrent.futures import ThreadPoolExecutor
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-from app.settings import MAX_WORKERS
+from app.settings import MAX_WORKERS, HEAVY_WORKERS
 from app import database as db
 
 logger = logging.getLogger(__name__)
 
 SUPPORTED_EXTENSIONS = {".docx", ".doc", ".xlsx", ".xls", ".pdf", ".rtf", ".txt", ".csv"}
+
+# Formats that load entire file into memory — limit their concurrency separately
+_HEAVY_EXTENSIONS = {".pdf", ".xlsx", ".xls"}
+_heavy_sem = threading.Semaphore(HEAVY_WORKERS)
 
 # ── Watchdog event log ────────────────────────────────────────────────────────
 # folder_id → list of {"ts": float, "type": str, "name": str, "path": str}
@@ -185,7 +189,11 @@ def index_file(folder_id: int, path: str):
         stat = os.stat(path)
         if stat.st_size == 0:
             return  # skip empty files (being written / temp placeholders)
-        content = extract_text(path)
+        if ext in _HEAVY_EXTENSIONS:
+            with _heavy_sem:
+                content = extract_text(path)
+        else:
+            content = extract_text(path)
         name = os.path.basename(path)
         db.upsert_file(
             folder_id=folder_id,

@@ -22,6 +22,7 @@ DB_PATH = str(BASE_DIR / "nbmsearch.db")
 _DEFAULTS: dict = {
     "port": 8080,
     "max_workers": 4,
+    "heavy_workers": 1,   # concurrent limit for memory-heavy formats (pdf, xls, xlsx)
     "admin_password_hash": hashlib.sha256(b"Gjgeufq4hfpf!").hexdigest(),
 }
 
@@ -51,8 +52,9 @@ def verify_password(password: str) -> bool:
 
 # Module-level constants (read once at startup)
 _s = load()
-PORT: int = int(_s.get("port", 8080))
-MAX_WORKERS: int = int(_s.get("max_workers", 4))
+PORT: int         = int(_s.get("port", 8080))
+MAX_WORKERS: int  = int(_s.get("max_workers", 4))
+HEAVY_WORKERS: int = int(_s.get("heavy_workers", 1))
 
-VERSION = "1.5.4"
+VERSION = "1.5.5"
 GITHUB_REPO = "bolgov0zero/NbmSearch"
