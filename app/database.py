@@ -169,9 +169,10 @@ def _init_folder_db(folder_id: int):
 
 def _normalize(text: str) -> str:
     """Replace chars that FTS5 unicode61 tokenizer treats as separators with spaces.
-    Hyphen is intentionally excluded: 'Тер-Аверитян' stays as one token so it gets
-    wrapped in quotes and treated as a phrase by FTS5."""
-    return re.sub(r"[/\\.,;:!?()\[\]{}|@#$%^&*+=<>«»]", " ", text)
+    Hyphen and slash are intentionally excluded: 'Тер-Аверитян' and 'М5392/380'
+    stay as single tokens so they get wrapped in quotes and treated as FTS5 phrases
+    (requiring the tokens to appear adjacent in the document)."""
+    return re.sub(r"[\\.,;:!?()\[\]{}|@#$%^&*+=<>«»]", " ", text)
 
 
 def _fts_query(raw: str) -> str:
