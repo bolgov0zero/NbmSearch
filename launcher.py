@@ -42,21 +42,26 @@ _NO_WINDOW = subprocess.CREATE_NO_WINDOW  # suppress sc.exe console flash
 
 
 def _svc_query() -> tuple[bool, str]:
-    """Return (installed, state_string). State: RUNNING | STOPPED | START_PENDING | ..."""
+    """Return (installed, state_string). State: RUNNING | STOPPED | START_PENDING | ...
+
+    Parses by numeric state code so it works on any Windows locale
+    (field names like STATE/СОСТОЯНИЕ are localized, but codes are not).
+    """
+    _STATE = {1: "STOPPED", 2: "START_PENDING", 3: "STOP_PENDING", 4: "RUNNING",
+              5: "CONTINUE_PENDING", 6: "PAUSE_PENDING", 7: "PAUSED"}
     try:
         r = subprocess.run(["sc", "query", SERVICE_NAME],
                            capture_output=True, text=True, timeout=5,
                            creationflags=_NO_WINDOW)
         if r.returncode != 0:
             return False, ""
+        # State keywords in sc.exe output are always English regardless of locale
         out = r.stdout
-        # Extract STATE line, e.g. "STATE              : 4  RUNNING"
-        for line in out.splitlines():
-            if "STATE" in line and ":" in line:
-                state = line.split(":", 1)[1].strip()   # "4  RUNNING"
-                state = state.split()[-1] if state.split() else ""
-                return True, state
-        return True, ""
+        for name in ("RUNNING", "STOP_PENDING", "START_PENDING",
+                     "CONTINUE_PENDING", "PAUSE_PENDING", "PAUSED", "STOPPED"):
+            if name in out:
+                return True, name
+        return True, "STOPPED"
     except Exception:
         return False, ""
 
