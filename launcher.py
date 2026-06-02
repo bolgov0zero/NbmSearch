@@ -87,37 +87,70 @@ def _run_elevated(arg: str):
 # ── Service install / remove (run elevated) ───────────────────────────────────
 
 def _install_service():
-    """Called when running elevated with 'install' arg."""
+    """Called when running elevated with 'install' arg. Uses Win32 API directly."""
+    import win32service
+    import win32serviceutil
+
     exe = str(Path(sys.executable)) if getattr(sys, "frozen", False) else str(Path(sys.argv[0]).resolve())
-    # binPath= value: quote exe in case of spaces, append --service flag
-    bin_val = f'"{exe}" --service'
-    ret = subprocess.run(
-        ["sc", "create", SERVICE_NAME,
-         f"binPath= {bin_val}",
-         f"DisplayName= {SERVICE_DISPLAY}",
-         "start= auto",
-         "type= own"],
-        capture_output=True, text=True, creationflags=_NO_WINDOW,
-    )
-    if ret.returncode != 0:
-        _alert(f"Ошибка установки службы:\n{ret.stderr or ret.stdout}")
+    bin_path = f'"{exe}" --service'
+
+    try:
+        hscm = win32service.OpenSCManager(None, None, win32service.SC_MANAGER_CREATE_SERVICE)
+        try:
+            hs = win32service.CreateService(
+                hscm,
+                SERVICE_NAME,
+                SERVICE_DISPLAY,
+                win32service.SERVICE_ALL_ACCESS,
+                win32service.SERVICE_WIN32_OWN_PROCESS,
+                win32service.SERVICE_AUTO_START,
+                win32service.SERVICE_ERROR_NORMAL,
+                bin_path,
+                None, 0, None, None, None,
+            )
+            try:
+                win32service.ChangeServiceConfig2(
+                    hs, win32service.SERVICE_CONFIG_DESCRIPTION, SERVICE_DESC
+                )
+            except Exception:
+                pass
+            win32service.CloseServiceHandle(hs)
+        finally:
+            win32service.CloseServiceHandle(hscm)
+
+        win32serviceutil.StartService(SERVICE_NAME)
+    except Exception as e:
+        _alert(f"Ошибка установки службы:\n{e}")
         sys.exit(1)
-    subprocess.run(["sc", "description", SERVICE_NAME, SERVICE_DESC], capture_output=True, creationflags=_NO_WINDOW)
-    subprocess.run(["sc", "start", SERVICE_NAME], capture_output=True, creationflags=_NO_WINDOW)
 
 
 def _remove_service():
-    """Called when running elevated with 'remove' arg."""
-    subprocess.run(["sc", "stop", SERVICE_NAME], capture_output=True, creationflags=_NO_WINDOW)
+    """Called when running elevated with 'remove' arg. Uses Win32 API directly."""
+    import win32service
+    import win32serviceutil
+
+    try:
+        win32serviceutil.StopService(SERVICE_NAME)
+    except Exception:
+        pass
+
     # Wait until stopped (max 10s)
     for _ in range(10):
         _, state = _svc_query()
         if state in ("STOPPED", ""):
             break
         time.sleep(1)
-    ret = subprocess.run(["sc", "delete", SERVICE_NAME], capture_output=True, text=True, creationflags=_NO_WINDOW)
-    if ret.returncode != 0:
-        _alert(f"Ошибка удаления службы:\n{ret.stderr or ret.stdout}")
+
+    try:
+        hscm = win32service.OpenSCManager(None, None, win32service.SC_MANAGER_ALL_ACCESS)
+        try:
+            hs = win32service.OpenService(hscm, SERVICE_NAME, win32service.SERVICE_ALL_ACCESS)
+            win32service.DeleteService(hs)
+            win32service.CloseServiceHandle(hs)
+        finally:
+            win32service.CloseServiceHandle(hscm)
+    except Exception as e:
+        _alert(f"Ошибка удаления службы:\n{e}")
         sys.exit(1)
 
 
