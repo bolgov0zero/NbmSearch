@@ -1,10 +1,10 @@
 """
-NbmSearch Windows Service entry point.
-Runs uvicorn without GUI — controlled by Windows Service Control Manager.
-
-Started by SCM as: NbmSearch.exe --service
+NbmSearch Windows Service — pure ctypes, no pywin32 required.
+Entry point: NbmSearch.exe --service  (called by SCM)
 """
 import sys
+import ctypes
+import ctypes.wintypes as wt
 import asyncio
 import logging
 from pathlib import Path
@@ -14,51 +14,115 @@ _log_path = (
     Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
 ) / "nbmsearch.log"
 logging.basicConfig(
-    filename=str(_log_path),
-    level=logging.INFO,
+    filename=str(_log_path), level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
-import win32serviceutil
-import win32service
-import win32event
-import servicemanager
-import uvicorn
+_advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
 
-from app.settings import PORT
-from app.main import app
+# ── Win32 constants ───────────────────────────────────────────────────────────
+_SVC_WIN32_OWN  = 0x10
+_SVC_STOPPED    = 1
+_SVC_START_PEND = 2
+_SVC_STOP_PEND  = 3
+_SVC_RUNNING    = 4
+_CTRL_STOP      = 1
+_ACCEPT_STOP    = 1
 
-SERVICE_NAME    = "NbmSearch"
-SERVICE_DISPLAY = "NbmSearch"
-SERVICE_DESC    = "NbmSearch — поиск по файлам"
+SERVICE_NAME = "NbmSearch"
 
 
-class NbmSearchService(win32serviceutil.ServiceFramework):
-    _svc_name_         = SERVICE_NAME
-    _svc_display_name_ = SERVICE_DISPLAY
-    _svc_description_  = SERVICE_DESC
+# ── Win32 structures & prototypes ─────────────────────────────────────────────
+class _SVC_STATUS(ctypes.Structure):
+    _fields_ = [
+        ("dwServiceType",             wt.DWORD),
+        ("dwCurrentState",            wt.DWORD),
+        ("dwControlsAccepted",        wt.DWORD),
+        ("dwWin32ExitCode",           wt.DWORD),
+        ("dwServiceSpecificExitCode", wt.DWORD),
+        ("dwCheckPoint",              wt.DWORD),
+        ("dwWaitHint",                wt.DWORD),
+    ]
 
-    def __init__(self, args):
-        win32serviceutil.ServiceFramework.__init__(self, args)
-        self._stop_event = win32event.CreateEvent(None, 0, 0, None)
-        self._server: uvicorn.Server | None = None
+_HandlerProc     = ctypes.WINFUNCTYPE(None, wt.DWORD)
+_ServiceMainProc = ctypes.WINFUNCTYPE(None, wt.DWORD, ctypes.POINTER(ctypes.c_wchar_p))
 
-    def SvcStop(self):
-        self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
-        if self._server:
-            self._server.should_exit = True
-        win32event.SetEvent(self._stop_event)
+class _SVC_TABLE_ENTRY(ctypes.Structure):
+    _fields_ = [
+        ("lpServiceName", ctypes.c_wchar_p),
+        ("lpServiceProc", _ServiceMainProc),
+    ]
 
-    def SvcDoRun(self):
-        servicemanager.LogMsg(
-            servicemanager.EVENTLOG_INFORMATION_TYPE,
-            servicemanager.PYS_SERVICE_STARTED,
-            (SERVICE_NAME, ""),
-        )
-        try:
-            config = uvicorn.Config(app, host="0.0.0.0", port=PORT, log_config=None)
-            self._server = uvicorn.Server(config)
-            asyncio.run(self._server.serve())
-        except Exception as e:
-            servicemanager.LogErrorMsg(f"NbmSearch service error: {e}")
+
+# ── Service state (module-level so callbacks can access it) ───────────────────
+_status_handle = None
+_status        = _SVC_STATUS()
+_server        = None
+
+# Hold ctypes callbacks alive to prevent garbage collection
+_cb_handler  = None
+_cb_svc_main = None
+
+
+def _report(state: int, controls: int = 0, wait_hint: int = 0):
+    _status.dwServiceType             = _SVC_WIN32_OWN
+    _status.dwCurrentState            = state
+    _status.dwControlsAccepted        = controls
+    _status.dwWin32ExitCode           = 0
+    _status.dwServiceSpecificExitCode = 0
+    _status.dwCheckPoint              = 0
+    _status.dwWaitHint                = wait_hint
+    if _status_handle:
+        _advapi32.SetServiceStatus(_status_handle, ctypes.byref(_status))
+
+
+def _handler(control: int):
+    if control == _CTRL_STOP:
+        _report(_SVC_STOP_PEND, wait_hint=10000)
+        if _server:
+            _server.should_exit = True
+
+
+def _svc_main(argc: int, argv):
+    global _status_handle, _cb_handler, _server
+
+    _cb_handler    = _HandlerProc(_handler)
+    _status_handle = _advapi32.RegisterServiceCtrlHandlerW(SERVICE_NAME, _cb_handler)
+    if not _status_handle:
+        logging.error("RegisterServiceCtrlHandlerW failed: %d", ctypes.get_last_error())
+        return
+
+    _report(_SVC_START_PEND, wait_hint=15000)
+    logging.info("Service starting")
+
+    try:
+        from app.settings import PORT
+        from app.main import app
+        import uvicorn
+
+        _report(_SVC_RUNNING, controls=_ACCEPT_STOP)
+        logging.info("Service running on port %d", PORT)
+
+        config = uvicorn.Config(app, host="0.0.0.0", port=PORT, log_config=None)
+        _server = uvicorn.Server(config)
+        asyncio.run(_server.serve())
+
+    except Exception:
+        logging.exception("Service error")
+    finally:
+        _report(_SVC_STOPPED)
+        logging.info("Service stopped")
+
+
+def run_service():
+    """Dispatch to SCM. Blocks until service stops. Called with --service arg."""
+    global _cb_svc_main
+
+    _cb_svc_main = _ServiceMainProc(_svc_main)
+    table = (_SVC_TABLE_ENTRY * 2)(
+        _SVC_TABLE_ENTRY(SERVICE_NAME, _cb_svc_main),
+        _SVC_TABLE_ENTRY(None, ctypes.cast(None, _ServiceMainProc)),
+    )
+    if not _advapi32.StartServiceCtrlDispatcherW(table):
+        logging.error("StartServiceCtrlDispatcherW failed: %d", ctypes.get_last_error())

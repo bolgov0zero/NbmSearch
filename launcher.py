@@ -86,9 +86,9 @@ def _run_elevated(arg: str):
 
 # ── Service install / remove (run elevated, sc.exe) ───────────────────────────
 
-def _sc(*args) -> subprocess.CompletedProcess:
-    """Run sc.exe without a visible window."""
-    return subprocess.run(["sc"] + list(args), capture_output=True,
+def _sc(cmd: str) -> subprocess.CompletedProcess:
+    """Run sc.exe command via shell (most reliable quoting for binPath)."""
+    return subprocess.run(cmd, shell=True, capture_output=True,
                           text=True, creationflags=_NO_WINDOW, timeout=15)
 
 
@@ -96,27 +96,26 @@ def _install_service():
     """Called when running elevated with 'install' arg."""
     exe = str(Path(sys.executable)) if getattr(sys, "frozen", False) else str(Path(sys.argv[0]).resolve())
 
-    # sc.exe binPath= expects: "quoted\path\to.exe" args
-    # Escape any quotes inside the exe path (rare but possible)
+    # sc.exe binPath= with shell=True: inner quotes escaped with \"
+    # Result on command line: sc create NbmSearch binPath= "\"C:\path\exe.exe\" --service" ...
     exe_esc = exe.replace('"', '\\"')
-    bin_path = f'"{exe_esc}" --service'
-
-    # sc create — pass binPath= and value as separate tokens (sc.exe expects this)
-    ret = _sc("create", SERVICE_NAME,
-              f"binPath={bin_path}",
-              f"DisplayName={SERVICE_DISPLAY}",
-              "start=auto", "type=own")
+    ret = _sc(
+        f'sc create {SERVICE_NAME} '
+        f'binPath= "\\"{exe_esc}\\" --service" '
+        f'DisplayName= "{SERVICE_DISPLAY}" '
+        f'start= auto type= own'
+    )
     if ret.returncode != 0:
         _alert(f"Ошибка установки службы:\n{ret.stdout or ret.stderr}")
         sys.exit(1)
 
-    _sc("description", SERVICE_NAME, SERVICE_DESC)
-    _sc("start", SERVICE_NAME)
+    _sc(f'sc description {SERVICE_NAME} "{SERVICE_DESC}"')
+    _sc(f'sc start {SERVICE_NAME}')
 
 
 def _remove_service():
     """Called when running elevated with 'remove' arg."""
-    _sc("stop", SERVICE_NAME)
+    _sc(f"sc stop {SERVICE_NAME}")
 
     # Wait until stopped (max 10s)
     for _ in range(10):
@@ -125,7 +124,7 @@ def _remove_service():
             break
         time.sleep(1)
 
-    ret = _sc("delete", SERVICE_NAME)
+    ret = _sc(f"sc delete {SERVICE_NAME}")
     if ret.returncode != 0:
         _alert(f"Ошибка удаления службы:\n{ret.stdout or ret.stderr}")
         sys.exit(1)
@@ -322,7 +321,7 @@ class LauncherWindow:
 
     def _do_start(self):
         if _svc_installed():
-            subprocess.run(["sc", "start", SERVICE_NAME], capture_output=True, creationflags=_NO_WINDOW)
+            _sc(f"sc start {SERVICE_NAME}")
         else:
             server_start()
         self._set_status(self.ORANGE, "Запускается…")
@@ -330,7 +329,7 @@ class LauncherWindow:
 
     def _do_stop(self):
         if _svc_installed():
-            subprocess.run(["sc", "stop", SERVICE_NAME], capture_output=True, creationflags=_NO_WINDOW)
+            _sc(f"sc stop {SERVICE_NAME}")
         else:
             server_stop()
         self._set_status(self.ORANGE, "Останавливается…")
@@ -343,19 +342,6 @@ class LauncherWindow:
             self._do_install_service()
 
     def _do_install_service(self):
-        # Check that pywin32 is available (needed for the service to actually run)
-        try:
-            import win32serviceutil  # noqa: F401
-        except ImportError:
-            _alert(
-                "Для работы службы требуется pywin32.\n\n"
-                "Установите его командой:\n"
-                "    pip install pywin32\n\n"
-                "После установки запустите:\n"
-                "    python -m pywin32_postinstall -install"
-            )
-            return
-
         # Stop embedded server to free the port before service starts
         server_stop()
         self._set_status(self.ORANGE, "Установка службы…")
@@ -440,12 +426,9 @@ if __name__ == "__main__":
     arg = sys.argv[1] if len(sys.argv) > 1 else ""
 
     if arg == "--service":
-        # Called by SCM: run as Windows Service
-        import servicemanager
-        from service import NbmSearchService
-        servicemanager.Initialize()
-        servicemanager.PrepareToHostSingle(NbmSearchService)
-        servicemanager.StartServiceCtrlDispatcher()
+        # Called by SCM: run as Windows Service (pure ctypes, no pywin32)
+        from service import run_service
+        run_service()
 
     elif arg == "install":
         # Running elevated: install and start the service
