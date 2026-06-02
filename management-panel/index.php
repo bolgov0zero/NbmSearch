@@ -158,6 +158,10 @@ $serverId = $_GET['id'] ?? '';
             <span class="sc-badge skel skel-badge" id="status-<?= h($s['id']) ?>"></span>
             <span class="sc-badge badge-uptime" id="upt-<?= h($s['id']) ?>" style="display:none"></span>
             <span class="sc-badge badge-version" id="ver-<?= h($s['id']) ?>" style="display:none"></span>
+            <span class="sc-badge badge-service" id="svc-<?= h($s['id']) ?>" style="display:none" title="Запущен как служба Windows">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              Служба
+            </span>
           </div>
         </div>
       </div>
@@ -479,6 +483,8 @@ function _applyServerData(id, d) {
   if (vEl && d.version) { vEl.textContent = 'v' + d.version; vEl.style.display = ''; }
   const uptEl = document.getElementById('upt-' + id);
   if (uptEl) { if (isOnline && d.uptime) { uptEl.textContent = '⏱ ' + fmtUptime(d.uptime); uptEl.style.display = ''; } else { uptEl.style.display = 'none'; } }
+  const svcEl = document.getElementById('svc-' + id);
+  if (svcEl) { svcEl.style.display = (isOnline && d.is_service) ? '' : 'none'; }
   const setEl = (id2, val) => { const el = document.getElementById(id2); if(el) el.textContent = val; };
   setEl('fc-'+id,  isOnline ? fmt(d.file_count || 0)        : '—');
   setEl('idx-'+id, isOnline ? fmt(d.folder_count || 0)      : '—');

@@ -442,6 +442,11 @@ async def api_mgmt_register(request: Request):
     return {"status": "ok"}
 
 
+def _running_as_service() -> bool:
+    """True when this process was started by Windows SCM (via --service flag)."""
+    return "--service" in sys.argv
+
+
 @app.get("/api/management/info")
 async def api_mgmt_info(request: Request):
     if not _check_mgmt_token(request):
@@ -476,6 +481,7 @@ async def api_mgmt_info(request: Request):
             } for s in schedules
         ],
         "search_summary": summary,
+        "is_service": _running_as_service(),
     }
 
 
