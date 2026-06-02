@@ -84,55 +84,39 @@ def _run_elevated(arg: str):
     ctypes.windll.shell32.ShellExecuteW(None, "runas", exe, arg, None, 1)
 
 
-# ── Service install / remove (run elevated) ───────────────────────────────────
+# ── Service install / remove (run elevated, sc.exe) ───────────────────────────
+
+def _sc(*args) -> subprocess.CompletedProcess:
+    """Run sc.exe without a visible window."""
+    return subprocess.run(["sc"] + list(args), capture_output=True,
+                          text=True, creationflags=_NO_WINDOW, timeout=15)
+
 
 def _install_service():
-    """Called when running elevated with 'install' arg. Uses Win32 API directly."""
-    import win32service
-    import win32serviceutil
-
+    """Called when running elevated with 'install' arg."""
     exe = str(Path(sys.executable)) if getattr(sys, "frozen", False) else str(Path(sys.argv[0]).resolve())
-    bin_path = f'"{exe}" --service'
 
-    try:
-        hscm = win32service.OpenSCManager(None, None, win32service.SC_MANAGER_CREATE_SERVICE)
-        try:
-            hs = win32service.CreateService(
-                hscm,
-                SERVICE_NAME,
-                SERVICE_DISPLAY,
-                win32service.SERVICE_ALL_ACCESS,
-                win32service.SERVICE_WIN32_OWN_PROCESS,
-                win32service.SERVICE_AUTO_START,
-                win32service.SERVICE_ERROR_NORMAL,
-                bin_path,
-                None, 0, None, None, None,
-            )
-            try:
-                win32service.ChangeServiceConfig2(
-                    hs, win32service.SERVICE_CONFIG_DESCRIPTION, SERVICE_DESC
-                )
-            except Exception:
-                pass
-            win32service.CloseServiceHandle(hs)
-        finally:
-            win32service.CloseServiceHandle(hscm)
+    # sc.exe binPath= expects: "quoted\path\to.exe" args
+    # Escape any quotes inside the exe path (rare but possible)
+    exe_esc = exe.replace('"', '\\"')
+    bin_path = f'"{exe_esc}" --service'
 
-        win32serviceutil.StartService(SERVICE_NAME)
-    except Exception as e:
-        _alert(f"Ошибка установки службы:\n{e}")
+    # sc create — pass binPath= and value as separate tokens (sc.exe expects this)
+    ret = _sc("create", SERVICE_NAME,
+              f"binPath={bin_path}",
+              f"DisplayName={SERVICE_DISPLAY}",
+              "start=auto", "type=own")
+    if ret.returncode != 0:
+        _alert(f"Ошибка установки службы:\n{ret.stdout or ret.stderr}")
         sys.exit(1)
+
+    _sc("description", SERVICE_NAME, SERVICE_DESC)
+    _sc("start", SERVICE_NAME)
 
 
 def _remove_service():
-    """Called when running elevated with 'remove' arg. Uses Win32 API directly."""
-    import win32service
-    import win32serviceutil
-
-    try:
-        win32serviceutil.StopService(SERVICE_NAME)
-    except Exception:
-        pass
+    """Called when running elevated with 'remove' arg."""
+    _sc("stop", SERVICE_NAME)
 
     # Wait until stopped (max 10s)
     for _ in range(10):
@@ -141,16 +125,9 @@ def _remove_service():
             break
         time.sleep(1)
 
-    try:
-        hscm = win32service.OpenSCManager(None, None, win32service.SC_MANAGER_ALL_ACCESS)
-        try:
-            hs = win32service.OpenService(hscm, SERVICE_NAME, win32service.SERVICE_ALL_ACCESS)
-            win32service.DeleteService(hs)
-            win32service.CloseServiceHandle(hs)
-        finally:
-            win32service.CloseServiceHandle(hscm)
-    except Exception as e:
-        _alert(f"Ошибка удаления службы:\n{e}")
+    ret = _sc("delete", SERVICE_NAME)
+    if ret.returncode != 0:
+        _alert(f"Ошибка удаления службы:\n{ret.stdout or ret.stderr}")
         sys.exit(1)
 
 
@@ -366,6 +343,19 @@ class LauncherWindow:
             self._do_install_service()
 
     def _do_install_service(self):
+        # Check that pywin32 is available (needed for the service to actually run)
+        try:
+            import win32serviceutil  # noqa: F401
+        except ImportError:
+            _alert(
+                "Для работы службы требуется pywin32.\n\n"
+                "Установите его командой:\n"
+                "    pip install pywin32\n\n"
+                "После установки запустите:\n"
+                "    python -m pywin32_postinstall -install"
+            )
+            return
+
         # Stop embedded server to free the port before service starts
         server_stop()
         self._set_status(self.ORANGE, "Установка службы…")
