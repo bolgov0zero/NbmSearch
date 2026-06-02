@@ -78,7 +78,7 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
 .sc-url-link{text-decoration:none;transition:color .15s}
 .sc-url-link:hover{color:var(--accent)}
 .sc-badge{display:inline-flex;align-items:center;gap:4px;font-size:.68rem;font-weight:600;
-  padding:2px 8px;border-radius:6px;white-space:nowrap}
+  padding:0 8px;border-radius:6px;white-space:nowrap;height:22px;box-sizing:border-box}
 
 /* ── Skeleton loader ── */
 @keyframes skel-pulse{0%,100%{opacity:.4}50%{opacity:.9}}
@@ -89,7 +89,7 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
 .badge-offline{background:var(--red-bg);color:var(--red);border:1px solid rgba(231,76,60,.2)}
 .badge-uptime{background:var(--surface2);color:var(--text-muted);border:1px solid var(--border)}
 .badge-version{background:var(--accent-bg);color:var(--accent);border:1px solid rgba(91,106,240,.2)}
-.badge-service{background:rgba(46,204,113,.1);color:var(--green);border:1px solid rgba(46,204,113,.2);padding:2px 5px}
+.badge-service{background:rgba(46,204,113,.1);color:var(--green);border:1px solid rgba(46,204,113,.2);padding:0 6px}
 .sc-stats{display:flex;gap:1px;background:var(--border);border-top:1px solid var(--border)}
 .sc-stat{flex:1;background:var(--surface2);padding:10px 14px;text-align:center}
 .sc-stat-val{font-size:1.1rem;font-weight:700;color:var(--text);display:block}
