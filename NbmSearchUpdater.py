@@ -1,10 +1,13 @@
 """
-NbmSearch Updater v2
+NbmSearch Updater v3
 
-New flow: download FIRST (old server keeps running), then stop old,
-replace file, start new, verify. Status written to update_status.json.
+Supports two modes:
+  • Process mode — kill pid, replace exe, launch new exe
+  • Service mode  — sc stop, replace exe, sc start (auto-detected)
 
-Usage: NbmSearchUpdater.exe <pid> <download_url> <exe_path> [port]
+Usage:
+  NbmSearchUpdater.exe <pid> <download_url> <exe_path> [port]
+  NbmSearchUpdater.exe --restart <pid> <exe_path> [port]
 """
 import sys
 import os
@@ -14,6 +17,8 @@ import ssl
 import urllib.request
 import subprocess
 from pathlib import Path
+
+SERVICE_NAME = "NbmSearch"
 
 
 # ── Status helpers ────────────────────────────────────────────────────────────
@@ -31,6 +36,35 @@ def _write_status(path: str, stage: str, progress: int = 0,
             }, f, ensure_ascii=False)
     except Exception:
         pass
+
+
+# ── Service helpers ───────────────────────────────────────────────────────────
+
+def _svc_installed(name: str = SERVICE_NAME) -> bool:
+    try:
+        r = subprocess.run(["sc", "query", name], capture_output=True, timeout=5)
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def _svc_stop(name: str = SERVICE_NAME, timeout: int = 30) -> bool:
+    subprocess.run(["sc", "stop", name], capture_output=True)
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            r = subprocess.run(["sc", "query", name],
+                               capture_output=True, text=True, timeout=5)
+            if "STOPPED" in r.stdout:
+                return True
+        except Exception:
+            pass
+        time.sleep(1)
+    return False
+
+
+def _svc_start(name: str = SERVICE_NAME):
+    subprocess.run(["sc", "start", name], capture_output=True)
 
 
 # ── Process helpers ───────────────────────────────────────────────────────────
@@ -79,19 +113,28 @@ def main():
     if len(sys.argv) < 3:
         sys.exit(1)
 
-    # ── Restart-only mode: NbmSearchUpdater.exe --restart <pid> <exe_path> [port] ──
-    if sys.argv[1] == '--restart':
+    service_mode = _svc_installed()
+
+    # ── Restart-only mode ─────────────────────────────────────────────────────
+    if sys.argv[1] == "--restart":
         pid      = int(sys.argv[2])
         exe_path = sys.argv[3]
         port     = int(sys.argv[4]) if len(sys.argv) > 4 else 8080
-        _kill_pid(pid, timeout=15)
-        time.sleep(0.5)
-        try:
-            subprocess.Popen([exe_path])
-        except Exception as e:
-            sys.exit(1)
+
+        if service_mode:
+            _svc_stop(timeout=15)
+            time.sleep(0.5)
+            _svc_start()
+        else:
+            _kill_pid(pid, timeout=15)
+            time.sleep(0.5)
+            try:
+                subprocess.Popen([exe_path])
+            except Exception:
+                sys.exit(1)
         sys.exit(0)
 
+    # ── Full update mode ──────────────────────────────────────────────────────
     if len(sys.argv) < 4:
         sys.exit(1)
 
@@ -113,7 +156,7 @@ def main():
 
     try:
         req = urllib.request.Request(
-            download_url, headers={"User-Agent": "NbmSearchUpdater/2"}
+            download_url, headers={"User-Agent": "NbmSearchUpdater/3"}
         )
         with urllib.request.urlopen(req, context=ctx, timeout=120) as r:
             total = int(r.headers.get("Content-Length", 0))
@@ -142,9 +185,13 @@ def main():
         _safe_remove(tmp_path)
         sys.exit(1)
 
-    # ── Stage 2: Stop old process ─────────────────────────────────────────────
-    _write_status(status_path, "replacing", 90, "Остановка сервера…")
-    _kill_pid(pid, timeout=10)
+    # ── Stage 2: Stop old process / service ───────────────────────────────────
+    if service_mode:
+        _write_status(status_path, "replacing", 90, "Остановка службы…")
+        _svc_stop(timeout=15)
+    else:
+        _write_status(status_path, "replacing", 90, "Остановка сервера…")
+        _kill_pid(pid, timeout=10)
     time.sleep(0.8)
 
     # ── Stage 3: Replace file ─────────────────────────────────────────────────
@@ -154,25 +201,33 @@ def main():
         os.rename(exe_path, old_path)
         os.rename(tmp_path, exe_path)
     except Exception as e:
-        # Rollback: restore old exe and restart
         _rollback(exe_path, old_path, tmp_path)
-        subprocess.Popen([exe_path])
+        if service_mode:
+            _svc_start()
+        else:
+            subprocess.Popen([exe_path])
         _write_status(status_path, "error", 0, "",
                       f"Ошибка замены файла: {e}. Восстановлена предыдущая версия.")
         sys.exit(1)
 
-    # ── Stage 4: Launch new exe ───────────────────────────────────────────────
+    # ── Stage 4: Launch new version ──────────────────────────────────────────
     _write_status(status_path, "restarting", 95, "Запуск новой версии…")
     try:
-        subprocess.Popen([exe_path])
+        if service_mode:
+            _svc_start()
+        else:
+            subprocess.Popen([exe_path])
     except Exception as e:
         _rollback(exe_path, old_path, tmp_path)
-        subprocess.Popen([exe_path])
+        if service_mode:
+            _svc_start()
+        else:
+            subprocess.Popen([exe_path])
         _write_status(status_path, "error", 0, "",
                       f"Ошибка запуска: {e}. Восстановлена предыдущая версия.")
         sys.exit(1)
 
-    # ── Stage 5: Verify new server started ───────────────────────────────────
+    # ── Stage 5: Verify ───────────────────────────────────────────────────────
     _write_status(status_path, "restarting", 97, "Ожидание запуска сервера…")
     ok = _verify_started(port, timeout=40)
 
@@ -180,10 +235,12 @@ def main():
         _safe_remove(old_path)
         _write_status(status_path, "done", 100, "Обновление завершено успешно")
     else:
-        # New server didn't start — rollback
         _write_status(status_path, "restarting", 98, "Новая версия не отвечает, откат…")
         _rollback(exe_path, old_path, exe_path + ".failed")
-        subprocess.Popen([exe_path])
+        if service_mode:
+            _svc_start()
+        else:
+            subprocess.Popen([exe_path])
         time.sleep(5)
         if _verify_started(port, timeout=20):
             _write_status(status_path, "error", 0, "",

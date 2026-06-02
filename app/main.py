@@ -572,6 +572,8 @@ async def api_mgmt_restart(request: Request):
                     [updater_path, '--restart', str(pid), exe_path, str(PORT)],
                     creationflags=_sp.DETACHED_PROCESS | _sp.CREATE_NEW_PROCESS_GROUP,
                 )
+        # In service mode the updater handles stop+start via sc;
+        # os._exit stops the service process so SCM marks it stopped.
         os._exit(0)
 
     threading.Thread(target=_do_restart, daemon=True).start()
