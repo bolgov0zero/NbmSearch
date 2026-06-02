@@ -156,6 +156,7 @@ $serverId = $_GET['id'] ?? '';
           <a class="sc-url sc-url-link" href="<?= h($s['url']) ?>" target="_blank" rel="noopener" onclick="event.stopPropagation()"><?= h($s['url']) ?></a>
           <div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">
             <span class="sc-badge skel skel-badge" id="status-<?= h($s['id']) ?>"></span>
+            <span class="sc-badge badge-uptime" id="upt-<?= h($s['id']) ?>" style="display:none"></span>
             <span class="sc-badge badge-version" id="ver-<?= h($s['id']) ?>" style="display:none"></span>
           </div>
         </div>
@@ -476,6 +477,8 @@ function _applyServerData(id, d) {
   if (rb) rb.disabled = !isOnline;
   const vEl = document.getElementById('ver-' + id);
   if (vEl && d.version) { vEl.textContent = 'v' + d.version; vEl.style.display = ''; }
+  const uptEl = document.getElementById('upt-' + id);
+  if (uptEl) { if (isOnline && d.uptime) { uptEl.textContent = '⏱ ' + fmtUptime(d.uptime); uptEl.style.display = ''; } else { uptEl.style.display = 'none'; } }
   const setEl = (id2, val) => { const el = document.getElementById(id2); if(el) el.textContent = val; };
   setEl('fc-'+id,  isOnline ? fmt(d.file_count || 0)        : '—');
   setEl('idx-'+id, isOnline ? fmt(d.folder_count || 0)      : '—');
