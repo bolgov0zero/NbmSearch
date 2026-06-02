@@ -117,11 +117,18 @@ def _remove_service():
     """Called when running elevated with 'remove' arg."""
     _sc(f"sc stop {SERVICE_NAME}")
 
-    # Wait until stopped (max 10s)
+    # Wait up to 10s for graceful stop
     for _ in range(10):
         _, state = _svc_query()
         if state in ("STOPPED", ""):
             break
+        time.sleep(1)
+    else:
+        # Graceful stop failed — force-kill the service process by image name
+        subprocess.run(
+            f"taskkill /F /IM {SERVICE_NAME}.exe",
+            shell=True, capture_output=True, creationflags=_NO_WINDOW,
+        )
         time.sleep(1)
 
     ret = _sc(f"sc delete {SERVICE_NAME}")

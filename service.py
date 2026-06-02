@@ -93,10 +93,20 @@ def _svc_main(argc: int, argv):
         logging.error("RegisterServiceCtrlHandlerW failed: %d", ctypes.get_last_error())
         return
 
-    _report(_SVC_START_PEND, wait_hint=15000)
+    _report(_SVC_START_PEND, wait_hint=30000)
     logging.info("Service starting")
 
     try:
+        import os
+
+        # Services run in C:\Windows\System32 by default — switch to exe dir
+        # so relative imports (app.*) and data files are found correctly.
+        exe_dir = str(Path(sys.executable).parent) if getattr(sys, "frozen", False) \
+                  else str(Path(__file__).resolve().parent)
+        os.chdir(exe_dir)
+        if exe_dir not in sys.path:
+            sys.path.insert(0, exe_dir)
+
         from app.settings import PORT
         from app.main import app
         import uvicorn
