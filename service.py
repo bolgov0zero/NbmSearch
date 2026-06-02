@@ -21,6 +21,15 @@ logging.basicConfig(
 
 _advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
 
+# Declare correct return/arg types — critical on 64-bit Windows where
+# handles are 64-bit; without this ctypes truncates them to 32-bit.
+_advapi32.RegisterServiceCtrlHandlerW.restype  = ctypes.c_void_p
+_advapi32.RegisterServiceCtrlHandlerW.argtypes = [ctypes.c_wchar_p, ctypes.c_void_p]
+_advapi32.SetServiceStatus.restype             = wt.BOOL
+_advapi32.SetServiceStatus.argtypes            = [ctypes.c_void_p, ctypes.c_void_p]
+_advapi32.StartServiceCtrlDispatcherW.restype  = wt.BOOL
+_advapi32.StartServiceCtrlDispatcherW.argtypes = [ctypes.c_void_p]
+
 # ── Win32 constants ───────────────────────────────────────────────────────────
 _SVC_WIN32_OWN  = 0x10
 _SVC_STOPPED    = 1
