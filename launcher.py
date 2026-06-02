@@ -38,11 +38,15 @@ SERVICE_NAME = "NbmSearch"
 
 # ── Service helpers ───────────────────────────────────────────────────────────
 
+_NO_WINDOW = subprocess.CREATE_NO_WINDOW  # suppress sc.exe console flash
+
+
 def _svc_query() -> tuple[bool, str]:
     """Return (installed, state_string). State: RUNNING | STOPPED | START_PENDING | ..."""
     try:
         r = subprocess.run(["sc", "query", SERVICE_NAME],
-                           capture_output=True, text=True, timeout=5)
+                           capture_output=True, text=True, timeout=5,
+                           creationflags=_NO_WINDOW)
         if r.returncode != 0:
             return False, ""
         out = r.stdout
@@ -93,25 +97,25 @@ def _install_service():
          f"DisplayName= {SERVICE_DISPLAY}",
          "start= auto",
          "type= own"],
-        capture_output=True, text=True,
+        capture_output=True, text=True, creationflags=_NO_WINDOW,
     )
     if ret.returncode != 0:
         _alert(f"Ошибка установки службы:\n{ret.stderr or ret.stdout}")
         sys.exit(1)
-    subprocess.run(["sc", "description", SERVICE_NAME, SERVICE_DESC], capture_output=True)
-    subprocess.run(["sc", "start", SERVICE_NAME], capture_output=True)
+    subprocess.run(["sc", "description", SERVICE_NAME, SERVICE_DESC], capture_output=True, creationflags=_NO_WINDOW)
+    subprocess.run(["sc", "start", SERVICE_NAME], capture_output=True, creationflags=_NO_WINDOW)
 
 
 def _remove_service():
     """Called when running elevated with 'remove' arg."""
-    subprocess.run(["sc", "stop", SERVICE_NAME], capture_output=True)
+    subprocess.run(["sc", "stop", SERVICE_NAME], capture_output=True, creationflags=_NO_WINDOW)
     # Wait until stopped (max 10s)
     for _ in range(10):
         _, state = _svc_query()
         if state in ("STOPPED", ""):
             break
         time.sleep(1)
-    ret = subprocess.run(["sc", "delete", SERVICE_NAME], capture_output=True, text=True)
+    ret = subprocess.run(["sc", "delete", SERVICE_NAME], capture_output=True, text=True, creationflags=_NO_WINDOW)
     if ret.returncode != 0:
         _alert(f"Ошибка удаления службы:\n{ret.stderr or ret.stdout}")
         sys.exit(1)
@@ -308,7 +312,7 @@ class LauncherWindow:
 
     def _do_start(self):
         if _svc_installed():
-            subprocess.run(["sc", "start", SERVICE_NAME], capture_output=True)
+            subprocess.run(["sc", "start", SERVICE_NAME], capture_output=True, creationflags=_NO_WINDOW)
         else:
             server_start()
         self._set_status(self.ORANGE, "Запускается…")
@@ -316,7 +320,7 @@ class LauncherWindow:
 
     def _do_stop(self):
         if _svc_installed():
-            subprocess.run(["sc", "stop", SERVICE_NAME], capture_output=True)
+            subprocess.run(["sc", "stop", SERVICE_NAME], capture_output=True, creationflags=_NO_WINDOW)
         else:
             server_stop()
         self._set_status(self.ORANGE, "Останавливается…")

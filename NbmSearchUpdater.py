@@ -40,21 +40,25 @@ def _write_status(path: str, stage: str, progress: int = 0,
 
 # ── Service helpers ───────────────────────────────────────────────────────────
 
+_NO_WINDOW = subprocess.CREATE_NO_WINDOW
+
+
 def _svc_installed(name: str = SERVICE_NAME) -> bool:
     try:
-        r = subprocess.run(["sc", "query", name], capture_output=True, timeout=5)
+        r = subprocess.run(["sc", "query", name], capture_output=True,
+                           timeout=5, creationflags=_NO_WINDOW)
         return r.returncode == 0
     except Exception:
         return False
 
 
 def _svc_stop(name: str = SERVICE_NAME, timeout: int = 30) -> bool:
-    subprocess.run(["sc", "stop", name], capture_output=True)
+    subprocess.run(["sc", "stop", name], capture_output=True, creationflags=_NO_WINDOW)
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
-            r = subprocess.run(["sc", "query", name],
-                               capture_output=True, text=True, timeout=5)
+            r = subprocess.run(["sc", "query", name], capture_output=True,
+                               text=True, timeout=5, creationflags=_NO_WINDOW)
             if "STOPPED" in r.stdout:
                 return True
         except Exception:
@@ -64,7 +68,7 @@ def _svc_stop(name: str = SERVICE_NAME, timeout: int = 30) -> bool:
 
 
 def _svc_start(name: str = SERVICE_NAME):
-    subprocess.run(["sc", "start", name], capture_output=True)
+    subprocess.run(["sc", "start", name], capture_output=True, creationflags=_NO_WINDOW)
 
 
 # ── Process helpers ───────────────────────────────────────────────────────────
