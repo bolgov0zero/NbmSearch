@@ -80,7 +80,8 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
 .sc-url-link:hover{color:var(--accent)}
 .sc-badges{display:flex;flex-direction:column;gap:5px;margin-top:6px}
 .sc-badges-row{display:flex;gap:5px;align-items:center;flex-wrap:nowrap}
-.sc-badge{display:inline-flex;align-items:center;gap:4px;font-size:.68rem;font-weight:600;
+.sc-badge{display:inline-flex;align-items:center;justify-content:center;gap:4px;
+  font-size:.68rem;font-weight:600;line-height:1;
   padding:0 8px;border-radius:6px;white-space:nowrap;height:22px;box-sizing:border-box}
 
 /* ── Skeleton loader ── */
@@ -90,10 +91,10 @@ header{position:sticky;top:0;z-index:100;background:var(--surface);
 .skel-badge{width:56px;height:18px;border-radius:6px}
 .badge-online{background:rgba(46,204,113,.15);color:var(--green);border:1px solid rgba(46,204,113,.2)}
 .badge-offline{background:var(--red-bg);color:var(--red);border:1px solid rgba(231,76,60,.2)}
-.badge-uptime{background:var(--surface2);color:var(--text-muted);border:1px solid var(--border)}
+.badge-uptime{background:rgba(230,126,34,.1);color:#e67e22;border:1px solid rgba(230,126,34,.25)}
 .badge-version{background:var(--accent-bg);color:var(--accent);border:1px solid rgba(91,106,240,.2)}
-.badge-ram{background:var(--surface2);color:var(--text-muted);border:1px solid var(--border)}
-.badge-service{background:rgba(46,204,113,.1);color:var(--green);border:1px solid rgba(46,204,113,.2);padding:0 6px}
+.badge-ram{background:rgba(230,126,34,.1);color:#e67e22;border:1px solid rgba(230,126,34,.25)}
+.badge-service{background:rgba(230,126,34,.1);color:#e67e22;border:1px solid rgba(230,126,34,.25);padding:0 6px}
 .sc-stats{display:flex;gap:1px;background:var(--border);border-top:1px solid var(--border)}
 .sc-stat{flex:1;background:var(--surface2);padding:10px 14px;text-align:center}
 .sc-stat-val{font-size:1.1rem;font-weight:700;color:var(--text);display:block}
