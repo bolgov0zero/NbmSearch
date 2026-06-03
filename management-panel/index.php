@@ -487,7 +487,7 @@ function _applyServerData(id, d) {
   const svcEl = document.getElementById('svc-' + id);
   if (svcEl) { svcEl.style.display = (isOnline && d.is_service) ? '' : 'none'; }
   const ramEl = document.getElementById('ram-' + id);
-  if (ramEl) { if (isOnline && d.memory_mb != null) { ramEl.textContent = d.memory_mb + ' МБ'; ramEl.style.display = ''; } else { ramEl.style.display = 'none'; } }
+  if (ramEl) { if (isOnline && d.memory_mb != null) { ramEl.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="8" width="20" height="8" rx="1"/><line x1="6" y1="8" x2="6" y2="4"/><line x1="10" y1="8" x2="10" y2="4"/><line x1="14" y1="8" x2="14" y2="4"/><line x1="18" y1="8" x2="18" y2="4"/><line x1="6" y1="16" x2="6" y2="20"/><line x1="10" y1="16" x2="10" y2="20"/><line x1="14" y1="16" x2="14" y2="20"/><line x1="18" y1="16" x2="18" y2="20"/></svg> ${d.memory_mb} МБ`; ramEl.style.display = ''; } else { ramEl.style.display = 'none'; } }
   const setEl = (id2, val) => { const el = document.getElementById(id2); if(el) el.textContent = val; };
   setEl('fc-'+id,  isOnline ? fmt(d.file_count || 0)        : '—');
   setEl('idx-'+id, isOnline ? fmt(d.folder_count || 0)      : '—');
