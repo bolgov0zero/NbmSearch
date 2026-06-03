@@ -1,4 +1,5 @@
 name: Build Windows EXE
+run-name: ${{ github.event.head_commit.message }}
 
 on:
   push:
