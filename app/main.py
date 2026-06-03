@@ -3,6 +3,11 @@ import os
 import time
 import threading
 import logging
+try:
+    import psutil as _psutil
+    _psutil_proc = _psutil.Process()
+except Exception:
+    _psutil_proc = None
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -482,6 +487,7 @@ async def api_mgmt_info(request: Request):
         ],
         "search_summary": summary,
         "is_service": _running_as_service(),
+        "memory_mb": round(_psutil_proc.memory_info().rss / 1024**2, 1) if _psutil_proc else None,
     }
 
 

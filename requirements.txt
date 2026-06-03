@@ -10,3 +10,4 @@ striprtf==0.0.26
 watchdog==4.0.1
 pillow>=10.0.0
 python-multipart>=0.0.9
+psutil>=5.9.0

@@ -55,6 +55,7 @@ $serverId = $_GET['id'] ?? '';
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NbmSearch — Панель управления</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="stylesheet" href="assets/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 </head>
@@ -87,7 +88,7 @@ $serverId = $_GET['id'] ?? '';
 
 <header>
   <div class="logo">
-    <div class="logo-icon">N</div>
+    <img src="assets/icon.png" class="logo-img" alt="NbmSearch">
     NbmSearch <span class="logo-sub">/ Серверы</span>
   </div>
   <div class="header-right">
@@ -145,22 +146,23 @@ $serverId = $_GET['id'] ?? '';
     <div class="server-card" id="card-<?= h($s['id']) ?>" onclick="goServer('<?= h($s['id']) ?>')">
       <div class="sc-top">
         <div class="sc-icon">
-          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-            <rect x="2" y="3" width="20" height="14" rx="2"/>
-            <line x1="8" y1="21" x2="16" y2="21" stroke-linecap="round"/>
-            <line x1="12" y1="17" x2="12" y2="21" stroke-linecap="round"/>
-          </svg>
+          <img src="assets/icon.png" width="22" height="22" style="border-radius:4px;object-fit:contain" alt="">
         </div>
         <div class="sc-info">
           <div class="sc-name"><?= h($s['name']) ?></div>
           <a class="sc-url sc-url-link" href="<?= h($s['url']) ?>" target="_blank" rel="noopener" onclick="event.stopPropagation()"><?= h($s['url']) ?></a>
-          <div style="margin-top:6px;display:flex;gap:5px;flex-wrap:nowrap;align-items:center">
-            <span class="sc-badge skel skel-badge" id="status-<?= h($s['id']) ?>"></span>
-            <span class="sc-badge badge-uptime" id="upt-<?= h($s['id']) ?>" style="display:none"></span>
-            <span class="sc-badge badge-version" id="ver-<?= h($s['id']) ?>" style="display:none"></span>
-            <span class="sc-badge badge-service" id="svc-<?= h($s['id']) ?>" style="display:none" title="Запущен как служба Windows">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="2" x2="9" y2="4"/><line x1="15" y1="2" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="22"/><line x1="15" y1="20" x2="15" y2="22"/><line x1="20" y1="9" x2="22" y2="9"/><line x1="20" y1="14" x2="22" y2="14"/><line x1="2" y1="9" x2="4" y2="9"/><line x1="2" y1="14" x2="4" y2="14"/></svg>
-            </span>
+          <div class="sc-badges">
+            <div class="sc-badges-row">
+              <span class="sc-badge skel skel-badge" id="status-<?= h($s['id']) ?>"></span>
+              <span class="sc-badge badge-service" id="svc-<?= h($s['id']) ?>" style="display:none" title="Запущен как служба Windows">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="2" x2="9" y2="4"/><line x1="15" y1="2" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="22"/><line x1="15" y1="20" x2="15" y2="22"/><line x1="20" y1="9" x2="22" y2="9"/><line x1="20" y1="14" x2="22" y2="14"/><line x1="2" y1="9" x2="4" y2="9"/><line x1="2" y1="14" x2="4" y2="14"/></svg>
+              </span>
+              <span class="sc-badge badge-version" id="ver-<?= h($s['id']) ?>" style="display:none"></span>
+            </div>
+            <div class="sc-badges-row">
+              <span class="sc-badge badge-ram" id="ram-<?= h($s['id']) ?>" style="display:none"></span>
+              <span class="sc-badge badge-uptime" id="upt-<?= h($s['id']) ?>" style="display:none"></span>
+            </div>
           </div>
         </div>
       </div>
@@ -484,6 +486,8 @@ function _applyServerData(id, d) {
   if (uptEl) { if (isOnline && d.uptime) { uptEl.textContent = '⏱ ' + fmtUptime(d.uptime); uptEl.style.display = ''; } else { uptEl.style.display = 'none'; } }
   const svcEl = document.getElementById('svc-' + id);
   if (svcEl) { svcEl.style.display = (isOnline && d.is_service) ? '' : 'none'; }
+  const ramEl = document.getElementById('ram-' + id);
+  if (ramEl) { if (isOnline && d.memory_mb != null) { ramEl.textContent = d.memory_mb + ' МБ'; ramEl.style.display = ''; } else { ramEl.style.display = 'none'; } }
   const setEl = (id2, val) => { const el = document.getElementById(id2); if(el) el.textContent = val; };
   setEl('fc-'+id,  isOnline ? fmt(d.file_count || 0)        : '—');
   setEl('idx-'+id, isOnline ? fmt(d.folder_count || 0)      : '—');
