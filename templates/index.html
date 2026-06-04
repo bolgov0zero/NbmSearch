@@ -377,6 +377,25 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
 // ── Sidebar chips ──
 const allItem = document.querySelector('.sc-item[data-folder="__all__"]');
 
+function hasResults() {
+  return document.querySelectorAll('.result-card[data-folder]').length > 0;
+}
+
+function applyFolderFilter() {
+  const cards = document.querySelectorAll('.result-card[data-folder]');
+  if (!cards.length) return;
+  const sel = selectedFolders();
+  let visible = 0;
+  cards.forEach(card => {
+    const show = !sel.length || sel.includes(card.dataset.folder);
+    card.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  statusText.textContent = visible
+    ? `Найдено: ${visible} ${plural(visible,'результат','результата','результатов')}`
+    : 'Ничего не найдено';
+}
+
 document.querySelectorAll('.sc-item[data-folder]').forEach(item => {
   item.addEventListener('click', () => {
     const f = item.dataset.folder;
@@ -390,6 +409,7 @@ document.querySelectorAll('.sc-item[data-folder]').forEach(item => {
         .some(i => i.dataset.folder !== '__all__' && i.classList.contains('active'));
       if (!any && allItem) allItem.classList.add('active');
     }
+    if (hasResults()) applyFolderFilter();
   });
 });
 
@@ -510,7 +530,7 @@ async function doSearch() {
         ? new Date(r.modified_at * 1000).toLocaleDateString('ru-RU', {day:'2-digit', month:'short', year:'numeric'})
         : '';
       const encPath = encodeURIComponent(r.path);
-      return `<div class="result-card">
+      return `<div class="result-card" data-folder="${esc(r.folder_name || '')}">
         <div class="rc-top">
           <div class="rc-name" title="${esc(r.path)}">${esc(r.name)}</div>
           <span class="rc-badge ext-${ext}">.${ext}</span>
