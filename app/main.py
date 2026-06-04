@@ -3,6 +3,7 @@ import os
 import time
 import threading
 import logging
+import asyncio
 try:
     import psutil as _psutil
     _psutil_proc = _psutil.Process()
@@ -91,6 +92,18 @@ async def search(
         logger.error("Search error: %s", e)
         return {"results": [], "error": str(e)}
     return {"results": results}
+
+
+@app.get("/api/file-text")
+async def api_file_text(path: str = "", request: Request = None):
+    if not path:
+        return JSONResponse({"error": "no path"}, status_code=400)
+    loop = asyncio.get_event_loop()
+    try:
+        text = await loop.run_in_executor(None, indexer.extract_text, path)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+    return {"text": text}
 
 
 @app.get("/api/search/stats")
