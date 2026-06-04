@@ -191,7 +191,7 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
   opacity: 0; pointer-events: none; transition: opacity .2s; }
 .ft-overlay.visible { opacity: 1; pointer-events: all; }
 .ft-modal { background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); width: min(860px, 92vw); height: min(80vh, 700px);
+  border-radius: var(--radius); width: min(1032px, 94vw); height: min(80vh, 700px);
   display: flex; flex-direction: column; box-shadow: 0 16px 48px rgba(0,0,0,.4); }
 .ft-modal-head { display: flex; align-items: center; gap: 8px;
   padding: 10px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -688,7 +688,13 @@ async function openFtModal(path, name) {
     } else {
       _ftRawText = data.text || '';
       ftContent.innerHTML = `<div class="ft-text">${esc(_ftRawText)}</div>`;
-      setTimeout(() => ftSearchInput.focus(), 50);
+      const q = input.value.trim();
+      if (q) {
+        ftSearchInput.value = q;
+        ftHighlight(q);
+      } else {
+        setTimeout(() => ftSearchInput.focus(), 50);
+      }
     }
   } catch {
     ftContent.innerHTML = '<div class="ft-loading">Ошибка соединения</div>';
