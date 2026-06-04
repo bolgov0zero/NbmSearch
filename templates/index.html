@@ -635,7 +635,7 @@ function ftHighlight(q) {
   _ftCurrent = 0;
   ftPrev.disabled = ftNext.disabled = false;
   ftRender(q);
-  ftScrollToCurrent();
+  setTimeout(ftScrollToCurrent, 0);
 }
 
 function ftRender(q) {
