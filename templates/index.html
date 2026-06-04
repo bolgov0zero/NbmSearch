@@ -688,7 +688,7 @@ async function openFtModal(path, name) {
     } else {
       _ftRawText = data.text || '';
       ftContent.innerHTML = `<div class="ft-text">${esc(_ftRawText)}</div>`;
-      const q = input.value.trim();
+      const q = input.value.trim().replace(/^["«»]+|["«»]+$/g, '');
       if (q) {
         ftSearchInput.value = q;
         ftHighlight(q);
