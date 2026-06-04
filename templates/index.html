@@ -485,7 +485,7 @@ async function doSearch() {
           <div class="rc-name" title="${esc(r.path)}">${esc(r.name)}</div>
           <span class="rc-badge ext-${ext}">.${ext}</span>
         </div>
-        ${r.snippet ? `<div class="rc-snippet" style="cursor:pointer" title="Нажмите для просмотра полного текста" onclick="openFtModal(${JSON.stringify(r.path)}, ${JSON.stringify(r.name)})">${r.snippet}</div>` : ''}
+        ${r.snippet ? `<div class="rc-snippet" style="cursor:pointer" title="Нажмите для просмотра полного текста" onclick="openFtModal(${esc(JSON.stringify(r.path))}, ${esc(JSON.stringify(r.name))})">${r.snippet}</div>` : ''}
         <div class="rc-bottom">
           <div class="rc-meta">
             ${r.folder_name ? `<span>📁 ${esc(r.folder_name)}</span>` : ''}
