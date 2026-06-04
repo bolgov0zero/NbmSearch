@@ -193,10 +193,24 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
 .ft-modal { background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); width: min(860px, 92vw); height: min(80vh, 700px);
   display: flex; flex-direction: column; box-shadow: 0 16px 48px rgba(0,0,0,.4); }
-.ft-modal-head { display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.ft-modal-head { display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .ft-modal-title { font-size: .88rem; font-weight: 600; color: var(--text);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; margin-right: 12px; }
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+.ft-search-wrap { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.ft-search-input { background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  border-radius: var(--radius-sm); padding: 4px 9px; font-size: .78rem; outline: none;
+  width: 160px; font-family: inherit; transition: border-color .15s; }
+.ft-search-input:focus { border-color: var(--accent); }
+.ft-search-input::placeholder { color: var(--text-dim); }
+.ft-search-count { font-size: .72rem; color: var(--text-dim); white-space: nowrap;
+  min-width: 36px; text-align: center; }
+.ft-btn { background: none; border: 1px solid var(--border); color: var(--text-dim);
+  width: 28px; height: 28px; border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color .15s, color .15s, background .15s; }
+.ft-btn:hover { border-color: var(--accent); color: var(--text); background: var(--surface2); }
+.ft-btn:disabled { opacity: .35; cursor: default; pointer-events: none; }
 .ft-close { background: none; border: 1px solid var(--border); color: var(--text-dim);
   width: 28px; height: 28px; border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
@@ -205,6 +219,8 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
 .ft-modal-body { flex: 1; overflow-y: auto; padding: 16px; min-height: 0; }
 .ft-text { font-size: .82rem; color: var(--text-dim); line-height: 1.7;
   white-space: pre-wrap; word-break: break-word; }
+.ft-text mark { background: rgba(241,196,15,.35); color: var(--text); border-radius: 2px; padding: 0 1px; }
+.ft-text mark.ft-active { background: var(--mark-bg); color: var(--mark-fg); }
 .ft-loading { text-align: center; padding: 40px; color: var(--text-dim); font-size: .82rem; }
 .ft-spinner { width: 22px; height: 22px; border: 2px solid var(--border);
   border-top-color: var(--accent); border-radius: 50%;
@@ -316,6 +332,20 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
   <div class="ft-modal">
     <div class="ft-modal-head">
       <div class="ft-modal-title" id="ftTitle"></div>
+      <div class="ft-search-wrap">
+        <input class="ft-search-input" id="ftSearchInput" placeholder="Поиск…" autocomplete="off">
+        <span class="ft-search-count" id="ftSearchCount"></span>
+        <button class="ft-btn" id="ftPrev" title="Предыдущее" disabled>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path d="M2 6.5l3-3 3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <button class="ft-btn" id="ftNext" title="Следующее" disabled>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
       <button class="ft-close" id="ftClose" title="Закрыть">
         <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
           <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
@@ -527,19 +557,107 @@ function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').re
 function plural(n,one,few,many){ const m=n%100; if(m>=11&&m<=14)return many; const r=n%10; if(r===1)return one; if(r>=2&&r<=4)return few; return many; }
 
 // ── Full-text modal ──
-const ftOverlay = document.getElementById('ftOverlay');
-const ftTitle   = document.getElementById('ftTitle');
-const ftContent = document.getElementById('ftContent');
+const ftOverlay    = document.getElementById('ftOverlay');
+const ftTitle      = document.getElementById('ftTitle');
+const ftContent    = document.getElementById('ftContent');
+const ftSearchInput= document.getElementById('ftSearchInput');
+const ftSearchCount= document.getElementById('ftSearchCount');
+const ftPrev       = document.getElementById('ftPrev');
+const ftNext       = document.getElementById('ftNext');
+
+let _ftRawText = '';
+let _ftMatches = [];
+let _ftCurrent = -1;
+
 document.getElementById('ftClose').addEventListener('click', closeFtModal);
 ftOverlay.addEventListener('click', e => { if (e.target === ftOverlay) closeFtModal(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFtModal(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeFtModal(); return; }
+  if (!ftOverlay.classList.contains('visible')) return;
+  if (e.key === 'Enter' && document.activeElement === ftSearchInput) {
+    e.preventDefault(); e.shiftKey ? ftGoPrev() : ftGoNext();
+  }
+});
+
+ftSearchInput.addEventListener('input', () => ftHighlight(ftSearchInput.value));
+ftPrev.addEventListener('click', ftGoPrev);
+ftNext.addEventListener('click', ftGoNext);
 
 function closeFtModal() {
   ftOverlay.classList.remove('visible');
+  ftSearchInput.value = '';
+  ftSearchCount.textContent = '';
+  ftPrev.disabled = ftNext.disabled = true;
+  _ftMatches = []; _ftCurrent = -1; _ftRawText = '';
+}
+
+function ftHighlight(q) {
+  if (!_ftRawText) return;
+  if (!q) {
+    ftContent.innerHTML = `<div class="ft-text">${esc(_ftRawText)}</div>`;
+    ftSearchCount.textContent = '';
+    ftPrev.disabled = ftNext.disabled = true;
+    _ftMatches = []; _ftCurrent = -1;
+    return;
+  }
+  const lower = _ftRawText.toLowerCase();
+  const ql = q.toLowerCase();
+  _ftMatches = [];
+  let i = 0;
+  while ((i = lower.indexOf(ql, i)) !== -1) { _ftMatches.push(i); i += ql.length; }
+  if (!_ftMatches.length) {
+    ftContent.innerHTML = `<div class="ft-text">${esc(_ftRawText)}</div>`;
+    ftSearchCount.textContent = '0 / 0';
+    ftPrev.disabled = ftNext.disabled = true;
+    _ftCurrent = -1;
+    return;
+  }
+  _ftCurrent = 0;
+  ftPrev.disabled = ftNext.disabled = false;
+  ftRender(q);
+  ftScrollToCurrent();
+}
+
+function ftRender(q) {
+  if (!q) q = ftSearchInput.value;
+  const ql = q.toLowerCase();
+  const text = _ftRawText;
+  let html = '';
+  let pos = 0;
+  _ftMatches.forEach((start, idx) => {
+    html += esc(text.slice(pos, start));
+    const cls = idx === _ftCurrent ? 'ft-active' : '';
+    html += `<mark id="ftm-${idx}" class="${cls}">${esc(text.slice(start, start + ql.length))}</mark>`;
+    pos = start + ql.length;
+  });
+  html += esc(text.slice(pos));
+  ftContent.innerHTML = `<div class="ft-text">${html}</div>`;
+  ftSearchCount.textContent = `${_ftCurrent + 1} / ${_ftMatches.length}`;
+}
+
+function ftScrollToCurrent() {
+  const el = document.getElementById('ftm-' + _ftCurrent);
+  if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+function ftGoNext() {
+  if (!_ftMatches.length) return;
+  _ftCurrent = (_ftCurrent + 1) % _ftMatches.length;
+  ftRender(); ftScrollToCurrent();
+}
+
+function ftGoPrev() {
+  if (!_ftMatches.length) return;
+  _ftCurrent = (_ftCurrent - 1 + _ftMatches.length) % _ftMatches.length;
+  ftRender(); ftScrollToCurrent();
 }
 
 async function openFtModal(path, name) {
   ftTitle.textContent = name;
+  ftSearchInput.value = '';
+  ftSearchCount.textContent = '';
+  ftPrev.disabled = ftNext.disabled = true;
+  _ftMatches = []; _ftCurrent = -1; _ftRawText = '';
   ftContent.innerHTML = '<div class="ft-loading"><span class="ft-spinner"></span>Загрузка…</div>';
   ftOverlay.classList.add('visible');
   try {
@@ -548,7 +666,9 @@ async function openFtModal(path, name) {
     if (data.error) {
       ftContent.innerHTML = `<div class="ft-loading">Ошибка: ${esc(data.error)}</div>`;
     } else {
-      ftContent.innerHTML = `<div class="ft-text">${esc(data.text || '(пусто)')}</div>`;
+      _ftRawText = data.text || '';
+      ftContent.innerHTML = `<div class="ft-text">${esc(_ftRawText)}</div>`;
+      setTimeout(() => ftSearchInput.focus(), 50);
     }
   } catch {
     ftContent.innerHTML = '<div class="ft-loading">Ошибка соединения</div>';
