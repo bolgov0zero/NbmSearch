@@ -164,6 +164,7 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rc-badge { flex-shrink: 0; font-size: .68rem; padding: 2px 7px; border-radius: 6px;
   border: 1px solid var(--border); color: var(--text-dim); background: var(--surface2); }
+.rc-badge-dir { border-color: rgba(91,106,240,.3); color: var(--accent); background: var(--accent-bg); }
 .ext-pdf  { border-color: #c0392b44; color: #e74c3c; }
 .ext-docx,.ext-doc { border-color: #2980b944; color: #3498db; }
 .ext-xlsx,.ext-xls { border-color: #27ae6044; color: #2ecc71; }
@@ -533,6 +534,7 @@ async function doSearch() {
       return `<div class="result-card" data-folder="${esc(r.folder_name || '')}">
         <div class="rc-top">
           <div class="rc-name" title="${esc(r.path)}">${esc(r.name)}</div>
+          ${(dir => dir ? `<span class="rc-badge rc-badge-dir">${esc(dir)}</span>` : '')(r.path.replace(/\\/g,'/').split('/').slice(-2,-1)[0] || '')}
           <span class="rc-badge ext-${ext}">.${ext}</span>
         </div>
         ${r.snippet ? `<div class="rc-snippet" style="cursor:pointer" title="Нажмите для просмотра полного текста" onclick="openFtModal(${esc(JSON.stringify(r.path))}, ${esc(JSON.stringify(r.name))})">${r.snippet}</div>` : ''}
