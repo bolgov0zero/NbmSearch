@@ -298,7 +298,7 @@ _observer: Observer | None = None
 _observer_lock = threading.Lock()
 
 
-_WATCHDOG_DEBOUNCE = 3.0  # seconds to wait after last event before indexing
+_WATCHDOG_DEBOUNCE = 5.0  # seconds to wait after last event before indexing
 
 
 _DELETE_DEBOUNCE = 5.0  # seconds to wait before confirming a deletion
