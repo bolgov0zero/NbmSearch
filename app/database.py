@@ -286,7 +286,7 @@ def set_folder_last_reindex(folder_id: int, ts: float):
 def reorder_folders(ids: list) -> None:
     with _main_lock:
         conn = _get_main_conn()
-        for order, fid in enumerate(ids):
+        for order, fid in enumerate(ids, start=1):
             conn.execute("UPDATE folders SET sort_order=? WHERE id=?", (order, fid))
         conn.commit()
         conn.close()
