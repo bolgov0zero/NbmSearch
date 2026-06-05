@@ -383,9 +383,9 @@ class FileEventHandler(FileSystemEventHandler):
     def on_created(self, event):
         if event.is_directory or self._is_temp(event.src_path):
             return
-        # If file reappeared after a pending delete — it was an atomic save
-        cancelled = self._cancel_delete(event.src_path)
-        self._schedule(event.src_path, "modified" if cancelled else "created")
+        # If file reappeared after a pending delete — it was an atomic save, log as created only
+        self._cancel_delete(event.src_path)
+        self._schedule(event.src_path, "created")
 
     def on_modified(self, event):
         if not event.is_directory and not self._is_temp(event.src_path):
