@@ -301,12 +301,17 @@ _observer_lock = threading.Lock()
 _WATCHDOG_DEBOUNCE = 3.0  # seconds to wait after last event before indexing
 
 
+_DELETE_DEBOUNCE = 5.0  # seconds to wait before confirming a deletion
+
+
 class FileEventHandler(FileSystemEventHandler):
     def __init__(self, folder_id: int):
         self.folder_id = folder_id
         self._timers: dict[str, threading.Timer] = {}
         self._event_types: dict[str, str] = {}   # path → first event type
         self._timers_lock = threading.Lock()
+        self._delete_timers: dict[str, threading.Timer] = {}
+        self._delete_lock = threading.Lock()
 
     def _schedule(self, path: str, event_type: str = "modified"):
         """Debounce: index the file only after DEBOUNCE seconds of silence.
@@ -351,19 +356,46 @@ class FileEventHandler(FileSystemEventHandler):
     def _is_temp(path: str) -> bool:
         return os.path.basename(path).startswith("~$")
 
+    def _cancel_delete(self, path: str) -> bool:
+        """Cancel pending delete timer. Returns True if one was cancelled."""
+        with self._delete_lock:
+            t = self._delete_timers.pop(path, None)
+            if t:
+                t.cancel()
+                return True
+        return False
+
+    def _do_delete(self, path: str):
+        with self._delete_lock:
+            self._delete_timers.pop(path, None)
+        db.delete_file_from_folder(self.folder_id, path)
+        db.update_folder_file_count(self.folder_id)
+        _log_event(self.folder_id, "deleted", path)
+
     def on_created(self, event):
-        if not event.is_directory and not self._is_temp(event.src_path):
-            self._schedule(event.src_path, "created")
+        if event.is_directory or self._is_temp(event.src_path):
+            return
+        # If file reappeared after a pending delete — it was an atomic save
+        cancelled = self._cancel_delete(event.src_path)
+        self._schedule(event.src_path, "modified" if cancelled else "created")
 
     def on_modified(self, event):
         if not event.is_directory and not self._is_temp(event.src_path):
+            self._cancel_delete(event.src_path)
             self._schedule(event.src_path, "modified")
 
     def on_deleted(self, event):
-        if not event.is_directory and not self._is_temp(event.src_path):
-            db.delete_file_from_folder(self.folder_id, event.src_path)
-            db.update_folder_file_count(self.folder_id)
-            _log_event(self.folder_id, "deleted", event.src_path)
+        if event.is_directory or self._is_temp(event.src_path):
+            return
+        # Defer deletion — file may reappear immediately (atomic save pattern)
+        with self._delete_lock:
+            existing = self._delete_timers.pop(event.src_path, None)
+            if existing:
+                existing.cancel()
+            t = threading.Timer(_DELETE_DEBOUNCE, self._do_delete, args=(event.src_path,))
+            t.daemon = True
+            self._delete_timers[event.src_path] = t
+            t.start()
 
     def on_moved(self, event):
         if not event.is_directory:
