@@ -354,7 +354,15 @@ class FileEventHandler(FileSystemEventHandler):
 
     @staticmethod
     def _is_temp(path: str) -> bool:
-        return os.path.basename(path).startswith("~$")
+        name = os.path.basename(path)
+        return (
+            name.startswith("~$") or          # Office lock files
+            name.startswith("._") or           # macOS resource forks
+            name.startswith(".~") or           # LibreOffice temp
+            name.endswith(".tmp") or           # Windows atomic save temps
+            name.endswith(".TMP") or
+            name.startswith("~") and name.endswith(".tmp")
+        )
 
     def _cancel_delete(self, path: str) -> bool:
         """Cancel pending delete timer. Returns True if one was cancelled."""
