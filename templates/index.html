@@ -57,16 +57,16 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
 [data-theme="light"] .btn-theme .icon-moon { display: none; }
 
 /* ── Info button ── */
-.btn-info { background: none; border: 1px solid rgba(91,106,240,.4); color: var(--accent);
+.btn-info { background: none; border: 1px solid rgba(255,160,50,.35); color: var(--text-dim);
   width: 28px; height: 28px; border-radius: var(--radius-sm); cursor: pointer;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   font-size: .82rem; font-weight: 700; font-family: Georgia, serif;
-  transition: background .15s, border-color .15s;
-  animation: info-pulse 2.4s ease-in-out infinite; }
-.btn-info:hover { background: var(--accent-bg); border-color: var(--accent); animation: none; }
+  transition: background .2s, border-color .2s, box-shadow .2s;
+  animation: info-pulse 3.2s ease-in-out infinite; }
+.btn-info:hover { background: rgba(255,160,50,.1); border-color: rgba(255,160,50,.8); animation: none; }
 @keyframes info-pulse {
-  0%,100% { box-shadow: 0 0 0 0 rgba(91,106,240,0); border-color: rgba(91,106,240,.4); }
-  50%      { box-shadow: 0 0 0 4px rgba(91,106,240,.18); border-color: rgba(91,106,240,.8); }
+  0%,100% { box-shadow: 0 0 0 0 rgba(255,160,50,0);  border-color: rgba(255,160,50,.25); }
+  40%,60% { box-shadow: 0 0 0 5px rgba(255,160,50,.12); border-color: rgba(255,160,50,.7); }
 }
 
 /* ── Help modal ── */
