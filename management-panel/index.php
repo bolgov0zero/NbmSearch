@@ -661,11 +661,11 @@ async function loadActiveUsers() {
     const ago = now - u.last_seen;
     const agoStr = ago < 5 ? 'только что' : ago + ' с назад';
     const isHostname = u.host !== u.ip;
-    const displayHost = u.host.split('.')[0].toUpperCase();
+
     return `<div class="active-user-card">
       <div class="au-icon"><svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
       <div class="au-info">
-        <div class="au-host">${esc(displayHost)}</div>
+        <div class="au-host">${esc(u.host)}</div>
         ${isHostname ? `<div class="au-ip">${esc(u.ip)}</div>` : ''}
         <div class="au-ago">${agoStr}</div>
       </div>
