@@ -789,17 +789,18 @@ async def icon_png():
 
 @app.get("/help1.png")
 async def help1_png():
-    f = BUNDLE_DIR / "templates" / "help1.png"
-    if f.exists():
-        return FileResponse(str(f), media_type="image/png")
+    # Try root first (bundled via --add-data), fallback to templates/
+    for candidate in [BUNDLE_DIR / "help1.png", BUNDLE_DIR / "templates" / "help1.png"]:
+        if candidate.exists():
+            return FileResponse(str(candidate), media_type="image/png")
     return Response(status_code=204)
 
 
 @app.get("/help2.png")
 async def help2_png():
-    f = BUNDLE_DIR / "templates" / "help2.png"
-    if f.exists():
-        return FileResponse(str(f), media_type="image/png")
+    for candidate in [BUNDLE_DIR / "help2.png", BUNDLE_DIR / "templates" / "help2.png"]:
+        if candidate.exists():
+            return FileResponse(str(candidate), media_type="image/png")
     return Response(status_code=204)
 
 

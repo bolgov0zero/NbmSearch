@@ -46,6 +46,8 @@ jobs:
             --icon icon.ico `
             --add-data "templates;templates" `
             --add-data "icon.png;." `
+            --add-data "templates/help1.png;." `
+            --add-data "templates/help2.png;." `
             --hidden-import "app.main" `
             --hidden-import "app.database" `
             --hidden-import "app.indexer" `
