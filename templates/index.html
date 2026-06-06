@@ -818,6 +818,11 @@ function toggleTheme() {
 // ── Help modal ──
 function openHelp() {
   document.getElementById('helpOverlay').classList.add('visible');
+  // Stop pulsing after first open, persist across reloads
+  const btn = document.getElementById('infoBtn');
+  btn.style.animation = 'none';
+  btn.style.outlineColor = 'transparent';
+  localStorage.setItem('nbm_help_seen', '1');
 }
 function closeHelp() {
   document.getElementById('helpOverlay').classList.remove('visible');
@@ -825,6 +830,11 @@ function closeHelp() {
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') closeHelp();
 });
+// Restore no-pulse state if already seen
+if (localStorage.getItem('nbm_help_seen')) {
+  const btn = document.getElementById('infoBtn');
+  if (btn) { btn.style.animation = 'none'; btn.style.outlineColor = 'transparent'; }
+}
 </script>
 </body>
 </html>
