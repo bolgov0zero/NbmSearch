@@ -787,5 +787,21 @@ async def icon_png():
     return Response(status_code=204)
 
 
+@app.get("/help1.png")
+async def help1_png():
+    f = BUNDLE_DIR / "templates" / "help1.png"
+    if f.exists():
+        return FileResponse(str(f), media_type="image/png")
+    return Response(status_code=204)
+
+
+@app.get("/help2.png")
+async def help2_png():
+    f = BUNDLE_DIR / "templates" / "help2.png"
+    if f.exists():
+        return FileResponse(str(f), media_type="image/png")
+    return Response(status_code=204)
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=PORT, reload=False, log_config=None)
