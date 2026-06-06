@@ -829,6 +829,10 @@ function toggleTheme() {
   }
   ping();
   setInterval(ping, 8000);
+  // Пинг сразу при возврате на вкладку (браузер throttle-ит интервалы в фоне)
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') ping();
+  });
 })();
 
 // ── Help modal ──

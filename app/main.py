@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 # ── Active users tracking ─────────────────────────────────────────────────────
 _active_sessions: dict[str, dict] = {}   # session_id → {last_seen, ip, host}
 _active_lock = threading.Lock()
-_ACTIVE_TTL = 15.0  # seconds without ping → considered gone
+_ACTIVE_TTL = 90.0  # seconds without ping → considered gone (browsers throttle bg tabs)
 
 
 def _resolve_host(ip: str) -> str:
