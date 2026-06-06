@@ -48,9 +48,70 @@ _active_lock = threading.Lock()
 _ACTIVE_TTL = 90.0  # seconds without ping → considered gone (browsers throttle bg tabs)
 
 
-def _resolve_host(ip: str) -> str:
+def _resolve_host(ip: str, timeout: float = 1.5) -> str:
+    """NetBIOS Node Status Request (NBSTAT) — returns real computer name or IP on failure."""
     try:
-        return socket.gethostbyaddr(ip)[0]
+        # Encode name: "*" + 15 spaces, each byte split into nibbles, each nibble +0x41
+        raw = b'*' + b' ' * 15
+        enc = bytearray()
+        for b in raw:
+            enc += bytes([0x41 + (b >> 4), 0x41 + (b & 0xF)])
+
+        packet = (
+            b'\xab\xcd'       # transaction id
+            b'\x00\x00'       # flags: standard query
+            b'\x00\x01'       # questions = 1
+            b'\x00\x00'       # answer RRs = 0
+            b'\x00\x00'       # authority RRs = 0
+            b'\x00\x00'       # additional RRs = 0
+            + bytes([32])     # name length = 32
+            + bytes(enc)      # 32-byte encoded name
+            + b'\x00'         # end of name
+            + b'\x00\x21'     # type = NBSTAT
+            + b'\x00\x01'     # class = IN
+        )
+
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.settimeout(timeout)
+            s.sendto(packet, (ip, 137))
+            data, _ = s.recvfrom(1024)
+
+        # Parse response: skip header(12) + question name(34) + qtype/qclass(4) = 50
+        offset = 50
+        if len(data) <= offset:
+            return ip
+
+        # Answer name: pointer (0xC0 xx) or full name
+        if data[offset] == 0xC0:
+            offset += 2
+        else:
+            while offset < len(data):
+                label_len = data[offset]
+                offset += 1
+                if label_len == 0:
+                    break
+                offset += label_len
+
+        # type(2) + class(2) + TTL(4) + rdlength(2) = 10
+        offset += 10
+        if offset >= len(data):
+            return ip
+
+        num_names = data[offset]
+        offset += 1
+
+        for i in range(num_names):
+            base = offset + i * 18
+            if base + 18 > len(data):
+                break
+            name_raw = data[base:base + 15]
+            name_type = data[base + 15]
+            if name_type == 0x00:  # workstation name
+                name = name_raw.rstrip(b'\x00').rstrip(b' ').decode('ascii', errors='replace').strip()
+                if name:
+                    return name
+
+        return ip
     except Exception:
         return ip
 
