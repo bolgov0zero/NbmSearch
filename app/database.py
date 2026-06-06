@@ -180,18 +180,16 @@ def _fts_query(raw: str) -> str:
     if not stripped:
         return '""'
 
-    # Exact phrase: "24-111/МО" → normalize inner → FTS5 phrase
+    # Strip surrounding quotes if user typed them — we always force phrase search
     if stripped.startswith('"') and stripped.endswith('"') and len(stripped) > 2:
-        inner = _normalize(stripped[1:-1]).strip()
-        inner = inner.replace('"', '""')
-        return f'"{inner}"'
+        stripped = stripped[1:-1].strip()
 
-    # Regular: normalize → split → wrap each token
-    normalized = _normalize(stripped)
-    tokens = [t for t in normalized.split() if t]
-    if not tokens:
+    # Always search as exact phrase: normalize → join → wrap in quotes
+    inner = _normalize(stripped).strip()
+    if not inner:
         return '""'
-    return " ".join(f'"{t.replace(chr(34), chr(34)*2)}"' for t in tokens)
+    inner = inner.replace('"', '""')
+    return f'"{inner}"'
 
 
 # ── Snippet ───────────────────────────────────────────────────────────────────
@@ -199,10 +197,8 @@ def _fts_query(raw: str) -> str:
 def _make_snippet(text: str, query: str, radius: int = 150) -> str:
     if not text:
         return ""
-    stripped = query.strip()
-    is_phrase = stripped.startswith('"') and stripped.endswith('"') and len(stripped) > 2
-    q = stripped.strip('"')
-    normalized_q = _normalize(q)
+    stripped = query.strip().strip('"').strip()
+    normalized_q = _normalize(stripped)
     tokens = [t for t in normalized_q.split() if t]
     if not tokens:
         return ""
@@ -210,10 +206,9 @@ def _make_snippet(text: str, query: str, radius: int = 150) -> str:
     lower = text.lower()
     pos = -1
 
-    if is_phrase:
-        # Search for the whole phrase first
-        phrase = " ".join(tokens)
-        pos = lower.find(phrase.lower())
+    # Always search for the whole phrase first
+    phrase = " ".join(tokens)
+    pos = lower.find(phrase.lower())
 
     if pos == -1:
         # Fall back: find first token
