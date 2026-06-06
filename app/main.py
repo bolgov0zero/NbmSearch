@@ -16,10 +16,33 @@ from typing import List, Optional
 
 _start_time = time.time()
 
-# ── Active users tracking ─────────────────────────────────────────────────────
 import uuid
 import socket
 
+if getattr(sys, "frozen", False):
+    # _MEIPASS — временная папка куда PyInstaller распаковывает бандл (шаблоны, иконка)
+    BUNDLE_DIR = Path(sys._MEIPASS)
+    # рядом с exe — пользовательские данные (БД, настройки)
+    BASE_DIR = Path(sys.executable).parent
+else:
+    BUNDLE_DIR = Path(__file__).resolve().parent.parent
+    BASE_DIR = BUNDLE_DIR
+
+from fastapi import FastAPI, Request, Query, Response, Cookie
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, PlainTextResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
+import uvicorn
+
+from app.settings import PORT, verify_password, VERSION, GITHUB_REPO
+import app.settings as settings
+from app import database as db
+from app import indexer
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
+
+# ── Active users tracking ─────────────────────────────────────────────────────
 _active_sessions: dict[str, dict] = {}   # session_id → {last_seen, ip, host}
 _active_lock = threading.Lock()
 _ACTIVE_TTL = 15.0  # seconds without ping → considered gone
@@ -45,29 +68,6 @@ def _get_client_ip(request: Request) -> str:
     if forwarded:
         return forwarded.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
-
-if getattr(sys, "frozen", False):
-    # _MEIPASS — временная папка куда PyInstaller распаковывает бандл (шаблоны, иконка)
-    BUNDLE_DIR = Path(sys._MEIPASS)
-    # рядом с exe — пользовательские данные (БД, настройки)
-    BASE_DIR = Path(sys.executable).parent
-else:
-    BUNDLE_DIR = Path(__file__).resolve().parent.parent
-    BASE_DIR = BUNDLE_DIR
-
-from fastapi import FastAPI, Request, Query, Response, Cookie
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, PlainTextResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
-import uvicorn
-
-from app.settings import PORT, verify_password, VERSION, GITHUB_REPO
-import app.settings as settings
-from app import database as db
-from app import indexer
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
