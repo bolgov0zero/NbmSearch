@@ -36,7 +36,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 /* ── Header ── */
 header { flex-shrink: 0; z-index: 100; background: var(--surface);
   border-bottom: 1px solid var(--border); padding: 0 28px; height: 52px;
-  display: flex; align-items: center; justify-content: space-between; }
+  display: flex; align-items: center; justify-content: space-between;
+  overflow: visible; }
 .logo { display: flex; align-items: center; gap: 9px; font-weight: 700;
   font-size: 1rem; color: var(--text); text-decoration: none; }
 .logo-icon { width: 26px; height: 26px; border-radius: 6px; overflow: hidden; }
@@ -61,12 +62,12 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
   width: 28px; height: 28px; border-radius: var(--radius-sm); cursor: pointer;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   font-size: .82rem; font-weight: 700; font-family: Georgia, serif;
-  transition: background .2s, border-color .2s, box-shadow .2s;
+  transition: background .2s, border-color .2s; outline: 2px solid transparent; outline-offset: 2px;
   animation: info-pulse 3.2s ease-in-out infinite; }
-.btn-info:hover { background: rgba(255,160,50,.1); border-color: rgba(255,160,50,.8); animation: none; }
+.btn-info:hover { background: rgba(255,160,50,.1); border-color: rgba(255,160,50,.8); animation: none; outline-color: transparent; }
 @keyframes info-pulse {
-  0%,100% { box-shadow: 0 0 0 0 rgba(255,160,50,0);  border-color: rgba(255,160,50,.25); }
-  40%,60% { box-shadow: 0 0 0 5px rgba(255,160,50,.12); border-color: rgba(255,160,50,.7); }
+  0%,100% { outline-color: rgba(255,160,50,0);  border-color: rgba(255,160,50,.25); }
+  40%,60% { outline-color: rgba(255,160,50,.45); border-color: rgba(255,160,50,.7); }
 }
 
 /* ── Help modal ── */
