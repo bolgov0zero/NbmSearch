@@ -56,6 +56,51 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
 [data-theme="light"] .btn-theme .icon-sun  { display: block; }
 [data-theme="light"] .btn-theme .icon-moon { display: none; }
 
+/* ── Info button ── */
+.btn-info { background: none; border: 1px solid rgba(91,106,240,.4); color: var(--accent);
+  width: 28px; height: 28px; border-radius: var(--radius-sm); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  font-size: .82rem; font-weight: 700; font-family: Georgia, serif;
+  transition: background .15s, border-color .15s;
+  animation: info-pulse 2.4s ease-in-out infinite; }
+.btn-info:hover { background: var(--accent-bg); border-color: var(--accent); animation: none; }
+@keyframes info-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(91,106,240,0); border-color: rgba(91,106,240,.4); }
+  50%      { box-shadow: 0 0 0 4px rgba(91,106,240,.18); border-color: rgba(91,106,240,.8); }
+}
+
+/* ── Help modal ── */
+.help-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.65); z-index: 700;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .2s; }
+.help-overlay.visible { opacity: 1; pointer-events: all; }
+.help-modal { background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); width: min(680px, 94vw); max-height: 88vh;
+  display: flex; flex-direction: column; box-shadow: 0 16px 48px rgba(0,0,0,.4); overflow: hidden; }
+.help-head { display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.help-head-title { font-size: 1rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.help-head-title svg { color: var(--accent); }
+.help-close { background: none; border: 1px solid var(--border); color: var(--text-dim);
+  width: 28px; height: 28px; border-radius: var(--radius-sm); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color .15s, color .15s, background .15s; }
+.help-close:hover { border-color: var(--accent); color: var(--text); background: var(--surface2); }
+.help-body { overflow-y: auto; padding: 24px 20px; display: flex; flex-direction: column; gap: 28px; }
+.help-section { display: flex; flex-direction: column; gap: 14px; }
+.help-section-title { font-size: .78rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .8px; color: var(--accent); display: flex; align-items: center; gap: 7px; }
+.help-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.help-img { width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  display: block; }
+.help-items { display: flex; flex-direction: column; gap: 10px; margin-top: 2px; }
+.help-item { display: flex; gap: 10px; align-items: flex-start; }
+.help-num { width: 20px; height: 20px; border-radius: 50%; background: var(--accent);
+  color: #fff; font-size: .68rem; font-weight: 700; display: flex; align-items: center;
+  justify-content: center; flex-shrink: 0; margin-top: 1px; }
+.help-item-text { font-size: .82rem; color: var(--text-dim); line-height: 1.55; }
+.help-item-text strong { color: var(--text); font-weight: 600; }
+
 /* ── Page: flex column, body controls overflow ── */
 .page { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 
@@ -237,6 +282,7 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
     NbmSearch
   </a>
   <nav>
+    <button class="btn-info" id="infoBtn" onclick="openHelp()" title="Инструкция">i</button>
     <button class="btn-theme" id="themeBtn" onclick="toggleTheme()" title="Сменить тему">
       <svg class="icon-moon" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" stroke-linecap="round" stroke-linejoin="round"/>
@@ -355,6 +401,59 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
     </div>
     <div class="ft-modal-body">
       <div id="ftContent"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Help modal ── -->
+<div class="help-overlay" id="helpOverlay" onclick="if(event.target===this)closeHelp()">
+  <div class="help-modal">
+    <div class="help-head">
+      <div class="help-head-title">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16" stroke-linecap="round" stroke-width="3"/>
+        </svg>
+        Краткая инструкция
+      </div>
+      <button class="help-close" onclick="closeHelp()" title="Закрыть">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" stroke-linecap="round"/><line x1="6" y1="6" x2="18" y2="18" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    <div class="help-body">
+      <div class="help-section">
+        <div class="help-section-title">Поиск</div>
+        <img src="/help1.png" class="help-img" alt="Поиск">
+        <div class="help-items">
+          <div class="help-item">
+            <div class="help-num">1</div>
+            <div class="help-item-text"><strong>Строка запроса</strong> — введите слово или фразу и нажмите Enter. Поиск всегда ищет точное вхождение фразы.</div>
+          </div>
+          <div class="help-item">
+            <div class="help-num">2</div>
+            <div class="help-item-text"><strong>История запросов</strong> — последние 10 запросов. Нажмите на запрос, чтобы повторить поиск.</div>
+          </div>
+        </div>
+      </div>
+      <div class="help-section">
+        <div class="help-section-title">Результат</div>
+        <img src="/help2.png" class="help-img" alt="Результат">
+        <div class="help-items">
+          <div class="help-item">
+            <div class="help-num">1</div>
+            <div class="help-item-text"><strong>Открыть</strong> — открывает файл в стандартной программе на сервере.</div>
+          </div>
+          <div class="help-item">
+            <div class="help-num">2</div>
+            <div class="help-item-text"><strong>Папка</strong> — открывает папку с файлом в Проводнике на сервере.</div>
+          </div>
+          <div class="help-item">
+            <div class="help-num">3</div>
+            <div class="help-item-text"><strong>Предпросмотр</strong> — нажмите на фрагмент текста, чтобы открыть модальное окно с полным содержимым файла и внутренним поиском.</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -714,6 +813,17 @@ function toggleTheme() {
   if (isLight) { html.removeAttribute('data-theme'); localStorage.setItem('nbm_theme', 'dark'); }
   else { html.setAttribute('data-theme', 'light'); localStorage.setItem('nbm_theme', 'light'); }
 }
+
+// ── Help modal ──
+function openHelp() {
+  document.getElementById('helpOverlay').classList.add('visible');
+}
+function closeHelp() {
+  document.getElementById('helpOverlay').classList.remove('visible');
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeHelp();
+});
 </script>
 </body>
 </html>
