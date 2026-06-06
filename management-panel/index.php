@@ -125,6 +125,7 @@ $serverId = $_GET['id'] ?? '';
   <div class="stat-box"><div class="stat-label">Онлайн</div><div class="stat-value green" id="sumOnline">—</div></div>
   <div class="stat-box"><div class="stat-label">Файлов всего</div><div class="stat-value" id="sumFiles">—</div></div>
   <div class="stat-box"><div class="stat-label">Запросов сегодня</div><div class="stat-value" id="sumSearches">—</div></div>
+  <div class="stat-box"><div class="stat-label">Пользователей</div><div class="stat-value green" id="sumUsers">—</div></div>
 </div>
 
 <!-- Server cards -->
@@ -515,7 +516,7 @@ function _applyServerData(id, d) {
   // remove skeleton from status badge after data arrives
   const stEl = document.getElementById('status-' + id);
   if (stEl) stEl.classList.remove('skel', 'skel-badge');
-  return isOnline ? {files: d.file_count||0, searches: d.search_summary?.today||0} : null;
+  return isOnline ? {files: d.file_count||0, searches: d.search_summary?.today||0, users: d.active_users||0} : null;
 }
 
 const _sumState = {}; // id → {files, searches, online}
@@ -530,12 +531,12 @@ async function loadAllServers() {
     apiPost('get_info', {id})
       .then(d => {
         const stats = _applyServerData(id, d);
-        _sumState[id] = stats ? {online:true, ...stats} : {online:false, files:0, searches:0};
+        _sumState[id] = stats ? {online:true, ...stats} : {online:false, files:0, searches:0, users:0};
         _updateSummary();
       })
       .catch(() => {
         _applyServerData(id, {_error:true});
-        _sumState[id] = {online:false, files:0, searches:0};
+        _sumState[id] = {online:false, files:0, searches:0, users:0};
         _updateSummary();
       });
   });
@@ -546,6 +547,9 @@ function _updateSummary() {
   document.getElementById('sumOnline').textContent   = vals.filter(v=>v.online).length;
   document.getElementById('sumFiles').textContent    = fmt(vals.reduce((s,v)=>s+(v.files||0),0));
   document.getElementById('sumSearches').textContent = fmt(vals.reduce((s,v)=>s+(v.searches||0),0));
+  const totalUsers = vals.reduce((s,v)=>s+(v.users||0),0);
+  const sumUsersEl = document.getElementById('sumUsers');
+  if (sumUsersEl) { sumUsersEl.textContent = totalUsers > 0 ? totalUsers : '0'; }
 }
 
 loadAllServers();
