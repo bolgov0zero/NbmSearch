@@ -86,8 +86,11 @@ async def search(
     if not q.strip():
         return {"results": []}
     threading.Thread(target=db.log_search, args=(q.strip(),), daemon=True).start()
+    loop = asyncio.get_event_loop()
     try:
-        results = db.search(q.strip(), folder_names=folders or None)
+        results = await loop.run_in_executor(
+            None, lambda: db.search(q.strip(), folder_names=folders or None)
+        )
     except Exception as e:
         logger.error("Search error: %s", e)
         return {"results": [], "error": str(e)}
