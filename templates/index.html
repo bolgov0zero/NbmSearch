@@ -822,6 +822,7 @@ function openHelp() {
   const btn = document.getElementById('infoBtn');
   btn.style.animation = 'none';
   btn.style.outlineColor = 'transparent';
+  btn.style.borderColor = 'var(--border)';
   localStorage.setItem('nbm_help_seen', '1');
 }
 function closeHelp() {
@@ -833,7 +834,7 @@ document.addEventListener('keydown', function(e) {
 // Restore no-pulse state if already seen
 if (localStorage.getItem('nbm_help_seen')) {
   const btn = document.getElementById('infoBtn');
-  if (btn) { btn.style.animation = 'none'; btn.style.outlineColor = 'transparent'; }
+  if (btn) { btn.style.animation = 'none'; btn.style.outlineColor = 'transparent'; btn.style.borderColor = 'var(--border)'; }
 }
 </script>
 </body>
