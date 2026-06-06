@@ -227,6 +227,16 @@ switch ($action) {
         break;
     }
 
+    // ── Active users ──────────────────────────────────────────────────────────
+    case 'active_users': {
+        $id = $_GET['id'] ?? '';
+        $server = find_server($id);
+        if (!$server) { echo json_encode(['error' => 'Server not found']); exit; }
+        $res = nbm_request($server['url'] . '/api/active-users', $server['token']);
+        echo json_encode($res);
+        break;
+    }
+
     // ── Check update ──────────────────────────────────────────────────────────
     case 'check_update': {
         $id = $_GET['id'] ?? $input['id'] ?? '';

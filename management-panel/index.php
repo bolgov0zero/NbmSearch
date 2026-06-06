@@ -155,6 +155,7 @@ $serverId = $_GET['id'] ?? '';
             <div class="sc-badges-row">
               <span class="sc-badge skel skel-badge" id="status-<?= h($s['id']) ?>"></span>
               <span class="sc-badge badge-version" id="ver-<?= h($s['id']) ?>" style="display:none"></span>
+              <span class="sc-badge badge-users" id="users-<?= h($s['id']) ?>" style="display:none" title="Активных пользователей"></span>
             </div>
             <div class="sc-badges-row">
               <span class="sc-badge badge-service" id="svc-<?= h($s['id']) ?>" style="display:none" title="Запущен как служба Windows">
@@ -259,9 +260,21 @@ else:
 </div>
 
 <!-- Schedules -->
-<div class="card">
+<div class="card" style="margin-bottom:16px">
   <div class="card-head"><div class="card-title">Планировщик</div></div>
   <div id="schedulesBody"><div class="loading"><span class="spinner-lg"></span>Загрузка…</div></div>
+</div>
+
+<!-- Active users -->
+<div class="card">
+  <div class="card-head">
+    <div class="card-title">
+      <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      Активные пользователи
+      <span class="chip chip-accent" id="activeUsersCount" style="margin-left:8px">—</span>
+    </div>
+  </div>
+  <div id="activeUsersBody"><div class="loading"><span class="spinner-lg"></span>Загрузка…</div></div>
 </div>
 
 <?php endif; ?>
@@ -488,6 +501,13 @@ function _applyServerData(id, d) {
   if (svcEl) { svcEl.style.display = (isOnline && d.is_service) ? '' : 'none'; }
   const ramEl = document.getElementById('ram-' + id);
   if (ramEl) { if (isOnline && d.memory_mb != null) { ramEl.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="8" width="20" height="8" rx="1"/><line x1="6" y1="8" x2="6" y2="4"/><line x1="10" y1="8" x2="10" y2="4"/><line x1="14" y1="8" x2="14" y2="4"/><line x1="18" y1="8" x2="18" y2="4"/><line x1="6" y1="16" x2="6" y2="20"/><line x1="10" y1="16" x2="10" y2="20"/><line x1="14" y1="16" x2="14" y2="20"/><line x1="18" y1="16" x2="18" y2="20"/></svg> ${d.memory_mb} МБ`; ramEl.style.display = ''; } else { ramEl.style.display = 'none'; } }
+  const usersEl = document.getElementById('users-' + id);
+  if (usersEl) {
+    if (isOnline && d.active_users != null) {
+      usersEl.innerHTML = `<svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> ${d.active_users}`;
+      usersEl.style.display = '';
+    } else { usersEl.style.display = 'none'; }
+  }
   const setEl = (id2, val) => { const el = document.getElementById(id2); if(el) el.textContent = val; };
   setEl('fc-'+id,  isOnline ? fmt(d.file_count || 0)        : '—');
   setEl('idx-'+id, isOnline ? fmt(d.folder_count || 0)      : '—');
@@ -616,6 +636,40 @@ async function loadDetail() {
   }
 }
 
+async function loadActiveUsers() {
+  const d = await api('active_users', {id: SERVER_ID});
+  const countEl = document.getElementById('activeUsersCount');
+  const bodyEl  = document.getElementById('activeUsersBody');
+  if (!d || d._error) {
+    if (countEl) countEl.textContent = '—';
+    if (bodyEl) bodyEl.innerHTML = '<div class="empty">Сервер недоступен</div>';
+    return;
+  }
+  const users = d.users || [];
+  if (countEl) countEl.textContent = users.length;
+  if (!bodyEl) return;
+  if (!users.length) {
+    bodyEl.innerHTML = '<div class="empty" style="padding:16px">Нет активных пользователей</div>';
+    return;
+  }
+  const now = Math.floor(Date.now() / 1000);
+  bodyEl.innerHTML = `<div class="active-users-grid">${users.map(u => {
+    const ago = now - u.last_seen;
+    const agoStr = ago < 5 ? 'только что' : ago + ' с назад';
+    const isHostname = u.host !== u.ip;
+    return `<div class="active-user-card">
+      <div class="au-icon"><svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+      <div class="au-info">
+        <div class="au-host">${esc(u.host)}</div>
+        ${isHostname ? `<div class="au-ip">${esc(u.ip)}</div>` : ''}
+        <div class="au-ago">${agoStr}</div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+setInterval(loadActiveUsers, 10000);
+
 async function loadChart() {
   document.getElementById('chartLoading').style.display = 'flex';
   if (_chart) { _chart.destroy(); _chart = null; }
@@ -661,6 +715,8 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 
 loadDetail();
 loadChart();
+loadActiveUsers();
+setInterval(loadDetail, 10000);
 <?php endif; ?>
 </script>
 

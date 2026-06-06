@@ -16,6 +16,36 @@ from typing import List, Optional
 
 _start_time = time.time()
 
+# ── Active users tracking ─────────────────────────────────────────────────────
+import uuid
+import socket
+
+_active_sessions: dict[str, dict] = {}   # session_id → {last_seen, ip, host}
+_active_lock = threading.Lock()
+_ACTIVE_TTL = 15.0  # seconds without ping → considered gone
+
+
+def _resolve_host(ip: str) -> str:
+    try:
+        return socket.gethostbyaddr(ip)[0]
+    except Exception:
+        return ip
+
+
+def _prune_sessions():
+    cutoff = time.time() - _ACTIVE_TTL
+    with _active_lock:
+        stale = [k for k, v in _active_sessions.items() if v["last_seen"] < cutoff]
+        for k in stale:
+            del _active_sessions[k]
+
+
+def _get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
 if getattr(sys, "frozen", False):
     # _MEIPASS — временная папка куда PyInstaller распаковывает бандл (шаблоны, иконка)
     BUNDLE_DIR = Path(sys._MEIPASS)
@@ -95,6 +125,43 @@ async def search(
         logger.error("Search error: %s", e)
         return {"results": [], "error": str(e)}
     return {"results": results}
+
+
+@app.post("/api/active-ping")
+async def active_ping(request: Request):
+    """Heartbeat from search page — keeps session alive."""
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    sid = body.get("sid") or str(uuid.uuid4())
+    ip = _get_client_ip(request)
+    now = time.time()
+    with _active_lock:
+        existing = _active_sessions.get(sid)
+        # Resolve hostname once per session (or if IP changed)
+        if existing and existing["ip"] == ip:
+            host = existing["host"]
+        else:
+            host = await asyncio.get_event_loop().run_in_executor(None, _resolve_host, ip)
+        _active_sessions[sid] = {"last_seen": now, "ip": ip, "host": host}
+    _prune_sessions()
+    return {"sid": sid}
+
+
+@app.get("/api/active-users")
+async def active_users(request: Request):
+    """Return list of active users for management panel."""
+    if not _check_mgmt_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    _prune_sessions()
+    with _active_lock:
+        users = [
+            {"host": v["host"], "ip": v["ip"], "last_seen": int(v["last_seen"])}
+            for v in _active_sessions.values()
+        ]
+    return {"count": len(users), "users": users}
 
 
 @app.get("/api/file-text")
@@ -504,7 +571,14 @@ async def api_mgmt_info(request: Request):
         "search_summary": summary,
         "is_service": _running_as_service(),
         "memory_mb": round(_psutil_proc.memory_info().rss / 1024**2, 1) if _psutil_proc else None,
+        "active_users": _get_active_count(),
     }
+
+
+def _get_active_count() -> int:
+    _prune_sessions()
+    with _active_lock:
+        return len(_active_sessions)
 
 
 @app.get("/api/management/update-check")

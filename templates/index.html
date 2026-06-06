@@ -815,6 +815,22 @@ function toggleTheme() {
   else { html.setAttribute('data-theme', 'light'); localStorage.setItem('nbm_theme', 'light'); }
 }
 
+// ── Active-user heartbeat ──
+(function() {
+  let _sid = localStorage.getItem('nbm_sid') || '';
+  async function ping() {
+    try {
+      const r = await fetch('/api/active-ping', {method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({sid: _sid})});
+      const d = await r.json();
+      if (d.sid && d.sid !== _sid) { _sid = d.sid; localStorage.setItem('nbm_sid', _sid); }
+    } catch(e) {}
+  }
+  ping();
+  setInterval(ping, 8000);
+})();
+
 // ── Help modal ──
 function openHelp() {
   document.getElementById('helpOverlay').classList.add('visible');
