@@ -506,7 +506,6 @@ function _applyServerData(id, d) {
   if (usersEl) {
     if (isOnline && d.active_users != null) {
       usersEl.innerHTML = `<svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> ${d.active_users}`;
-      usersEl.dataset.ips = JSON.stringify(d.active_user_ips || []);
       usersEl.style.display = '';
     } else { usersEl.style.display = 'none'; }
   }
