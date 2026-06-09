@@ -122,10 +122,10 @@ $serverId = $_GET['id'] ?? '';
 <!-- Summary strip (filled by JS) -->
 <div class="stats-strip" id="summaryStrip">
   <div class="stat-box"><div class="stat-label">Серверов</div><div class="stat-value white" id="sumServers"><?= count($servers) ?></div></div>
-  <div class="stat-box"><div class="stat-label">Онлайн</div><div class="stat-value green" id="sumOnline">—</div></div>
+  <div class="stat-box"><div class="stat-label">Онлайн серверов</div><div class="stat-value green" id="sumOnline">—</div></div>
+  <div class="stat-box"><div class="stat-label">Онлайн пользователей</div><div class="stat-value green" id="sumUsers">—</div></div>
   <div class="stat-box"><div class="stat-label">Файлов всего</div><div class="stat-value" id="sumFiles">—</div></div>
   <div class="stat-box"><div class="stat-label">Запросов сегодня</div><div class="stat-value" id="sumSearches">—</div></div>
-  <div class="stat-box"><div class="stat-label">Пользователей</div><div class="stat-value green" id="sumUsers">—</div></div>
 </div>
 
 <!-- Server cards -->
