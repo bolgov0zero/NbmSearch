@@ -508,7 +508,6 @@ function _applyServerData(id, d) {
       usersEl.innerHTML = `<svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> ${d.active_users}`;
       usersEl.dataset.ips = JSON.stringify(d.active_user_ips || []);
       usersEl.style.display = '';
-      if (!usersEl._tipAttached) { window._attachUserTooltip(usersEl); usersEl._tipAttached = true; }
     } else { usersEl.style.display = 'none'; }
   }
   const setEl = (id2, val) => { const el = document.getElementById(id2); if(el) el.textContent = val; };
@@ -732,46 +731,40 @@ setInterval(loadDetail, 10000);
 <script>
 (function() {
   const tip = document.getElementById('nbmTooltip');
-  let hideTimer = null;
+  let activeEl = null;
 
-  window._attachUserTooltip = function(el) {
-    el.addEventListener('mouseenter', function(e) {
-      e.stopPropagation();
-      const ips = JSON.parse(el.dataset.ips || '[]');
-      if (!ips.length) return;
-      clearTimeout(hideTimer);
-      tip.innerHTML = ips.map(ip => `<div class="nbm-tooltip-ip">${ip}</div>`).join('');
-      tip.classList.remove('visible');
-      tip.style.visibility = 'hidden';
-      tip.style.display = 'block';
-      // position after display so offsetWidth is known
-      requestAnimationFrame(() => {
-        const r = el.getBoundingClientRect();
-        const tw = tip.offsetWidth;
-        let left = r.left + r.width / 2 - tw / 2;
-        left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
-        tip.style.left = left + 'px';
-        tip.style.top  = (r.bottom + 7) + 'px';
-        tip.style.visibility = '';
-        tip.classList.add('visible');
-      });
+  function show(el) {
+    const ips = JSON.parse(el.dataset.ips || '[]');
+    if (!ips.length) return;
+    activeEl = el;
+    tip.innerHTML = ips.map(ip => `<div class="nbm-tooltip-ip">${ip}</div>`).join('');
+    tip.style.display = 'block';
+    tip.classList.remove('visible');
+    requestAnimationFrame(function() {
+      const r = el.getBoundingClientRect();
+      const tw = tip.offsetWidth;
+      let left = r.left + r.width / 2 - tw / 2;
+      left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+      tip.style.left = left + 'px';
+      tip.style.top = (r.bottom + 7) + 'px';
+      tip.classList.add('visible');
     });
-    el.addEventListener('mouseleave', function(e) {
-      e.stopPropagation();
-      _hideTip();
-    });
-    el.addEventListener('click', function(e) { e.stopPropagation(); });
-  };
-
-  function _hideTip() {
-    hideTimer = setTimeout(() => {
-      tip.classList.remove('visible');
-      setTimeout(() => { tip.style.display = 'none'; }, 180);
-    }, 80);
   }
 
-  tip.addEventListener('mouseenter', () => clearTimeout(hideTimer));
-  tip.addEventListener('mouseleave', _hideTip);
+  function hide() {
+    activeEl = null;
+    tip.classList.remove('visible');
+    setTimeout(function() { if (!activeEl) tip.style.display = 'none'; }, 200);
+  }
+
+  document.addEventListener('mouseover', function(e) {
+    const el = e.target.closest('.badge-users');
+    if (el) show(el);
+  });
+  document.addEventListener('mouseout', function(e) {
+    const el = e.target.closest('.badge-users');
+    if (el && !el.contains(e.relatedTarget)) hide();
+  });
 })();
 </script>
 
