@@ -201,3 +201,13 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(91
 .confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;
   display:none;align-items:center;justify-content:center}
 .confirm-overlay.visible{display:flex}
+
+/* ── IP tooltip ──────────────────────────────────────────────────────────── */
+.nbm-tooltip{position:absolute;z-index:500;background:var(--surface2);border:1px solid var(--border);
+  border-radius:8px;padding:8px 12px;box-shadow:0 8px 24px rgba(0,0,0,.35);
+  min-width:120px;pointer-events:auto;
+  opacity:0;transform:translateY(-4px);transition:opacity .18s ease,transform .18s ease}
+.nbm-tooltip.visible{opacity:1;transform:translateY(0)}
+.nbm-tooltip-ip{font-size:.78rem;color:var(--text-dim);padding:3px 0;
+  border-bottom:1px solid var(--border);font-family:monospace;letter-spacing:.02em}
+.nbm-tooltip-ip:last-child{border-bottom:none}

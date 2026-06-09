@@ -506,6 +506,7 @@ function _applyServerData(id, d) {
   if (usersEl) {
     if (isOnline && d.active_users != null) {
       usersEl.innerHTML = `<svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> ${d.active_users}`;
+      usersEl.dataset.ips = JSON.stringify(d.active_user_ips || []);
       usersEl.style.display = '';
     } else { usersEl.style.display = 'none'; }
   }
@@ -723,6 +724,52 @@ loadChart();
 loadActiveUsers();
 setInterval(loadDetail, 10000);
 <?php endif; ?>
+</script>
+
+<!-- IP tooltip -->
+<div id="nbmTooltip" class="nbm-tooltip" style="display:none"></div>
+<script>
+(function() {
+  const tip = document.getElementById('nbmTooltip');
+  let hideTimer = null;
+
+  function showTip(el) {
+    const ips = JSON.parse(el.dataset.ips || '[]');
+    if (!ips.length) return;
+    clearTimeout(hideTimer);
+    tip.innerHTML = ips.map(ip => `<div class="nbm-tooltip-ip">${ip}</div>`).join('');
+    tip.style.display = 'block';
+    requestAnimationFrame(() => tip.classList.add('visible'));
+    _positionTip(el);
+  }
+
+  function hideTip() {
+    hideTimer = setTimeout(() => {
+      tip.classList.remove('visible');
+      setTimeout(() => { tip.style.display = 'none'; }, 180);
+    }, 80);
+  }
+
+  function _positionTip(el) {
+    const r = el.getBoundingClientRect();
+    const tw = tip.offsetWidth || 130;
+    let left = r.left + r.width / 2 - tw / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+    tip.style.left = left + 'px';
+    tip.style.top  = (r.bottom + window.scrollY + 7) + 'px';
+  }
+
+  document.addEventListener('mouseover', function(e) {
+    const el = e.target.closest('.badge-users[data-ips]');
+    if (el) showTip(el);
+  });
+  document.addEventListener('mouseout', function(e) {
+    const el = e.target.closest('.badge-users[data-ips]');
+    if (el) hideTip();
+  });
+  tip.addEventListener('mouseover', () => clearTimeout(hideTimer));
+  tip.addEventListener('mouseout', hideTip);
+})();
 </script>
 
 <?php endif; ?>

@@ -560,6 +560,7 @@ async def api_mgmt_info(request: Request):
         "is_service": _running_as_service(),
         "memory_mb": round(_psutil_proc.memory_info().rss / 1024**2, 1) if _psutil_proc else None,
         "active_users": _get_active_count(),
+        "active_user_ips": _get_active_ips(),
     }
 
 
@@ -567,6 +568,11 @@ def _get_active_count() -> int:
     _prune_sessions()
     with _active_lock:
         return len(_active_sessions)
+
+
+def _get_active_ips() -> list:
+    with _active_lock:
+        return [v["ip"] for v in _active_sessions.values()]
 
 
 @app.get("/api/management/update-check")
