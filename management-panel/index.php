@@ -156,7 +156,7 @@ $serverId = $_GET['id'] ?? '';
             <div class="sc-badges-row">
               <span class="sc-badge skel skel-badge" id="status-<?= h($s['id']) ?>"></span>
               <span class="sc-badge badge-version" id="ver-<?= h($s['id']) ?>" style="display:none"></span>
-              <span class="sc-badge badge-users" id="users-<?= h($s['id']) ?>" style="display:none" title="Активных пользователей"></span>
+              <span class="sc-badge badge-users" id="users-<?= h($s['id']) ?>" style="display:none" data-server-id="<?= h($s['id']) ?>"></span>
             </div>
             <div class="sc-badges-row">
               <span class="sc-badge badge-service" id="svc-<?= h($s['id']) ?>" style="display:none" title="Запущен как служба Windows">
@@ -732,35 +732,60 @@ setInterval(loadDetail, 10000);
 (function() {
   const tip = document.getElementById('nbmTooltip');
   let activeEl = null;
+  let fetchTimer = null;
 
-  function show(el) {
-    const ips = JSON.parse(el.dataset.ips || '[]');
-    if (!ips.length) return;
+  function position(el) {
+    const r = el.getBoundingClientRect();
+    const tw = tip.offsetWidth || 140;
+    let left = r.left + r.width / 2 - tw / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+    tip.style.left = left + 'px';
+    tip.style.top  = (r.bottom + 7) + 'px';
+  }
+
+  function showLoading(el) {
     activeEl = el;
-    tip.innerHTML = ips.map(ip => `<div class="nbm-tooltip-ip">${ip}</div>`).join('');
+    tip.innerHTML = '<div class="nbm-tooltip-ip" style="color:var(--text-dim);opacity:.6">Загрузка...</div>';
     tip.style.display = 'block';
     tip.classList.remove('visible');
     requestAnimationFrame(function() {
-      const r = el.getBoundingClientRect();
-      const tw = tip.offsetWidth;
-      let left = r.left + r.width / 2 - tw / 2;
-      left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
-      tip.style.left = left + 'px';
-      tip.style.top = (r.bottom + 7) + 'px';
+      position(el);
       tip.classList.add('visible');
     });
   }
 
+  function showIps(el, ips) {
+    if (activeEl !== el) return;
+    if (!ips.length) {
+      tip.innerHTML = '<div class="nbm-tooltip-ip" style="opacity:.5">Нет данных</div>';
+    } else {
+      tip.innerHTML = ips.map(ip => `<div class="nbm-tooltip-ip">${ip}</div>`).join('');
+    }
+    requestAnimationFrame(function() { position(el); });
+  }
+
   function hide() {
     activeEl = null;
+    clearTimeout(fetchTimer);
     tip.classList.remove('visible');
     setTimeout(function() { if (!activeEl) tip.style.display = 'none'; }, 200);
   }
 
   document.addEventListener('mouseover', function(e) {
     const el = e.target.closest('.badge-users');
-    if (el) show(el);
+    if (!el || activeEl === el) return;
+    showLoading(el);
+    const sid = el.dataset.serverId;
+    if (!sid) return;
+    clearTimeout(fetchTimer);
+    fetchTimer = setTimeout(function() {
+      api('active_users', {id: sid}).then(function(d) {
+        const ips = (d.users || []).map(function(u) { return u.ip; });
+        showIps(el, ips);
+      }).catch(function() { showIps(el, []); });
+    }, 100);
   });
+
   document.addEventListener('mouseout', function(e) {
     const el = e.target.closest('.badge-users');
     if (el && !el.contains(e.relatedTarget)) hide();
