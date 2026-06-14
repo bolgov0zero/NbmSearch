@@ -777,7 +777,7 @@ async function loadChart() {
       responsive:true, maintainAspectRatio:false,
       plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1d27',borderColor:'#2d3148',borderWidth:1,titleColor:'#e8eaf6',bodyColor:'#8b90b8',padding:10}},
       scales:{
-        x:{grid:{color:'rgba(45,49,72,.6)'},ticks:{color:'#8b90b8',font:{size:11},maxTicksLimit:12}},
+        x:{grid:{color:'rgba(45,49,72,.6)'},ticks:{color:'#8b90b8',font:{size:11},maxTicksLimit:12,maxRotation:0,minRotation:0}},
         y:{grid:{color:'rgba(45,49,72,.6)'},ticks:{color:'#8b90b8',font:{size:11},precision:0},beginAtZero:true}
       }
     }
@@ -822,7 +822,7 @@ async function loadActiveChart() {
       responsive:true, maintainAspectRatio:false,
       plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1d27',borderColor:'#2d3148',borderWidth:1,titleColor:'#e8eaf6',bodyColor:'#8b90b8',padding:10}},
       scales:{
-        x:{grid:{color:'rgba(45,49,72,.6)'},ticks:{color:'#8b90b8',font:{size:11},maxTicksLimit:12}},
+        x:{grid:{color:'rgba(45,49,72,.6)'},ticks:{color:'#8b90b8',font:{size:11},maxTicksLimit:12,maxRotation:0,minRotation:0}},
         y:{grid:{color:'rgba(45,49,72,.6)'},ticks:{color:'#8b90b8',font:{size:11},precision:0},beginAtZero:true}
       }
     }
@@ -896,7 +896,7 @@ function makeStatsChart(canvasId, timeline, label, color) {
     options:{ responsive:true, maintainAspectRatio:false,
       plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1d27',borderColor:'#2d3148',borderWidth:1,titleColor:'#e8eaf6',bodyColor:'#8b90b8',padding:10}},
       scales:{
-        x:{grid:{color:'rgba(45,49,72,.6)'},ticks:{color:'#8b90b8',font:{size:11},maxTicksLimit:12}},
+        x:{grid:{color:'rgba(45,49,72,.6)'},ticks:{color:'#8b90b8',font:{size:11},maxTicksLimit:12,maxRotation:0,minRotation:0}},
         y:{grid:{color:'rgba(45,49,72,.6)'},ticks:{color:'#8b90b8',font:{size:11},precision:0},beginAtZero:true}
       }
     }
