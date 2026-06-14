@@ -839,7 +839,6 @@ setInterval(loadDetail, 10000);
 
 <?php if ($view === 'stats'): ?>
 // ── Aggregated statistics across all servers ──
-const STATS_SERVERS = <?= json_encode(array_map(fn($s) => $s['id'], $servers)) ?>;
 let _statsPeriod = 'day';
 let _filesChart = null, _searchAllChart = null, _usersAllChart = null;
 
@@ -901,22 +900,18 @@ async function loadStats() {
   const filesTl = [], searchTl = [], usersTl = [];
   let totalFiles = 0, searchToday = 0, searchMonth = 0, usersToday = 0;
 
-  await Promise.all(STATS_SERVERS.map(async id => {
-    try {
-      const [f, s, u, info] = await Promise.all([
-        api('files_stats',     {id, period: _statsPeriod}),
-        api('get_search_stats',{id, period: _statsPeriod}),
-        api('active_stats',    {id, period: _statsPeriod}),
-        api('get_info',        {id}),
-      ]);
-      if (f && f.timeline) filesTl.push(f.timeline);
-      if (s && s.timeline) searchTl.push(s.timeline);
-      if (u && u.timeline) usersTl.push(u.timeline);
-      if (s && s.summary) { searchToday += s.summary.today || 0; searchMonth += s.summary.month || 0; }
-      if (u && u.summary) { usersToday += u.summary.today || 0; }
-      if (info && typeof info.file_count === 'number') totalFiles += info.file_count;
-    } catch(e) {}
-  }));
+  // Single request — panel queries all servers in parallel (curl_multi)
+  let list = [];
+  try { const r = await api('all_stats', {period: _statsPeriod}); list = Array.isArray(r) ? r : []; } catch(e) {}
+  list.forEach(d => {
+    if (!d || d._error) return;
+    if (d.files  && d.files.timeline)  filesTl.push(d.files.timeline);
+    if (d.search && d.search.timeline) searchTl.push(d.search.timeline);
+    if (d.active && d.active.timeline) usersTl.push(d.active.timeline);
+    if (d.search && d.search.summary) { searchToday += d.search.summary.today || 0; searchMonth += d.search.summary.month || 0; }
+    if (d.active && d.active.summary) { usersToday += d.active.summary.today || 0; }
+    if (typeof d.file_count === 'number') totalFiles += d.file_count;
+  });
 
   setTxt('stFiles', fmt(totalFiles));
   setTxt('stSearchToday', fmt(searchToday));

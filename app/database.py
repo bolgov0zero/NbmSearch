@@ -113,6 +113,8 @@ def init_db():
                 count      INTEGER NOT NULL,
                 sampled_at REAL    NOT NULL
             )""",
+            "CREATE INDEX IF NOT EXISTS idx_search_searched ON search_log(searched_at)",
+            "CREATE INDEX IF NOT EXISTS idx_active_sampled ON active_users_log(sampled_at)",
         ):
             try:
                 conn.execute(ddl)
@@ -133,6 +135,11 @@ def init_db():
             fconn = _get_folder_conn(fid)
             try:
                 fconn.execute("ALTER TABLE files ADD COLUMN created_at REAL")
+                fconn.commit()
+            except Exception:
+                pass
+            try:
+                fconn.execute("CREATE INDEX IF NOT EXISTS idx_files_created ON files(created_at)")
                 fconn.commit()
             except Exception:
                 pass
@@ -159,6 +166,7 @@ def _init_folder_db(folder_id: int):
             content='',
             tokenize='unicode61'
         );
+        CREATE INDEX IF NOT EXISTS idx_files_created ON files(created_at);
     """)
     # migration for existing DBs
     try:

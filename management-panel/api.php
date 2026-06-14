@@ -21,6 +21,10 @@ if (empty($_SESSION['auth'])) {
     exit;
 }
 
+// Release the session lock immediately — we only read auth, never write.
+// Without this PHP serializes all concurrent api.php requests on the session file lock.
+session_write_close();
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function load_servers(): array {
@@ -224,6 +228,48 @@ switch ($action) {
         if (!$server) { echo json_encode(['error' => 'Server not found']); exit; }
         $res = nbm_request($server['url'] . '/api/management/search-stats?period=' . urlencode($period), $server['token']);
         echo json_encode($res);
+        break;
+    }
+
+    // ── Aggregated stats from ALL servers (parallel curl_multi) ──────────────────
+    case 'all_stats': {
+        $period  = $_GET['period'] ?? 'day';
+        $servers = load_servers();
+        if (empty($servers)) { echo json_encode([]); break; }
+
+        $mh = curl_multi_init();
+        $handles = [];
+        foreach ($servers as $s) {
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL            => $s['url'] . '/api/management/all-stats?period=' . urlencode($period),
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => CURL_TIMEOUT,
+                CURLOPT_TIMEOUT        => CURL_TIMEOUT,
+                CURLOPT_HTTPHEADER     => ['X-Management-Token: ' . $s['token'], 'Accept: application/json'],
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $handles[$s['id']] = $ch;
+        }
+
+        $running = null;
+        do {
+            $status = curl_multi_exec($mh, $running);
+            if ($running > 0) { $ms = curl_multi_select($mh, 0.1); if ($ms === -1) usleep(10000); }
+        } while ($running > 0 && $status === CURLM_OK);
+
+        $results = [];
+        foreach ($handles as $sid => $ch) {
+            $body = curl_multi_getcontent($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $err  = curl_error($ch);
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+            if ($err || !$body || $code >= 400) { $results[] = ['_error' => true]; }
+            else { $d = json_decode($body, true); $results[] = is_array($d) ? $d : ['_error' => true]; }
+        }
+        curl_multi_close($mh);
+        echo json_encode($results);
         break;
     }
 

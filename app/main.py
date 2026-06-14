@@ -717,6 +717,28 @@ async def api_mgmt_files_stats(request: Request, period: str = "day"):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+@app.get("/api/management/all-stats")
+async def api_mgmt_all_stats(request: Request, period: str = "day"):
+    """Aggregated stats in one call — files/search/active timelines + file count."""
+    if not _check_mgmt_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    def _gather():
+        count, _ = db.stats()
+        return {
+            "file_count": count,
+            "files": db.get_files_timeline(period),
+            "search": db.get_search_stats(period),
+            "active": db.get_active_user_stats(period),
+        }
+
+    try:
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, _gather)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 @app.post("/api/management/restart")
 async def api_mgmt_restart(request: Request):
     if not _check_mgmt_token(request):
