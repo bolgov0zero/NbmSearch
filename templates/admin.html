@@ -398,6 +398,7 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
           </div>
           <div class="item-right">
             <span class="badge" id="cnt-{{ f.id }}">{{ f.file_count }} файлов</span>
+            <span class="badge" id="size-{{ f.id }}">{{ f.index_size }}</span>
             <div class="folder-menu-wrap">
               <button class="btn-icon" onclick="toggleFolderMenu({{ f.id }}, this)">···</button>
               <div class="folder-menu" id="fmenu-{{ f.id }}">

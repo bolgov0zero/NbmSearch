@@ -234,7 +234,6 @@ else:
 <div class="detail-grid" id="detailStats">
   <div class="stat-box"><div class="stat-label">Файлов в индексе</div><div class="stat-value" id="dFiles">—</div></div>
   <div class="stat-box"><div class="stat-label">Индексов</div><div class="stat-value white" id="dIndexes">—</div></div>
-  <div class="stat-box"><div class="stat-label">Размер индекса</div><div class="stat-value white" id="dIndexSize">—</div></div>
   <div class="stat-box"><div class="stat-label">Запросов сегодня</div><div class="stat-value white" id="dToday">—</div></div>
   <div class="stat-box"><div class="stat-label">За неделю</div><div class="stat-value white" id="dWeek">—</div></div>
   <div class="stat-box"><div class="stat-label">За месяц</div><div class="stat-value white" id="dMonth">—</div></div>
@@ -643,7 +642,7 @@ async function loadDetail() {
   if (rb) rb.disabled = !isOnline;
 
   if (!isOnline) {
-    ['dFiles','dIndexes','dIndexSize','dToday','dWeek','dMonth','dUptime'].forEach(id => {
+    ['dFiles','dIndexes','dToday','dWeek','dMonth','dUptime'].forEach(id => {
       const el = document.getElementById(id); if(el) el.textContent = '—';
     });
     document.getElementById('indexesBody').innerHTML = '<div class="empty">Сервер недоступен</div>';
@@ -655,7 +654,6 @@ async function loadDetail() {
   const set = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
   set('dFiles',   fmt(d.file_count));
   set('dIndexes', fmt(d.folder_count));
-  set('dIndexSize', d.index_size_bytes != null ? fmtBytes(d.index_size_bytes) : '—');
   set('dToday',   fmt(d.search_summary?.today));
   set('dWeek',    fmt(d.search_summary?.week));
   set('dMonth',   fmt(d.search_summary?.month));
@@ -668,7 +666,7 @@ async function loadDetail() {
   } else {
     document.getElementById('indexesBody').innerHTML = `
       <table class="data-table">
-        <thead><tr><th>Название</th><th>Файлов</th><th>Watchdog</th><th>Последняя индексация</th></tr></thead>
+        <thead><tr><th>Название</th><th>Файлов</th><th>Размер</th><th>Watchdog</th><th>Последняя индексация</th></tr></thead>
         <tbody>${folders.map(f => {
           const lri = f.last_reindex_at
             ? new Date(f.last_reindex_at*1000).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
@@ -679,6 +677,7 @@ async function loadDetail() {
           return `<tr>
             <td><div class="td-name">${esc(f.name)}</div><div class="td-path">${esc(f.path)}</div></td>
             <td><span class="chip chip-accent">${fmt(f.file_count)}</span></td>
+            <td><span class="chip chip-dim">${f.index_size_bytes != null ? fmtBytes(f.index_size_bytes) : '—'}</span></td>
             <td>${wd}</td>
             <td style="font-size:.78rem">${lri}</td>
           </tr>`;

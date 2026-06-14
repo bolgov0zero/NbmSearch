@@ -641,6 +641,20 @@ def update_folder_file_count(folder_id: int) -> None:
         conn.close()
 
 
+def get_folder_index_size(folder_id: int) -> int:
+    """Size in bytes of a single folder's index DB (incl. WAL/SHM)."""
+    total = 0
+    base = _folder_db_path(folder_id)
+    for suffix in ("", "-wal", "-shm"):
+        f = Path(str(base) + suffix)
+        try:
+            if f.exists():
+                total += f.stat().st_size
+        except Exception:
+            pass
+    return total
+
+
 def get_index_size() -> int:
     """Total size in bytes of the main DB + all per-folder index DBs (incl. WAL/SHM)."""
     total = 0

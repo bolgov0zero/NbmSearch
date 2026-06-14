@@ -268,6 +268,7 @@ async def admin(request: Request):
     for f in folders:
         f["file_count"] = counts_map.get(f["name"], 0)
         f["progress"] = indexer.get_progress(f["id"])
+        f["index_size"] = _human_size(db.get_folder_index_size(f["id"]))
     schedules = db.get_schedules()
     for s in schedules:
         s["last_run_str"] = datetime.fromtimestamp(s["last_run_at"]).strftime("%d.%m.%Y %H:%M") if s.get("last_run_at") else "—"
@@ -595,6 +596,7 @@ async def api_mgmt_info(request: Request):
                 "file_count": f.get("file_count", 0),
                 "watchdog_enabled": f.get("watchdog_enabled", 0),
                 "last_reindex_at": f.get("last_reindex_at"),
+                "index_size_bytes": db.get_folder_index_size(f["id"]),
             } for f in folders
         ],
         "schedules": [
@@ -609,7 +611,6 @@ async def api_mgmt_info(request: Request):
         "is_service": _running_as_service(),
         "memory_mb": round(_psutil_proc.memory_info().rss / 1024**2, 1) if _psutil_proc else None,
         "active_users": _get_active_count(),
-        "index_size_bytes": db.get_index_size(),
     }
 
 
