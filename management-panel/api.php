@@ -231,6 +231,17 @@ switch ($action) {
         break;
     }
 
+    // ── Recent file additions (watchdog) for one server ─────────────────────────
+    case 'recent_additions': {
+        $id    = $_GET['id'] ?? '';
+        $since = $_GET['since'] ?? '0';
+        $server = find_server($id);
+        if (!$server) { echo json_encode(['error' => 'Server not found']); exit; }
+        $res = nbm_request($server['url'] . '/api/management/recent-additions?since=' . urlencode($since), $server['token']);
+        echo json_encode($res);
+        break;
+    }
+
     // ── Aggregated stats from ALL servers (parallel curl_multi) ──────────────────
     case 'all_stats': {
         $period  = $_GET['period'] ?? 'day';

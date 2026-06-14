@@ -1044,6 +1044,51 @@ setInterval(() => loadStats(true), 30000);
 })();
 </script>
 
+<?php if ($view === 'dashboard' || $view === 'stats'): ?>
+<!-- New-files toast notifications (watchdog-based) -->
+<div id="toastWrap" class="toast-wrap"></div>
+<script>
+(function() {
+  const PANEL_SERVERS = <?= json_encode(array_map(fn($s) => ['id' => $s['id'], 'name' => $s['name']], $servers)) ?>;
+  const wrap = document.getElementById('toastWrap');
+  const _since = {};  // serverId → last server time seen
+  const e = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  function showToast(serverName, indexName, count) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.innerHTML = `<div class="toast-left"><div class="toast-srv">${e(serverName)}</div>`
+                + `<div class="toast-idx">${e(indexName)}</div></div>`
+                + `<div class="toast-count">+${count}</div>`;
+    wrap.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('visible'));
+    setTimeout(() => {
+      t.classList.remove('visible');
+      setTimeout(() => t.remove(), 250);
+    }, 10000);
+  }
+
+  async function poll() {
+    await Promise.all(PANEL_SERVERS.map(async srv => {
+      try {
+        const since = _since[srv.id] || 0;
+        const d = await api('recent_additions', {id: srv.id, since});
+        if (!d || d.error || d._error) return;
+        if (typeof d.now === 'number') _since[srv.id] = d.now;
+        // since>0 means not the baseline call — safe to notify
+        if (since > 0 && Array.isArray(d.folders)) {
+          d.folders.forEach(f => { if (f.count > 0) showToast(srv.name, f.folder_name, f.count); });
+        }
+      } catch(e) {}
+    }));
+  }
+
+  poll();                  // baseline (no toasts)
+  setInterval(poll, 10000);
+})();
+</script>
+<?php endif; ?>
+
 <?php endif; ?>
 </body>
 </html>

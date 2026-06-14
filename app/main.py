@@ -717,6 +717,26 @@ async def api_mgmt_files_stats(request: Request, period: str = "day"):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+@app.get("/api/management/recent-additions")
+async def api_mgmt_recent_additions(request: Request, since: float = 0):
+    """New files detected by watchdog after `since` (server clock). First call (since<=0)
+    returns only the current time as a baseline — no historical flood."""
+    if not _check_mgmt_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    now = time.time()
+    if since <= 0:
+        return {"now": now, "folders": []}
+    counts = indexer.get_created_since(since)
+    if not counts:
+        return {"now": now, "folders": []}
+    name_map = {f["id"]: f["name"] for f in db.get_folders()}
+    folders = [
+        {"folder_id": fid, "folder_name": name_map.get(fid, str(fid)), "count": n}
+        for fid, n in counts.items()
+    ]
+    return {"now": now, "folders": folders}
+
+
 @app.get("/api/management/all-stats")
 async def api_mgmt_all_stats(request: Request, period: str = "day"):
     """Aggregated stats in one call — files/search/active timelines + file count."""

@@ -49,6 +49,17 @@ def clear_watchdog_log(folder_id: int):
         _watchdog_log[folder_id] = []
 
 
+def get_created_since(since: float) -> dict[int, int]:
+    """folder_id → number of 'created' (new file) events logged after `since`."""
+    out: dict[int, int] = {}
+    with _watchdog_log_lock:
+        for fid, log in _watchdog_log.items():
+            n = sum(1 for e in log if e["ts"] > since and e["type"] == "created")
+            if n:
+                out[fid] = n
+    return out
+
+
 # ── Progress tracking ─────────────────────────────────────────────────────────
 # folder_id → {"total": int, "done": int, "status": "idle"|"indexing"|"done"}
 _progress: dict[int, dict] = {}
