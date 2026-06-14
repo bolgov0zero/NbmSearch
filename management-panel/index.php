@@ -98,6 +98,12 @@ $serverId = $_GET['id'] ?? '';
     <?php if ($view === 'dashboard'): ?>
       <a href="index.php?view=stats" class="btn btn-ghost btn-sm">Статистика</a>
     <?php endif; ?>
+    <?php if ($view === 'stats'): ?>
+      <label class="compact-toggle">Компактный режим
+        <input type="checkbox" id="compactToggle" onchange="toggleCompact(this.checked)">
+        <span class="switch"></span>
+      </label>
+    <?php endif; ?>
     <form method="post" style="margin:0">
       <button type="submit" name="do_logout" class="btn-logout">Выйти</button>
     </form>
@@ -321,22 +327,24 @@ else:
   <div class="stat-box"><div class="stat-label">Пик пользователей сегодня</div><div class="stat-value green" id="stUsersToday">—</div></div>
 </div>
 
-<div class="card" style="margin-bottom:16px">
-  <div class="card-head"><div class="card-title">Файлов добавлено</div></div>
-  <div class="card-body"><div class="chart-wrap"><canvas id="filesChart"></canvas>
-    <div id="filesLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:.83rem">Загрузка…</div></div></div>
-</div>
+<div class="stats-charts">
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-head"><div class="card-title">Файлов добавлено</div></div>
+    <div class="card-body"><div class="chart-wrap"><canvas id="filesChart"></canvas>
+      <div id="filesLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:.83rem">Загрузка…</div></div></div>
+  </div>
 
-<div class="card" style="margin-bottom:16px">
-  <div class="card-head"><div class="card-title">Запросы</div></div>
-  <div class="card-body"><div class="chart-wrap"><canvas id="searchAllChart"></canvas>
-    <div id="searchAllLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:.83rem">Загрузка…</div></div></div>
-</div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-head"><div class="card-title">Запросы</div></div>
+    <div class="card-body"><div class="chart-wrap"><canvas id="searchAllChart"></canvas>
+      <div id="searchAllLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:.83rem">Загрузка…</div></div></div>
+  </div>
 
-<div class="card" style="margin-bottom:16px">
-  <div class="card-head"><div class="card-title">Активные пользователи</div></div>
-  <div class="card-body"><div class="chart-wrap"><canvas id="usersAllChart"></canvas>
-    <div id="usersAllLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:.83rem">Загрузка…</div></div></div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-head"><div class="card-title">Активные пользователи</div></div>
+    <div class="card-body"><div class="chart-wrap"><canvas id="usersAllChart"></canvas>
+      <div id="usersAllLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:.83rem">Загрузка…</div></div></div>
+  </div>
 </div>
 
 <?php endif; ?>
@@ -840,6 +848,22 @@ setInterval(loadDetail, 10000);
 <?php if ($view === 'stats'): ?>
 // ── Aggregated statistics across all servers ──
 let _statsPeriod = 'day';
+
+function toggleCompact(on) {
+  document.body.classList.toggle('compact', on);
+  localStorage.setItem('nbm_compact', on ? '1' : '');
+  // Let CSS apply, then resize charts to new container size
+  setTimeout(() => {
+    [_filesChart, _searchAllChart, _usersAllChart].forEach(c => { if (c) c.resize(); });
+  }, 60);
+}
+
+(function restoreCompact() {
+  const on = localStorage.getItem('nbm_compact') === '1';
+  const cb = document.getElementById('compactToggle');
+  if (cb) cb.checked = on;
+  document.body.classList.toggle('compact', on);
+})();
 let _filesChart = null, _searchAllChart = null, _usersAllChart = null;
 
 function selectStatsPeriod(p, btn) {

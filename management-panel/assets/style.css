@@ -211,3 +211,25 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(91
 .nbm-tooltip-ip{font-size:.78rem;color:var(--text-dim);padding:3px 0;
   border-bottom:1px solid var(--border);font-family:monospace;letter-spacing:.02em}
 .nbm-tooltip-ip:last-child{border-bottom:none}
+
+/* ── Compact mode toggle (stats page) ──────────────────────────────────────── */
+.compact-toggle{display:flex;align-items:center;gap:8px;font-size:.8rem;
+  color:var(--text-dim);cursor:pointer;user-select:none;white-space:nowrap}
+.compact-toggle input{display:none}
+.compact-toggle .switch{position:relative;width:36px;height:20px;background:var(--surface2);
+  border:1px solid var(--border);border-radius:20px;transition:background .15s,border-color .15s;flex-shrink:0}
+.compact-toggle .switch::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;
+  border-radius:50%;background:var(--text-dim);transition:transform .15s,background .15s}
+.compact-toggle input:checked + .switch{background:var(--accent-bg);border-color:var(--accent)}
+.compact-toggle input:checked + .switch::after{transform:translateX(16px);background:var(--accent)}
+
+/* Compact stats layout: three charts in a row, wider container, tighter spacing */
+.stats-charts{display:block}
+body.compact .container{max-width:95vw}
+body.compact .stats-charts{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+body.compact .stats-charts .card{margin-bottom:0}
+body.compact .stats-charts .card-body{padding:10px}
+body.compact .stats-charts .chart-wrap{height:150px}
+@media (max-width:900px){
+  body.compact .stats-charts{grid-template-columns:1fr}
+}
