@@ -903,23 +903,32 @@ function makeStatsChart(canvasId, timeline, label, color) {
   });
 }
 
-function renderStatsChart(canvasId, loadingId, timeline, label, color) {
+function upsertChart(existing, canvasId, loadingId, timeline, label, color, silent) {
   const loading = document.getElementById(loadingId);
-  if (!timeline.length || timeline.every(t => t.cnt === 0)) {
-    loading.textContent = 'Нет данных'; loading.style.display = 'flex';
+  const empty = !timeline.length || timeline.every(t => t.cnt === 0);
+  if (empty) {
+    if (existing) existing.destroy();
+    if (loading) { loading.textContent = 'Нет данных'; loading.style.display = 'flex'; }
     return null;
   }
-  loading.style.display = 'none';
+  if (loading) loading.style.display = 'none';
+  if (existing) {
+    // Update in place — no flicker, no re-create
+    existing.data.labels = timeline.map(r => r.period);
+    existing.data.datasets[0].data = timeline.map(r => r.cnt);
+    existing.data.datasets[0].pointRadius = timeline.length > 30 ? 0 : 3;
+    existing.update(silent ? 'none' : undefined);
+    return existing;
+  }
   return makeStatsChart(canvasId, timeline, label, color);
 }
 
-async function loadStats() {
-  ['filesLoading','searchAllLoading','usersAllLoading'].forEach(id => {
-    const e = document.getElementById(id); if (e) { e.textContent = 'Загрузка…'; e.style.display = 'flex'; }
-  });
-  if (_filesChart) { _filesChart.destroy(); _filesChart = null; }
-  if (_searchAllChart) { _searchAllChart.destroy(); _searchAllChart = null; }
-  if (_usersAllChart) { _usersAllChart.destroy(); _usersAllChart = null; }
+async function loadStats(silent) {
+  if (!silent) {
+    ['filesLoading','searchAllLoading','usersAllLoading'].forEach(id => {
+      const e = document.getElementById(id); if (e) { e.textContent = 'Загрузка…'; e.style.display = 'flex'; }
+    });
+  }
 
   const filesTl = [], searchTl = [], usersTl = [];
   let totalFiles = 0, searchToday = 0, searchMonth = 0, usersToday = 0;
@@ -927,6 +936,11 @@ async function loadStats() {
   // Single request — panel queries all servers in parallel (curl_multi)
   let list = [];
   try { const r = await api('all_stats', {period: _statsPeriod}); list = Array.isArray(r) ? r : []; } catch(e) {}
+
+  // Transient failure on a background refresh — keep the current view intact
+  const anyData = list.some(d => d && !d._error);
+  if (silent && !anyData) return;
+
   list.forEach(d => {
     if (!d || d._error) return;
     if (d.files  && d.files.timeline)  filesTl.push(d.files.timeline);
@@ -942,12 +956,14 @@ async function loadStats() {
   setTxt('stSearchMonth', fmt(searchMonth));
   setTxt('stUsersToday', fmt(usersToday));
 
-  _filesChart     = renderStatsChart('filesChart',     'filesLoading',     sumTimelines(filesTl),  'Файлов',        '#e0a458');
-  _searchAllChart = renderStatsChart('searchAllChart', 'searchAllLoading', sumTimelines(searchTl), 'Запросов',      '#2ecc71');
-  _usersAllChart  = renderStatsChart('usersAllChart',  'usersAllLoading',  sumTimelines(usersTl),  'Пользователей', '#5b6af0');
+  _filesChart     = upsertChart(_filesChart,     'filesChart',     'filesLoading',     sumTimelines(filesTl),  'Файлов',        '#e0a458', silent);
+  _searchAllChart = upsertChart(_searchAllChart, 'searchAllChart', 'searchAllLoading', sumTimelines(searchTl), 'Запросов',      '#2ecc71', silent);
+  _usersAllChart  = upsertChart(_usersAllChart,  'usersAllChart',  'usersAllLoading',  sumTimelines(usersTl),  'Пользователей', '#5b6af0', silent);
 }
 
 loadStats();
+// Тихое фоновое обновление каждые 30с — без паузы на неактивной вкладке (дашборд на втором экране)
+setInterval(() => loadStats(true), 30000);
 <?php endif; ?>
 </script>
 
