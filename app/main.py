@@ -152,10 +152,33 @@ async def active_users(request: Request):
     return {"count": len(users), "users": users}
 
 
+def _is_allowed_path(path: str) -> bool:
+    """True only if `path` resolves inside one of the indexed folders.
+    Prevents arbitrary file reads via the public /api/file-text endpoint."""
+    try:
+        target = os.path.normcase(os.path.abspath(path))
+    except Exception:
+        return False
+    for folder in db.get_folders():
+        base = folder.get("path") or ""
+        if not base:
+            continue
+        base_norm = os.path.normcase(os.path.abspath(base))
+        try:
+            if os.path.commonpath([base_norm, target]) == base_norm:
+                return True
+        except ValueError:
+            # Different drives on Windows → commonpath raises; not a match
+            continue
+    return False
+
+
 @app.get("/api/file-text")
 async def api_file_text(path: str = "", request: Request = None):
     if not path:
         return JSONResponse({"error": "no path"}, status_code=400)
+    if not _is_allowed_path(path):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
     loop = asyncio.get_event_loop()
     try:
         text = await loop.run_in_executor(None, indexer.extract_text, path)
@@ -271,15 +294,12 @@ async def admin_stats(request: Request):
     counts_map = {b["folder_name"]: b["cnt"] for b in by_folder}
     result = []
     for f in folders:
-        prog = indexer.get_progress(f["id"])
-        nxt = indexer.get_next_reindex(f["id"])
         lrt = f.get("last_reindex_at")
         result.append({
             "id": f["id"],
             "name": f["name"],
             "file_count": counts_map.get(f["name"], 0),
             "progress": indexer.get_progress(f["id"]),
-            "next_reindex": datetime.fromtimestamp(nxt).strftime("%d.%m.%Y %H:%M") if nxt else "—",
             "last_reindex": datetime.fromtimestamp(lrt).strftime("%d.%m.%Y %H:%M") if lrt else "—",
         })
     return {"count": count, "folders": result}

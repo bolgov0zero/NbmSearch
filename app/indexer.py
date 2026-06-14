@@ -65,19 +65,7 @@ def _set_progress(folder_id: int, total: int, done: int, status: str):
         _progress[folder_id] = {"total": total, "done": done, "status": status}
 
 
-# ── Per-folder reindex scheduling ─────────────────────────────────────────────
-# folder_id → next scheduled reindex timestamp
-_next_reindex: dict[int, float] = {}
-_scheduler_running = False
-
-
-def _schedule_next(folder_id: int, reindex_minutes: int):
-    _next_reindex[folder_id] = time.time() + reindex_minutes * 60
-
-
-def get_next_reindex(folder_id: int) -> float | None:
-    return _next_reindex.get(folder_id)
-
+# ── Reindex scheduler ─────────────────────────────────────────────────────────
 
 def reindex_scheduler():
     while True:
@@ -273,23 +261,6 @@ def index_folder(folder: dict, full: bool = False, update_last_reindex: bool = T
         db.set_folder_last_reindex(folder_id, time.time())
     db.update_folder_file_count(folder_id)
     logger.info("Done indexing folder '%s'", folder_name)
-
-
-def full_reindex():
-    """Startup catch-up reindex.
-
-    Only runs for folders that have automatic indexing configured
-    (watchdog or scheduler) OR have never been indexed yet.
-    Does not update last_reindex_at.
-    """
-    scheduled_ids = {s["folder_id"] for s in db.get_schedules()}
-    for folder in db.get_folders():
-        never_indexed  = not folder.get("last_reindex_at")
-        has_watchdog   = bool(folder.get("watchdog_enabled"))
-        has_schedule   = folder["id"] in scheduled_ids
-        if never_indexed or has_watchdog or has_schedule:
-            index_folder(folder, update_last_reindex=False)
-        _schedule_next(folder["id"], folder["reindex_minutes"])
 
 
 # ── Watchdog ──────────────────────────────────────────────────────────────────
