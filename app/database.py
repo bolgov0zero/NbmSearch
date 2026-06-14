@@ -535,13 +535,44 @@ def get_folder_stats(folder_id: int, period: str = "day") -> dict:
 
 # ── Search ────────────────────────────────────────────────────────────────────
 
-def search(query: str, folder_names: list[str] | None = None, limit: int = 50) -> list[dict]:
+def _attach_snippets(query: str, items: list[dict]) -> None:
+    """Decompress content and build a snippet only for the given page of items."""
+    by_folder: dict[int, list[dict]] = {}
+    for it in items:
+        by_folder.setdefault(it["folder_id"], []).append(it)
+    for fid, group in by_folder.items():
+        content_map: dict[str, bytes] = {}
+        try:
+            conn = _get_folder_conn(fid)
+            paths = [it["path"] for it in group]
+            placeholders = ",".join("?" * len(paths))
+            rows = conn.execute(
+                f"SELECT path, content FROM files WHERE path IN ({placeholders})", paths
+            ).fetchall()
+            conn.close()
+            content_map = {r["path"]: r["content"] for r in rows}
+        except Exception:
+            pass
+        for it in group:
+            text = _decompress(content_map.get(it["path"]))
+            it["snippet"] = _make_snippet(text, query)
+    for it in items:
+        it.pop("folder_id", None)
+
+
+def search(query: str, folder_names: list[str] | None = None,
+           offset: int = 0, limit: int = 50) -> dict:
+    """Two-phase search:
+    1. Collect metadata of ALL matches across folders (no text decompression — cheap).
+    2. Decompress + build snippet only for the requested page [offset:offset+limit].
+    Returns total count, per-folder counts (real, not capped) and one page of results."""
     fts_q = _fts_query(query)
     folders = get_folders()
     if folder_names:
         folders = [f for f in folders if f["name"] in folder_names]
 
-    results = []
+    all_items: list[dict] = []
+    counts: dict[str, int] = {}
     for folder in folders:
         fid = folder["id"]
         db_path = _folder_db_path(fid)
@@ -550,26 +581,26 @@ def search(query: str, folder_names: list[str] | None = None, limit: int = 50) -
         try:
             conn = _get_folder_conn(fid)
             rows = conn.execute(
-                """SELECT f.path, f.name, f.modified_at, f.content
+                """SELECT f.path, f.name, f.modified_at
                    FROM fts_index
                    JOIN files f ON fts_index.rowid = f.id
                    WHERE fts_index MATCH ?
-                   ORDER BY rank LIMIT ?""",
-                (fts_q, limit),
+                   ORDER BY rank""",
+                (fts_q,),
             ).fetchall()
             conn.close()
         except Exception:
             continue
-
-        for r in rows:
-            text = _decompress(r["content"])
-            results.append({
-                "path": r["path"],
-                "name": r["name"],
-                "folder_name": folder["name"],
-                "modified_at": r["modified_at"],
-                "snippet": _make_snippet(text, query),
-            })
+        if rows:
+            counts[folder["name"]] = len(rows)
+            for r in rows:
+                all_items.append({
+                    "path": r["path"],
+                    "name": r["name"],
+                    "folder_name": folder["name"],
+                    "folder_id": fid,
+                    "modified_at": r["modified_at"],
+                })
 
     # Sort: 1) numeric names first descending (9→1), 2) alpha names ascending (А→Я), 3) modified_at descending
     def _folder_key(name: str):
@@ -578,8 +609,19 @@ def search(query: str, folder_names: list[str] | None = None, limit: int = 50) -
             return (0, -int(n), "")   # numeric group first; negate for descending order
         except ValueError:
             return (1, 0, n)          # alpha group second; name ascending А→Я
-    results.sort(key=lambda x: (_folder_key(x["folder_name"]), -(x["modified_at"] or 0)))
-    return results[:limit]
+    all_items.sort(key=lambda x: (_folder_key(x["folder_name"]), -(x["modified_at"] or 0)))
+
+    total = len(all_items)
+    page = all_items[offset:offset + limit]
+    _attach_snippets(query, page)
+    return {
+        "results": page,
+        "total": total,
+        "counts": counts,
+        "offset": offset,
+        "limit": limit,
+        "has_more": offset + limit < total,
+    }
 
 
 # ── Stats ─────────────────────────────────────────────────────────────────────

@@ -129,19 +129,24 @@ async def index(request: Request):
 async def search(
     q: str = "",
     folders: Optional[List[str]] = Query(default=None),
+    offset: int = 0,
+    limit: int = 50,
 ):
     if not q.strip():
-        return {"results": []}
-    threading.Thread(target=db.log_search, args=(q.strip(),), daemon=True).start()
+        return {"results": [], "total": 0, "counts": {}, "has_more": False}
+    # Log only the initial query, not "load more" pages
+    if offset == 0:
+        threading.Thread(target=db.log_search, args=(q.strip(),), daemon=True).start()
     loop = asyncio.get_event_loop()
     try:
-        results = await loop.run_in_executor(
-            None, lambda: db.search(q.strip(), folder_names=folders or None)
+        data = await loop.run_in_executor(
+            None, lambda: db.search(q.strip(), folder_names=folders or None,
+                                    offset=offset, limit=limit)
         )
     except Exception as e:
         logger.error("Search error: %s", e)
-        return {"results": [], "error": str(e)}
-    return {"results": results}
+        return {"results": [], "total": 0, "counts": {}, "has_more": False, "error": str(e)}
+    return data
 
 
 @app.post("/api/active-ping")

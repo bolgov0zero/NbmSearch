@@ -155,6 +155,11 @@ nav a:hover { background: var(--surface2); color: var(--text); border-color: #3d
   border-radius: 7px; padding: 8px 18px; font-size: .875rem; font-weight: 600;
   cursor: pointer; white-space: nowrap; transition: background .15s; }
 .btn-search:hover { background: var(--accent-dim); }
+.btn-more { background: var(--surface); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 9px 22px; font-size: .85rem; font-weight: 600; cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s; }
+.btn-more:hover { border-color: var(--accent); color: var(--accent); background: var(--surface2); }
+.btn-more:disabled { opacity: .6; cursor: default; }
 .btn-clear { display: none; align-items: center; justify-content: center;
   background: none; border: none; cursor: pointer; color: var(--text-dim);
   padding: 0 6px; border-radius: 4px; transition: color .15s; flex-shrink: 0; }
@@ -597,27 +602,96 @@ document.addEventListener('click', e => {
 
 form.addEventListener('submit', e => { e.preventDefault(); doSearch(); });
 
+// ── Search state (for pagination) ──
+let _curQuery = '', _curFolders = [], _curOffset = 0, _curTotal = 0, _curHasMore = false, _loading = false;
+const _PAGE = 50;
+
+function cardHtml(r) {
+  const ext = r.name.split('.').pop().toLowerCase();
+  const date = r.modified_at
+    ? new Date(r.modified_at * 1000).toLocaleDateString('ru-RU', {day:'2-digit', month:'short', year:'numeric'})
+    : '';
+  const encPath = encodeURIComponent(r.path);
+  return `<div class="result-card" data-folder="${esc(r.folder_name || '')}">
+    <div class="rc-top">
+      <div class="rc-name" title="${esc(r.path)}">${esc(r.name)}</div>
+      ${(dir => dir ? `<span class="rc-badge rc-badge-dir">${esc(dir)}</span>` : '')(r.path.replace(/\\/g,'/').split('/').slice(-2,-1)[0] || '')}
+      <span class="rc-badge ext-${ext}">.${ext}</span>
+    </div>
+    ${r.snippet ? `<div class="rc-snippet" style="cursor:pointer" title="Нажмите для просмотра полного текста" onclick="openFtModal(${esc(JSON.stringify(r.path))}, ${esc(JSON.stringify(r.name))})">${r.snippet}</div>` : ''}
+    <div class="rc-bottom">
+      <div class="rc-meta">
+        ${r.folder_name ? `<span>📁 ${esc(r.folder_name)}</span>` : ''}
+        ${date ? `<span>${date}</span>` : ''}
+      </div>
+      <div class="rc-actions">
+        <a class="btn-action" href="nbmsearch://open/${encPath}">▶ Открыть</a>
+        <a class="btn-action" href="nbmsearch://folder/${encPath}">📁 Папка</a>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderLoadMore() {
+  const old = document.getElementById('loadMoreWrap');
+  if (old) old.remove();
+  if (!_curHasMore) return;
+  const shown = document.querySelectorAll('#results .result-card').length;
+  const wrap = document.createElement('div');
+  wrap.id = 'loadMoreWrap';
+  wrap.style.cssText = 'text-align:center;padding:4px 0 24px';
+  wrap.innerHTML = `<button class="btn-more" id="loadMoreBtn">Показать ещё · ${shown} из ${_curTotal}</button>`;
+  results.appendChild(wrap);
+  document.getElementById('loadMoreBtn').addEventListener('click', loadMore);
+}
+
+async function loadMore() {
+  if (_loading || !_curHasMore) return;
+  _loading = true;
+  const btn = document.getElementById('loadMoreBtn');
+  if (btn) { btn.textContent = 'Загрузка…'; btn.disabled = true; }
+  _curOffset += _PAGE;
+  const params = new URLSearchParams({ q: _curQuery, offset: _curOffset, limit: _PAGE });
+  _curFolders.forEach(f => params.append('folders', f));
+  try {
+    const res = await fetch('/search?' + params);
+    const data = await res.json();
+    const html = (data.results || []).map(cardHtml).join('');
+    const wrap = document.getElementById('loadMoreWrap');
+    if (wrap) wrap.insertAdjacentHTML('beforebegin', html);
+    else results.insertAdjacentHTML('beforeend', html);
+    _curHasMore = data.has_more || false;
+    renderLoadMore();
+  } catch(e) {
+    if (btn) { btn.textContent = 'Ошибка — повторить'; btn.disabled = false; }
+  } finally {
+    _loading = false;
+  }
+}
+
 async function doSearch() {
   const q = input.value.trim();
   hideHistory();
-  if (!q) { results.innerHTML = ''; statusText.textContent = ''; return; }
+  if (!q) { results.innerHTML = ''; statusText.textContent = ''; resetChipCounts(); return; }
   saveToHistory(q);
   spinner.classList.add('visible');
   statusText.textContent = 'Поиск…';
   results.innerHTML = '';
-  const sel = selectedFolders();
-  const params = new URLSearchParams({ q });
-  sel.forEach(f => params.append('folders', f));
+  _curQuery = q; _curFolders = selectedFolders(); _curOffset = 0;
+  const params = new URLSearchParams({ q, offset: 0, limit: _PAGE });
+  _curFolders.forEach(f => params.append('folders', f));
   try {
     const res = await fetch('/search?' + params);
     const data = await res.json();
     spinner.classList.remove('visible');
     if (data.error) { statusText.textContent = 'Ошибка: ' + data.error; return; }
-    const items = data.results;
-    statusText.textContent = items.length
-      ? `Найдено: ${items.length} ${plural(items.length,'результат','результата','результатов')}`
+    const items = data.results || [];
+    _curTotal = data.total || 0;
+    _curHasMore = data.has_more || false;
+    statusText.textContent = _curTotal
+      ? `Найдено: ${_curTotal} ${plural(_curTotal,'результат','результата','результатов')}`
       : 'Ничего не найдено';
-    updateChipCounts(items);
+    updateChipCounts(data.counts || {}, _curTotal);
     if (!items.length) {
       results.innerHTML = `<div class="no-results">
         <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -625,43 +699,18 @@ async function doSearch() {
         </svg><p>По запросу «${esc(q)}» ничего не найдено</p></div>`;
       return;
     }
-    results.innerHTML = items.map(r => {
-      const ext = r.name.split('.').pop().toLowerCase();
-      const date = r.modified_at
-        ? new Date(r.modified_at * 1000).toLocaleDateString('ru-RU', {day:'2-digit', month:'short', year:'numeric'})
-        : '';
-      const encPath = encodeURIComponent(r.path);
-      return `<div class="result-card" data-folder="${esc(r.folder_name || '')}">
-        <div class="rc-top">
-          <div class="rc-name" title="${esc(r.path)}">${esc(r.name)}</div>
-          ${(dir => dir ? `<span class="rc-badge rc-badge-dir">${esc(dir)}</span>` : '')(r.path.replace(/\\/g,'/').split('/').slice(-2,-1)[0] || '')}
-          <span class="rc-badge ext-${ext}">.${ext}</span>
-        </div>
-        ${r.snippet ? `<div class="rc-snippet" style="cursor:pointer" title="Нажмите для просмотра полного текста" onclick="openFtModal(${esc(JSON.stringify(r.path))}, ${esc(JSON.stringify(r.name))})">${r.snippet}</div>` : ''}
-        <div class="rc-bottom">
-          <div class="rc-meta">
-            ${r.folder_name ? `<span>📁 ${esc(r.folder_name)}</span>` : ''}
-            ${date ? `<span>${date}</span>` : ''}
-          </div>
-          <div class="rc-actions">
-            <a class="btn-action" href="nbmsearch://open/${encPath}">▶ Открыть</a>
-            <a class="btn-action" href="nbmsearch://folder/${encPath}">📁 Папка</a>
-          </div>
-        </div>
-      </div>`;
-    }).join('');
+    results.innerHTML = items.map(cardHtml).join('');
+    renderLoadMore();
   } catch(e) {
     spinner.classList.remove('visible');
     statusText.textContent = 'Ошибка соединения';
   }
 }
 
-// ── Chip counts ──
-function updateChipCounts(items) {
-  const counts = {};
-  items.forEach(r => { if (r.folder_name) counts[r.folder_name] = (counts[r.folder_name] || 0) + 1; });
+// ── Chip counts (real totals from server) ──
+function updateChipCounts(counts, total) {
   const allBadge = document.getElementById('scb-__all__');
-  if (allBadge) { allBadge.textContent = items.length; allBadge.classList.toggle('visible', items.length > 0); }
+  if (allBadge) { allBadge.textContent = total; allBadge.classList.toggle('visible', total > 0); }
   let idx = 1;
   document.querySelectorAll('.sc-item[data-folder]').forEach(item => {
     const name = item.dataset.folder;
