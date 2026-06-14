@@ -849,12 +849,21 @@ setInterval(loadDetail, 10000);
 // ── Aggregated statistics across all servers ──
 let _statsPeriod = 'day';
 
+function _isCompact() { return document.body.classList.contains('compact'); }
+function _pointRadius(len) { return _isCompact() ? 0 : (len > 30 ? 0 : 3); }
+
 function toggleCompact(on) {
   document.body.classList.toggle('compact', on);
   localStorage.setItem('nbm_compact', on ? '1' : '');
-  // Let CSS apply, then resize charts to new container size
+  // Let CSS apply, then hide/show static points and resize charts.
+  // Tooltips and hover points stay — they appear on hover at the right spots.
   setTimeout(() => {
-    [_filesChart, _searchAllChart, _usersAllChart].forEach(c => { if (c) c.resize(); });
+    [_filesChart, _searchAllChart, _usersAllChart].forEach(c => {
+      if (!c) return;
+      c.data.datasets[0].pointRadius = _pointRadius(c.data.labels.length);
+      c.update('none');
+      c.resize();
+    });
   }, 60);
 }
 
@@ -891,7 +900,7 @@ function makeStatsChart(canvasId, timeline, label, color) {
     data:{ labels: timeline.map(r => r.period), datasets:[{
       label, data: timeline.map(r => r.cnt),
       borderColor: color, backgroundColor: color + '22',
-      borderWidth:2, pointRadius: timeline.length>30?0:3, pointHoverRadius:5,
+      borderWidth:2, pointRadius: _pointRadius(timeline.length), pointHoverRadius:5,
       pointBackgroundColor: color, fill:true, tension:0.4 }] },
     options:{ responsive:true, maintainAspectRatio:false,
       plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1d27',borderColor:'#2d3148',borderWidth:1,titleColor:'#e8eaf6',bodyColor:'#8b90b8',padding:10}},
@@ -916,7 +925,7 @@ function upsertChart(existing, canvasId, loadingId, timeline, label, color, sile
     // Update in place — no flicker, no re-create
     existing.data.labels = timeline.map(r => r.period);
     existing.data.datasets[0].data = timeline.map(r => r.cnt);
-    existing.data.datasets[0].pointRadius = timeline.length > 30 ? 0 : 3;
+    existing.data.datasets[0].pointRadius = _pointRadius(timeline.length);
     existing.update(silent ? 'none' : undefined);
     return existing;
   }
