@@ -94,6 +94,15 @@ def _is_auth(request: Request) -> bool:
     return db.session_valid(token)
 
 
+def _human_size(n: int) -> str:
+    size = float(n)
+    for unit in ("Б", "КБ", "МБ", "ГБ", "ТБ"):
+        if size < 1024 or unit == "ТБ":
+            return f"{size:.0f} {unit}" if unit == "Б" else f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} ТБ"
+
+
 # ── Search ────────────────────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
@@ -282,6 +291,7 @@ Write-Host "Done! Restart your browser." -ForegroundColor Green"""
         "schedules": schedules,
         "setup_script": setup_script,
         "version": VERSION,
+        "index_size": _human_size(db.get_index_size()),
     })
 
 
@@ -580,6 +590,7 @@ async def api_mgmt_info(request: Request):
         "is_service": _running_as_service(),
         "memory_mb": round(_psutil_proc.memory_info().rss / 1024**2, 1) if _psutil_proc else None,
         "active_users": _get_active_count(),
+        "index_size_bytes": db.get_index_size(),
     }
 
 

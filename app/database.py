@@ -594,6 +594,28 @@ def update_folder_file_count(folder_id: int) -> None:
         conn.close()
 
 
+def get_index_size() -> int:
+    """Total size in bytes of the main DB + all per-folder index DBs (incl. WAL/SHM)."""
+    total = 0
+    main = Path(DB_PATH)
+    for suffix in ("", "-wal", "-shm"):
+        f = Path(str(main) + suffix)
+        try:
+            if f.exists():
+                total += f.stat().st_size
+        except Exception:
+            pass
+    try:
+        for f in DATA_DIR.glob("*.db*"):
+            try:
+                total += f.stat().st_size
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return total
+
+
 def stats() -> tuple[int, list[dict]]:
     """Fast stats from main DB only — no folder DB access."""
     folders = get_folders()

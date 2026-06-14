@@ -231,6 +231,7 @@ else:
 <div class="detail-grid" id="detailStats">
   <div class="stat-box"><div class="stat-label">Файлов в индексе</div><div class="stat-value" id="dFiles">—</div></div>
   <div class="stat-box"><div class="stat-label">Индексов</div><div class="stat-value white" id="dIndexes">—</div></div>
+  <div class="stat-box"><div class="stat-label">Размер индекса</div><div class="stat-value white" id="dIndexSize">—</div></div>
   <div class="stat-box"><div class="stat-label">Запросов сегодня</div><div class="stat-value white" id="dToday">—</div></div>
   <div class="stat-box"><div class="stat-label">За неделю</div><div class="stat-value white" id="dWeek">—</div></div>
   <div class="stat-box"><div class="stat-label">За месяц</div><div class="stat-value white" id="dMonth">—</div></div>
@@ -334,6 +335,12 @@ function apiPost(action, body={}) {
   }).then(r => r.json());
 }
 function fmt(n) { return typeof n === 'number' ? n.toLocaleString('ru-RU') : '—'; }
+function fmtBytes(n) {
+  if (typeof n !== 'number') return '—';
+  const units = ['Б','КБ','МБ','ГБ','ТБ']; let i = 0;
+  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  return (i === 0 ? n.toFixed(0) : n.toFixed(1)) + ' ' + units[i];
+}
 function fmtUptime(s) {
   if (!s) return '—';
   if (s < 60)   return s + ' сек';
@@ -576,7 +583,7 @@ async function loadDetail() {
   if (rb) rb.disabled = !isOnline;
 
   if (!isOnline) {
-    ['dFiles','dIndexes','dToday','dWeek','dMonth','dUptime'].forEach(id => {
+    ['dFiles','dIndexes','dIndexSize','dToday','dWeek','dMonth','dUptime'].forEach(id => {
       const el = document.getElementById(id); if(el) el.textContent = '—';
     });
     document.getElementById('indexesBody').innerHTML = '<div class="empty">Сервер недоступен</div>';
@@ -588,6 +595,7 @@ async function loadDetail() {
   const set = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
   set('dFiles',   fmt(d.file_count));
   set('dIndexes', fmt(d.folder_count));
+  set('dIndexSize', d.index_size_bytes != null ? fmtBytes(d.index_size_bytes) : '—');
   set('dToday',   fmt(d.search_summary?.today));
   set('dWeek',    fmt(d.search_summary?.week));
   set('dMonth',   fmt(d.search_summary?.month));
