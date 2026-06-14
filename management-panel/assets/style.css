@@ -227,9 +227,10 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(91
 .stats-charts{display:block}
 body.compact .container{max-width:95vw}
 body.compact .stats-charts{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-body.compact .stats-charts .card{margin-bottom:0}
-body.compact .stats-charts .card-body{padding:10px}
-body.compact .stats-charts .chart-wrap{height:150px}
+/* min-width:0 lets grid items shrink below the canvas's intrinsic size */
+body.compact .stats-charts .card{margin-bottom:0;min-width:0}
+body.compact .stats-charts .card-body{padding:10px;min-width:0}
+body.compact .stats-charts .chart-wrap{height:150px;min-width:0}
 @media (max-width:900px){
   body.compact .stats-charts{grid-template-columns:1fr}
 }
