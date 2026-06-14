@@ -227,6 +227,17 @@ switch ($action) {
         break;
     }
 
+    // ── Files added timeline ────────────────────────────────────────────────────
+    case 'files_stats': {
+        $id     = $_GET['id'] ?? '';
+        $period = $_GET['period'] ?? 'day';
+        $server = find_server($id);
+        if (!$server) { echo json_encode(['error' => 'Server not found']); exit; }
+        $res = nbm_request($server['url'] . '/api/management/files-stats?period=' . urlencode($period), $server['token']);
+        echo json_encode($res);
+        break;
+    }
+
     // ── Active users history ────────────────────────────────────────────────────
     case 'active_stats': {
         $id     = $_GET['id'] ?? '';

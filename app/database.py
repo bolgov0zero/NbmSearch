@@ -801,6 +801,57 @@ def get_active_user_stats(period: str = "day") -> dict:
         conn.close()
 
 
+def get_files_timeline(period: str = "day") -> dict:
+    """Number of files added per time bucket (by created_at), summed across all folders."""
+    import datetime as _dt
+    counts: dict[str, int] = {}
+    ts_col = "COALESCE(created_at, indexed_at)"
+    for f in get_folders():
+        fid = f["id"]
+        p = _folder_db_path(fid)
+        if not p.exists():
+            continue
+        try:
+            conn = _get_folder_conn(fid)
+            if period == "day":
+                rows = conn.execute(
+                    f"""SELECT strftime('%H',{ts_col},'unixepoch','localtime') AS p, COUNT(*) AS c
+                        FROM files
+                        WHERE date({ts_col},'unixepoch','localtime')=date('now','localtime')
+                          AND {ts_col} IS NOT NULL GROUP BY p"""
+                ).fetchall()
+            elif period == "year":
+                rows = conn.execute(
+                    f"""SELECT strftime('%m',{ts_col},'unixepoch','localtime') AS p, COUNT(*) AS c
+                        FROM files
+                        WHERE strftime('%Y',{ts_col},'unixepoch','localtime')=strftime('%Y','now','localtime')
+                          AND {ts_col} IS NOT NULL GROUP BY p"""
+                ).fetchall()
+            else:  # month
+                rows = conn.execute(
+                    f"""SELECT strftime('%d',{ts_col},'unixepoch','localtime') AS p, COUNT(*) AS c
+                        FROM files
+                        WHERE strftime('%Y-%m',{ts_col},'unixepoch','localtime')=strftime('%Y-%m','now','localtime')
+                          AND {ts_col} IS NOT NULL GROUP BY p"""
+                ).fetchall()
+            conn.close()
+            for r in rows:
+                counts[r["p"]] = counts.get(r["p"], 0) + r["c"]
+        except Exception:
+            pass
+
+    if period == "day":
+        timeline = [{"period": f"{h:02d}:00", "cnt": counts.get(f"{h:02d}", 0)} for h in range(24)]
+    elif period == "year":
+        timeline = [{"period": _MONTH_NAMES[m], "cnt": counts.get(f"{m+1:02d}", 0)} for m in range(12)]
+    else:
+        import calendar
+        now = _dt.datetime.now()
+        days = calendar.monthrange(now.year, now.month)[1]
+        timeline = [{"period": f"{d:02d}", "cnt": counts.get(f"{d:02d}", 0)} for d in range(1, days + 1)]
+    return {"timeline": timeline}
+
+
 # ── Sessions ─────────────────────────────────────────────────────────────────
 
 def create_session() -> str:

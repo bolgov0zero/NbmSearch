@@ -705,6 +705,17 @@ async def api_mgmt_active_stats(request: Request, period: str = "day"):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+@app.get("/api/management/files-stats")
+async def api_mgmt_files_stats(request: Request, period: str = "day"):
+    if not _check_mgmt_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    try:
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, lambda: db.get_files_timeline(period))
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 @app.post("/api/management/restart")
 async def api_mgmt_restart(request: Request):
     if not _check_mgmt_token(request):

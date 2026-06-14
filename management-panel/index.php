@@ -92,8 +92,11 @@ $serverId = $_GET['id'] ?? '';
     NbmSearch <span class="logo-sub">/ Серверы</span>
   </div>
   <div class="header-right">
-    <?php if ($view === 'server'): ?>
+    <?php if ($view === 'server' || $view === 'stats'): ?>
       <a href="index.php" class="btn btn-ghost btn-sm">← К серверам</a>
+    <?php endif; ?>
+    <?php if ($view === 'dashboard'): ?>
+      <a href="index.php?view=stats" class="btn btn-ghost btn-sm">Статистика</a>
     <?php endif; ?>
     <form method="post" style="margin:0">
       <button type="submit" name="do_logout" class="btn-logout">Выйти</button>
@@ -297,6 +300,46 @@ else:
 </div>
 
 <?php endif; ?>
+
+<?php elseif ($view === 'stats'): ?>
+<!-- ── STATS ─────────────────────────────────────────────────────────────── -->
+<div class="detail-header">
+  <div style="flex:1;min-width:0">
+    <div class="page-title">Статистика</div>
+    <div class="page-sub" style="margin-bottom:0">Сводка по всем серверам</div>
+  </div>
+  <div class="period-tabs">
+    <button class="period-tab active" onclick="selectStatsPeriod('day',this)">День</button>
+    <button class="period-tab" onclick="selectStatsPeriod('month',this)">Месяц</button>
+    <button class="period-tab" onclick="selectStatsPeriod('year',this)">Год</button>
+  </div>
+</div>
+
+<div class="stats-strip" style="margin-bottom:16px">
+  <div class="stat-box"><div class="stat-label">Файлов всего</div><div class="stat-value white" id="stFiles">—</div></div>
+  <div class="stat-box"><div class="stat-label">Запросов сегодня</div><div class="stat-value" id="stSearchToday">—</div></div>
+  <div class="stat-box"><div class="stat-label">Запросов за месяц</div><div class="stat-value" id="stSearchMonth">—</div></div>
+  <div class="stat-box"><div class="stat-label">Пик пользователей сегодня</div><div class="stat-value green" id="stUsersToday">—</div></div>
+</div>
+
+<div class="card" style="margin-bottom:16px">
+  <div class="card-head"><div class="card-title">Файлов добавлено</div></div>
+  <div class="card-body"><div class="chart-wrap"><canvas id="filesChart"></canvas>
+    <div id="filesLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:.83rem">Загрузка…</div></div></div>
+</div>
+
+<div class="card" style="margin-bottom:16px">
+  <div class="card-head"><div class="card-title">Запросы</div></div>
+  <div class="card-body"><div class="chart-wrap"><canvas id="searchAllChart"></canvas>
+    <div id="searchAllLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:.83rem">Загрузка…</div></div></div>
+</div>
+
+<div class="card" style="margin-bottom:16px">
+  <div class="card-head"><div class="card-title">Активные пользователи</div></div>
+  <div class="card-body"><div class="chart-wrap"><canvas id="usersAllChart"></canvas>
+    <div id="usersAllLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:.83rem">Загрузка…</div></div></div>
+</div>
+
 <?php endif; ?>
 
 </div><!-- /container -->
@@ -793,6 +836,100 @@ loadChart();
 loadActiveChart();
 loadActiveUsers();
 setInterval(loadDetail, 10000);
+<?php endif; ?>
+
+<?php if ($view === 'stats'): ?>
+// ── Aggregated statistics across all servers ──
+const STATS_SERVERS = <?= json_encode(array_map(fn($s) => $s['id'], $servers)) ?>;
+let _statsPeriod = 'day';
+let _filesChart = null, _searchAllChart = null, _usersAllChart = null;
+
+function selectStatsPeriod(p, btn) {
+  _statsPeriod = p;
+  btn.closest('.period-tabs').querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  loadStats();
+}
+
+function setTxt(id, v) { const e = document.getElementById(id); if (e) e.textContent = v; }
+
+function sumTimelines(list) {
+  const out = [];
+  list.forEach(tl => (tl || []).forEach((pt, i) => {
+    if (!out[i]) out[i] = { period: pt.period, cnt: 0 };
+    out[i].cnt += (pt.cnt || 0);
+  }));
+  return out;
+}
+
+function makeStatsChart(canvasId, timeline, label, color) {
+  const ctx = document.getElementById(canvasId);
+  return new Chart(ctx, {
+    type:'line',
+    data:{ labels: timeline.map(r => r.period), datasets:[{
+      label, data: timeline.map(r => r.cnt),
+      borderColor: color, backgroundColor: color + '22',
+      borderWidth:2, pointRadius: timeline.length>30?0:3, pointHoverRadius:5,
+      pointBackgroundColor: color, fill:true, tension:0.4 }] },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1d27',borderColor:'#2d3148',borderWidth:1,titleColor:'#e8eaf6',bodyColor:'#8b90b8',padding:10}},
+      scales:{
+        x:{grid:{color:'rgba(45,49,72,.6)'},ticks:{color:'#8b90b8',font:{size:11},maxTicksLimit:12}},
+        y:{grid:{color:'rgba(45,49,72,.6)'},ticks:{color:'#8b90b8',font:{size:11},precision:0},beginAtZero:true}
+      }
+    }
+  });
+}
+
+function renderStatsChart(canvasId, loadingId, timeline, label, color) {
+  const loading = document.getElementById(loadingId);
+  if (!timeline.length || timeline.every(t => t.cnt === 0)) {
+    loading.textContent = 'Нет данных'; loading.style.display = 'flex';
+    return null;
+  }
+  loading.style.display = 'none';
+  return makeStatsChart(canvasId, timeline, label, color);
+}
+
+async function loadStats() {
+  ['filesLoading','searchAllLoading','usersAllLoading'].forEach(id => {
+    const e = document.getElementById(id); if (e) { e.textContent = 'Загрузка…'; e.style.display = 'flex'; }
+  });
+  if (_filesChart) { _filesChart.destroy(); _filesChart = null; }
+  if (_searchAllChart) { _searchAllChart.destroy(); _searchAllChart = null; }
+  if (_usersAllChart) { _usersAllChart.destroy(); _usersAllChart = null; }
+
+  const filesTl = [], searchTl = [], usersTl = [];
+  let totalFiles = 0, searchToday = 0, searchMonth = 0, usersToday = 0;
+
+  await Promise.all(STATS_SERVERS.map(async id => {
+    try {
+      const [f, s, u, info] = await Promise.all([
+        api('files_stats',     {id, period: _statsPeriod}),
+        api('get_search_stats',{id, period: _statsPeriod}),
+        api('active_stats',    {id, period: _statsPeriod}),
+        api('get_info',        {id}),
+      ]);
+      if (f && f.timeline) filesTl.push(f.timeline);
+      if (s && s.timeline) searchTl.push(s.timeline);
+      if (u && u.timeline) usersTl.push(u.timeline);
+      if (s && s.summary) { searchToday += s.summary.today || 0; searchMonth += s.summary.month || 0; }
+      if (u && u.summary) { usersToday += u.summary.today || 0; }
+      if (info && typeof info.file_count === 'number') totalFiles += info.file_count;
+    } catch(e) {}
+  }));
+
+  setTxt('stFiles', fmt(totalFiles));
+  setTxt('stSearchToday', fmt(searchToday));
+  setTxt('stSearchMonth', fmt(searchMonth));
+  setTxt('stUsersToday', fmt(usersToday));
+
+  _filesChart     = renderStatsChart('filesChart',     'filesLoading',     sumTimelines(filesTl),  'Файлов',        '#e0a458');
+  _searchAllChart = renderStatsChart('searchAllChart', 'searchAllLoading', sumTimelines(searchTl), 'Запросов',      '#2ecc71');
+  _usersAllChart  = renderStatsChart('usersAllChart',  'usersAllLoading',  sumTimelines(usersTl),  'Пользователей', '#5b6af0');
+}
+
+loadStats();
 <?php endif; ?>
 </script>
 
