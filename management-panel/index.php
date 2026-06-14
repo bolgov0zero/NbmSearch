@@ -861,7 +861,7 @@ function toggleCompact(on) {
     [_filesChart, _searchAllChart, _usersAllChart].forEach(c => {
       if (!c) return;
       c.data.datasets[0].pointRadius = _pointRadius(c.data.labels.length);
-      c.update('none');
+      c.update();
       c.resize();
     });
   }, 60);
@@ -903,6 +903,7 @@ function makeStatsChart(canvasId, timeline, label, color) {
       borderWidth:2, pointRadius: _pointRadius(timeline.length), pointHoverRadius:5,
       pointBackgroundColor: color, fill:true, tension:0.4 }] },
     options:{ responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
       plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1d27',borderColor:'#2d3148',borderWidth:1,titleColor:'#e8eaf6',bodyColor:'#8b90b8',padding:10}},
       scales:{
         x:{grid:{color:'rgba(45,49,72,.6)'},ticks:{color:'#8b90b8',font:{size:11},maxTicksLimit:12,maxRotation:0,minRotation:0}},
