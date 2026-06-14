@@ -255,6 +255,23 @@ else:
   </div>
 </div>
 
+<!-- Active users chart -->
+<div class="card" style="margin-bottom:16px">
+  <div class="card-head">
+    <div class="card-title">Активные пользователи</div>
+    <div class="period-tabs">
+      <button class="period-tab active" onclick="selectAuPeriod('day',this)">День</button>
+      <button class="period-tab" onclick="selectAuPeriod('month',this)">Месяц</button>
+      <button class="period-tab" onclick="selectAuPeriod('year',this)">Год</button>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="chart-wrap"><canvas id="activeChart"></canvas>
+      <div id="auChartLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:.83rem">Загрузка…</div>
+    </div>
+  </div>
+</div>
+
 <!-- Indexes -->
 <div class="card" style="margin-bottom:16px">
   <div class="card-head"><div class="card-title">Индексы</div></div>
@@ -719,15 +736,61 @@ async function loadChart() {
 
 function selectPeriod(p, btn) {
   _chartPeriod = p;
-  document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
+  btn.closest('.period-tabs').querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
   loadChart();
+}
+
+let _auChart = null;
+let _auPeriod = 'day';
+
+async function loadActiveChart() {
+  document.getElementById('auChartLoading').style.display = 'flex';
+  document.getElementById('auChartLoading').textContent = 'Загрузка…';
+  if (_auChart) { _auChart.destroy(); _auChart = null; }
+  const d = await api('active_stats', {id: SERVER_ID, period: _auPeriod});
+  document.getElementById('auChartLoading').style.display = 'none';
+  const timeline = d.timeline || [];
+  if (!timeline.length || timeline.every(t => t.cnt === 0)) {
+    document.getElementById('auChartLoading').textContent = 'Нет данных';
+    document.getElementById('auChartLoading').style.display = 'flex';
+    return;
+  }
+  const ctx = document.getElementById('activeChart');
+  _auChart = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels: timeline.map(r => r.period),
+      datasets:[{
+        label:'Пользователей', data: timeline.map(r => r.cnt),
+        borderColor:'#5b6af0', backgroundColor:'rgba(91,106,240,.1)',
+        borderWidth:2, pointRadius: timeline.length>30?0:3,
+        pointHoverRadius:5, pointBackgroundColor:'#5b6af0', fill:true, tension:0.4
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a1d27',borderColor:'#2d3148',borderWidth:1,titleColor:'#e8eaf6',bodyColor:'#8b90b8',padding:10}},
+      scales:{
+        x:{grid:{color:'rgba(45,49,72,.6)'},ticks:{color:'#8b90b8',font:{size:11},maxTicksLimit:12}},
+        y:{grid:{color:'rgba(45,49,72,.6)'},ticks:{color:'#8b90b8',font:{size:11},precision:0},beginAtZero:true}
+      }
+    }
+  });
+}
+
+function selectAuPeriod(p, btn) {
+  _auPeriod = p;
+  btn.closest('.period-tabs').querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  loadActiveChart();
 }
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 loadDetail();
 loadChart();
+loadActiveChart();
 loadActiveUsers();
 setInterval(loadDetail, 10000);
 <?php endif; ?>

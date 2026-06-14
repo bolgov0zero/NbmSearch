@@ -75,7 +75,21 @@ async def lifespan(application: FastAPI):
     yield
 
 
+def _active_sampler():
+    """Record peak concurrent active users into history every 60s."""
+    while True:
+        time.sleep(60)
+        try:
+            _prune_sessions()
+            with _active_lock:
+                cnt = len(_active_sessions)
+            db.log_active_users(cnt)
+        except Exception as e:
+            logger.error("Active sampler error: %s", e)
+
+
 def _startup():
+    threading.Thread(target=_active_sampler, daemon=True).start()
     indexer.reindex_scheduler()
 
 
@@ -672,6 +686,16 @@ async def api_mgmt_search_stats(request: Request, period: str = "day"):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
     try:
         return db.get_search_stats(period)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/management/active-stats")
+async def api_mgmt_active_stats(request: Request, period: str = "day"):
+    if not _check_mgmt_token(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    try:
+        return db.get_active_user_stats(period)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 

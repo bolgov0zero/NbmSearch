@@ -108,6 +108,11 @@ def init_db():
                 query       TEXT    NOT NULL,
                 searched_at REAL    NOT NULL
             )""",
+            """CREATE TABLE IF NOT EXISTS active_users_log (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                count      INTEGER NOT NULL,
+                sampled_at REAL    NOT NULL
+            )""",
         ):
             try:
                 conn.execute(ddl)
@@ -678,6 +683,71 @@ def get_search_stats(period: str = "day") -> dict:
             rows = conn.execute(
                 f"""SELECT strftime('%d',{ts},'unixepoch','localtime') AS p, COUNT(*) AS cnt
                     FROM search_log
+                    WHERE strftime('%Y-%m',{ts},'unixepoch','localtime')=strftime('%Y-%m','now','localtime')
+                    GROUP BY p ORDER BY p"""
+            ).fetchall()
+            counts = {r["p"]: r["cnt"] for r in rows}
+            timeline = [{"period": f"{d:02d}", "cnt": counts.get(f"{d:02d}", 0)} for d in range(1, days + 1)]
+
+        return {"summary": {"today": today, "week": week, "month": month}, "timeline": timeline}
+    finally:
+        conn.close()
+
+
+# ── Active users history ───────────────────────────────────────────────────────
+
+def log_active_users(count: int) -> None:
+    with _main_lock:
+        conn = _get_main_conn()
+        now = time.time()
+        conn.execute("INSERT INTO active_users_log (count, sampled_at) VALUES (?,?)", (count, now))
+        # Keep one year of history
+        conn.execute("DELETE FROM active_users_log WHERE sampled_at < ?", (now - 365 * 24 * 3600,))
+        conn.commit()
+        conn.close()
+
+
+def get_active_user_stats(period: str = "day") -> dict:
+    """Peak concurrent active users per time bucket (MAX of samples)."""
+    import datetime as _dt
+    conn = _get_main_conn()
+    try:
+        ts = "sampled_at"
+        today = conn.execute(
+            f"SELECT COALESCE(MAX(count),0) FROM active_users_log WHERE date({ts},'unixepoch','localtime')=date('now','localtime')"
+        ).fetchone()[0]
+        week = conn.execute(
+            f"SELECT COALESCE(MAX(count),0) FROM active_users_log WHERE strftime('%Y-%W',{ts},'unixepoch','localtime')=strftime('%Y-%W','now','localtime')"
+        ).fetchone()[0]
+        month = conn.execute(
+            f"SELECT COALESCE(MAX(count),0) FROM active_users_log WHERE strftime('%Y-%m',{ts},'unixepoch','localtime')=strftime('%Y-%m','now','localtime')"
+        ).fetchone()[0]
+
+        if period == "day":
+            rows = conn.execute(
+                f"""SELECT strftime('%H',{ts},'unixepoch','localtime') AS p, MAX(count) AS cnt
+                    FROM active_users_log
+                    WHERE date({ts},'unixepoch','localtime')=date('now','localtime')
+                    GROUP BY p ORDER BY p"""
+            ).fetchall()
+            counts = {r["p"]: r["cnt"] for r in rows}
+            timeline = [{"period": f"{h:02d}:00", "cnt": counts.get(f"{h:02d}", 0)} for h in range(24)]
+        elif period == "year":
+            rows = conn.execute(
+                f"""SELECT strftime('%m',{ts},'unixepoch','localtime') AS p, MAX(count) AS cnt
+                    FROM active_users_log
+                    WHERE strftime('%Y',{ts},'unixepoch','localtime')=strftime('%Y','now','localtime')
+                    GROUP BY p ORDER BY p"""
+            ).fetchall()
+            counts = {r["p"]: r["cnt"] for r in rows}
+            timeline = [{"period": _MONTH_NAMES[m], "cnt": counts.get(f"{m+1:02d}", 0)} for m in range(12)]
+        else:  # month
+            import calendar
+            now = _dt.datetime.now()
+            days = calendar.monthrange(now.year, now.month)[1]
+            rows = conn.execute(
+                f"""SELECT strftime('%d',{ts},'unixepoch','localtime') AS p, MAX(count) AS cnt
+                    FROM active_users_log
                     WHERE strftime('%Y-%m',{ts},'unixepoch','localtime')=strftime('%Y-%m','now','localtime')
                     GROUP BY p ORDER BY p"""
             ).fetchall()
