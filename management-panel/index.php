@@ -967,8 +967,8 @@ async function loadStats(silent) {
   setTxt('stUsersToday', fmt(usersToday));
 
   _filesChart     = upsertChart(_filesChart,     'filesChart',     'filesLoading',     sumTimelines(filesTl),  'Файлов',        '#e0a458', silent);
-  _searchAllChart = upsertChart(_searchAllChart, 'searchAllChart', 'searchAllLoading', sumTimelines(searchTl), 'Запросов',      '#2ecc71', silent);
-  _usersAllChart  = upsertChart(_usersAllChart,  'usersAllChart',  'usersAllLoading',  sumTimelines(usersTl),  'Пользователей', '#5b6af0', silent);
+  _searchAllChart = upsertChart(_searchAllChart, 'searchAllChart', 'searchAllLoading', sumTimelines(searchTl), 'Запросов',      '#5b6af0', silent);
+  _usersAllChart  = upsertChart(_usersAllChart,  'usersAllChart',  'usersAllLoading',  sumTimelines(usersTl),  'Пользователей', '#2ecc71', silent);
 }
 
 loadStats();
