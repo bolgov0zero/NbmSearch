@@ -180,34 +180,15 @@ async def active_users(request: Request):
     return {"count": len(users), "users": users}
 
 
-def _is_allowed_path(path: str) -> bool:
-    """True only if `path` resolves inside one of the indexed folders.
-    Prevents arbitrary file reads via the public /api/file-text endpoint."""
-    try:
-        target = os.path.normcase(os.path.abspath(path))
-    except Exception:
-        return False
-    for folder in db.get_folders():
-        base = folder.get("path") or ""
-        if not base:
-            continue
-        base_norm = os.path.normcase(os.path.abspath(base))
-        try:
-            if os.path.commonpath([base_norm, target]) == base_norm:
-                return True
-        except ValueError:
-            # Different drives on Windows → commonpath raises; not a match
-            continue
-    return False
-
-
 @app.get("/api/file-text")
 async def api_file_text(path: str = "", request: Request = None):
     if not path:
         return JSONResponse({"error": "no path"}, status_code=400)
-    if not _is_allowed_path(path):
-        return JSONResponse({"error": "forbidden"}, status_code=403)
     loop = asyncio.get_event_loop()
+    # Allow reading only files that are actually in the index (prevents arbitrary
+    # file reads). Compares the exact stored path — no path-normalization quirks.
+    if not await loop.run_in_executor(None, db.path_in_index, path):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
     try:
         text = await loop.run_in_executor(None, indexer.extract_text, path)
     except Exception as e:

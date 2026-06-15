@@ -463,6 +463,26 @@ def get_file_count(folder_id: int) -> int:
         return 0
 
 
+def path_in_index(path: str) -> bool:
+    """True if `path` is present in any folder's index. Used to authorize file preview
+    without relying on filesystem path normalization. Stops at the first match."""
+    if not path:
+        return False
+    for folder in get_folders():
+        fid = folder["id"]
+        if not _folder_db_path(fid).exists():
+            continue
+        try:
+            conn = _get_folder_conn(fid)
+            row = conn.execute("SELECT 1 FROM files WHERE path=? LIMIT 1", (path,)).fetchone()
+            conn.close()
+            if row:
+                return True
+        except Exception:
+            continue
+    return False
+
+
 def get_all_paths_in_folder(folder_id: int) -> set[str]:
     try:
         conn = _get_folder_conn(folder_id)
