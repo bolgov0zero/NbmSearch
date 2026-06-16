@@ -217,21 +217,22 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(91
 .stats-charts{display:block}
 .stats-bottom{display:none}
 
-body.view-stats .container{display:flex;flex-direction:column;gap:16px;
-  height:calc(100vh - 52px);padding:16px;overflow:hidden}
-/* Header, numbers strip and charts keep their natural height (no shrinking) */
-body.view-stats .detail-header{margin-bottom:0;flex:0 0 auto}
+/* One grid engine for the whole page → identical row-gap (vertical) and column-gap (horizontal) */
+body.view-stats .container{display:grid;
+  grid-template-rows:auto auto auto minmax(0,1fr);
+  gap:16px;height:calc(100vh - 52px);padding:16px;overflow:hidden}
+body.view-stats .detail-header{margin-bottom:0}
 body.view-stats .detail-header .page-sub{margin-bottom:0}
-body.view-stats .stats-strip{margin-bottom:0;flex:0 0 auto}
-body.view-stats .stats-charts{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;flex:0 0 auto}
+body.view-stats .stats-strip{margin-bottom:0}
+body.view-stats .stats-charts{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 /* min-width:0 lets grid items shrink below the canvas's intrinsic size */
 body.view-stats .stats-charts .card{margin-bottom:0;min-width:0}
 body.view-stats .stats-charts .card-body{padding:10px;min-width:0}
 body.view-stats .stats-charts .chart-wrap{height:150px;min-width:0}
 
-/* Bottom row: Users + Files take the remaining height (basis 0 → never squeeze the strip), scroll inside */
+/* Bottom row: Users + Files fill the remaining height, scroll inside */
 body.view-stats .stats-bottom{display:grid;grid-template-columns:1fr 1fr;gap:16px;
-  flex:1 1 0;min-height:0;margin-top:0}
+  min-height:0;margin-top:0}
 .stats-list-card{display:flex;flex-direction:column;min-height:0;margin-bottom:0}
 .stats-list-card .card-head{flex:0 0 auto}
 .list-count{font-size:.72rem;font-weight:700;color:var(--text-dim);
