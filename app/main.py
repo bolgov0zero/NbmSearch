@@ -726,11 +726,15 @@ async def api_mgmt_all_stats(request: Request, period: str = "day"):
 
     def _gather():
         count, _ = db.stats()
+        _prune_sessions()
+        with _active_lock:
+            ips = sorted({v["ip"] for v in _active_sessions.values()})
         return {
             "file_count": count,
             "files": db.get_files_timeline(period),
             "search": db.get_search_stats(period),
             "active": db.get_active_user_stats(period),
+            "users": ips,
         }
 
     try:

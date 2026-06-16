@@ -223,17 +223,37 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(91
 .compact-toggle input:checked + .switch{background:var(--accent-bg);border-color:var(--accent)}
 .compact-toggle input:checked + .switch::after{transform:translateX(16px);background:var(--accent)}
 
-/* Compact stats layout: three charts in a row, wider container, tighter spacing */
+/* Compact stats layout: three charts in a row + Users/Files lists, fit to viewport.
+   Same total width as normal mode (container max-width unchanged). */
 .stats-charts{display:block}
-body.compact .container{max-width:95vw}
-body.compact .stats-charts{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.stats-bottom{display:none}
+
+body.compact .container{display:flex;flex-direction:column;height:calc(100vh - 52px);
+  padding-bottom:16px;overflow:hidden}
+body.compact .stats-charts{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;flex:0 0 auto}
 /* min-width:0 lets grid items shrink below the canvas's intrinsic size */
 body.compact .stats-charts .card{margin-bottom:0;min-width:0}
 body.compact .stats-charts .card-body{padding:10px;min-width:0}
 body.compact .stats-charts .chart-wrap{height:150px;min-width:0}
-@media (max-width:900px){
-  body.compact .stats-charts{grid-template-columns:1fr}
-}
+
+/* Bottom row: Users + Files, fills remaining height, scrolls inside */
+body.compact .stats-bottom{display:grid;grid-template-columns:1fr 1fr;gap:14px;
+  flex:1 1 auto;min-height:0;margin-top:14px}
+.stats-list-card{display:flex;flex-direction:column;min-height:0;margin-bottom:0}
+.stats-list-card .card-head{flex:0 0 auto}
+.list-count{font-size:.72rem;font-weight:700;color:var(--text-dim);
+  background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:1px 8px;min-width:20px;text-align:center}
+.stats-list{flex:1 1 auto;min-height:0;overflow-y:auto;padding:6px 0}
+.list-row{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:7px 16px;border-bottom:1px solid rgba(45,49,72,.5)}
+.list-row:last-child{border-bottom:none}
+.lr-ip{font-family:monospace;font-size:.82rem;color:var(--text);letter-spacing:.02em}
+.lr-srv{font-size:.78rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lr-left{min-width:0}
+.lr-srv2{font-size:.82rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lr-idx{font-size:.74rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lr-count{font-size:1rem;font-weight:800;color:var(--green);flex-shrink:0}
+.list-empty{padding:16px;text-align:center;color:var(--text-muted);font-size:.8rem}
 
 /* ── New-files toast notifications ──────────────────────────────────────────── */
 .toast-wrap{position:fixed;right:18px;bottom:18px;z-index:9999;

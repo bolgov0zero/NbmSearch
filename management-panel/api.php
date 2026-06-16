@@ -269,6 +269,9 @@ switch ($action) {
             if ($running > 0) { $ms = curl_multi_select($mh, 0.1); if ($ms === -1) usleep(10000); }
         } while ($running > 0 && $status === CURLM_OK);
 
+        $nameMap = [];
+        foreach ($servers as $s) { $nameMap[$s['id']] = $s['name']; }
+
         $results = [];
         foreach ($handles as $sid => $ch) {
             $body = curl_multi_getcontent($ch);
@@ -276,8 +279,10 @@ switch ($action) {
             $err  = curl_error($ch);
             curl_multi_remove_handle($mh, $ch);
             curl_close($ch);
-            if ($err || !$body || $code >= 400) { $results[] = ['_error' => true]; }
-            else { $d = json_decode($body, true); $results[] = is_array($d) ? $d : ['_error' => true]; }
+            if ($err || !$body || $code >= 400) { $d = ['_error' => true]; }
+            else { $d = json_decode($body, true); if (!is_array($d)) $d = ['_error' => true]; }
+            $d['_server'] = ['id' => $sid, 'name' => $nameMap[$sid] ?? $sid];
+            $results[] = $d;
         }
         curl_multi_close($mh);
         echo json_encode($results);

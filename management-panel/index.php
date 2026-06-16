@@ -347,6 +347,18 @@ else:
   </div>
 </div>
 
+<!-- Compact-only: Users + Files lists below the charts -->
+<div class="stats-bottom">
+  <div class="card stats-list-card">
+    <div class="card-head"><div class="card-title">Пользователи</div><span class="list-count" id="usersListCount"></span></div>
+    <div class="stats-list" id="usersList"><div class="list-empty">Нет данных</div></div>
+  </div>
+  <div class="card stats-list-card">
+    <div class="card-head"><div class="card-title">Файлы</div><span class="list-count" id="filesListCount"></span></div>
+    <div class="stats-list" id="filesList"><div class="list-empty">С момента открытия новых файлов нет</div></div>
+  </div>
+</div>
+
 <?php endif; ?>
 
 </div><!-- /container -->
@@ -969,7 +981,42 @@ async function loadStats(silent) {
   _filesChart     = upsertChart(_filesChart,     'filesChart',     'filesLoading',     sumTimelines(filesTl),  'Файлов',        '#e0a458', silent);
   _searchAllChart = upsertChart(_searchAllChart, 'searchAllChart', 'searchAllLoading', sumTimelines(searchTl), 'Запросов',      '#5b6af0', silent);
   _usersAllChart  = upsertChart(_usersAllChart,  'usersAllChart',  'usersAllLoading',  sumTimelines(usersTl),  'Пользователей', '#2ecc71', silent);
+
+  renderUsers(list);
 }
+
+// ── Users list (grouped by server, sorted by IP) ──
+function escS(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function ipKey(ip){ const p=String(ip).split('.'); return p.length===4 ? p.reduce((a,o)=>a*256+(parseInt(o,10)||0),0) : Number.MAX_SAFE_INTEGER; }
+
+function renderUsers(list) {
+  const el = document.getElementById('usersList');
+  if (!el) return;
+  const rows = [];
+  (list || []).forEach(d => {
+    if (!d || d._error || !Array.isArray(d.users)) return;
+    const sname = (d._server && d._server.name) || '';
+    d.users.forEach(ip => rows.push({ ip, server: sname }));
+  });
+  rows.sort((a, b) => a.server === b.server ? ipKey(a.ip) - ipKey(b.ip) : a.server.localeCompare(b.server, 'ru'));
+  const cnt = document.getElementById('usersListCount'); if (cnt) cnt.textContent = rows.length || '';
+  el.innerHTML = rows.length
+    ? rows.map(r => `<div class="list-row"><span class="lr-ip">${escS(r.ip)}</span><span class="lr-srv">${escS(r.server)}</span></div>`).join('')
+    : '<div class="list-empty">Нет данных</div>';
+}
+
+// ── Files list (accumulated since page open; fed by the watchdog poller) ──
+window._fileLog = window._fileLog || [];
+window._renderFileLog = function() {
+  const el = document.getElementById('filesList');
+  if (!el) return;
+  const log = window._fileLog || [];
+  const cnt = document.getElementById('filesListCount'); if (cnt) cnt.textContent = log.length || '';
+  el.innerHTML = log.length
+    ? log.map(f => `<div class="list-row"><div class="lr-left"><div class="lr-srv2">${escS(f.server)}</div><div class="lr-idx">${escS(f.index)}</div></div><div class="lr-count">+${f.count}</div></div>`).join('')
+    : '<div class="list-empty">С момента открытия новых файлов нет</div>';
+};
+window._renderFileLog();
 
 loadStats();
 // Тихое фоновое обновление каждые 30с — без паузы на неактивной вкладке (дашборд на втором экране)
@@ -1077,7 +1124,15 @@ setInterval(() => loadStats(true), 30000);
         if (typeof d.now === 'number') _since[srv.id] = d.now;
         // since>0 means not the baseline call — safe to notify
         if (since > 0 && Array.isArray(d.folders)) {
-          d.folders.forEach(f => { if (f.count > 0) showToast(srv.name, f.folder_name, f.count); });
+          d.folders.forEach(f => {
+            if (f.count > 0) {
+              showToast(srv.name, f.folder_name, f.count);
+              window._fileLog = window._fileLog || [];
+              window._fileLog.unshift({server: srv.name, index: f.folder_name, count: f.count, ts: Date.now()});
+              if (window._fileLog.length > 1000) window._fileLog.length = 1000;
+              if (typeof window._renderFileLog === 'function') window._renderFileLog();
+            }
+          });
         }
       } catch(e) {}
     }));
