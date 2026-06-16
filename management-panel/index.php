@@ -59,7 +59,7 @@ $serverId = $_GET['id'] ?? '';
 <link rel="stylesheet" href="assets/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 </head>
-<body>
+<body<?= $view === 'stats' ? ' class="view-stats"' : '' ?>>
 
 <?php if (empty($_SESSION['auth'])): ?>
 <!-- ══ LOGIN ══════════════════════════════════════════════════════════════════ -->
@@ -97,12 +97,6 @@ $serverId = $_GET['id'] ?? '';
     <?php endif; ?>
     <?php if ($view === 'dashboard'): ?>
       <a href="index.php?view=stats" class="btn btn-ghost btn-sm">Статистика</a>
-    <?php endif; ?>
-    <?php if ($view === 'stats'): ?>
-      <label class="compact-toggle">Компактный режим
-        <input type="checkbox" id="compactToggle" onchange="toggleCompact(this.checked)">
-        <span class="switch"></span>
-      </label>
     <?php endif; ?>
     <form method="post" style="margin:0">
       <button type="submit" name="do_logout" class="btn-logout">Выйти</button>
@@ -780,9 +774,9 @@ async function loadChart() {
       labels: timeline.map(r => r.period),
       datasets:[{
         label:'Запросов', data: timeline.map(r => r.cnt),
-        borderColor:'#2ecc71', backgroundColor:'rgba(46,204,113,.1)',
+        borderColor:'#5b6af0', backgroundColor:'rgba(91,106,240,.1)',
         borderWidth:2, pointRadius: timeline.length>30?0:3,
-        pointHoverRadius:5, pointBackgroundColor:'#2ecc71', fill:true, tension:0.4
+        pointHoverRadius:5, pointBackgroundColor:'#5b6af0', fill:true, tension:0.4
       }]
     },
     options:{
@@ -825,9 +819,9 @@ async function loadActiveChart() {
       labels: timeline.map(r => r.period),
       datasets:[{
         label:'Пользователей', data: timeline.map(r => r.cnt),
-        borderColor:'#5b6af0', backgroundColor:'rgba(91,106,240,.1)',
+        borderColor:'#2ecc71', backgroundColor:'rgba(46,204,113,.1)',
         borderWidth:2, pointRadius: timeline.length>30?0:3,
-        pointHoverRadius:5, pointBackgroundColor:'#5b6af0', fill:true, tension:0.4
+        pointHoverRadius:5, pointBackgroundColor:'#2ecc71', fill:true, tension:0.4
       }]
     },
     options:{
@@ -860,31 +854,6 @@ setInterval(loadDetail, 10000);
 <?php if ($view === 'stats'): ?>
 // ── Aggregated statistics across all servers ──
 let _statsPeriod = 'day';
-
-function _isCompact() { return document.body.classList.contains('compact'); }
-function _pointRadius(len) { return _isCompact() ? 0 : (len > 30 ? 0 : 3); }
-
-function toggleCompact(on) {
-  document.body.classList.toggle('compact', on);
-  localStorage.setItem('nbm_compact', on ? '1' : '');
-  // Let CSS apply, then hide/show static points and resize charts.
-  // Tooltips and hover points stay — they appear on hover at the right spots.
-  setTimeout(() => {
-    [_filesChart, _searchAllChart, _usersAllChart].forEach(c => {
-      if (!c) return;
-      c.data.datasets[0].pointRadius = _pointRadius(c.data.labels.length);
-      c.update();
-      c.resize();
-    });
-  }, 60);
-}
-
-(function restoreCompact() {
-  const on = localStorage.getItem('nbm_compact') === '1';
-  const cb = document.getElementById('compactToggle');
-  if (cb) cb.checked = on;
-  document.body.classList.toggle('compact', on);
-})();
 let _filesChart = null, _searchAllChart = null, _usersAllChart = null;
 
 function selectStatsPeriod(p, btn) {
@@ -912,7 +881,7 @@ function makeStatsChart(canvasId, timeline, label, color) {
     data:{ labels: timeline.map(r => r.period), datasets:[{
       label, data: timeline.map(r => r.cnt),
       borderColor: color, backgroundColor: color + '22',
-      borderWidth:2, pointRadius: _pointRadius(timeline.length), pointHoverRadius:5,
+      borderWidth:2, pointRadius: 0, pointHoverRadius:5,
       pointBackgroundColor: color, fill:true, tension:0.4 }] },
     options:{ responsive:true, maintainAspectRatio:false,
       interaction:{mode:'index', intersect:false},
@@ -938,7 +907,7 @@ function upsertChart(existing, canvasId, loadingId, timeline, label, color, sile
     // Update in place — no flicker, no re-create
     existing.data.labels = timeline.map(r => r.period);
     existing.data.datasets[0].data = timeline.map(r => r.cnt);
-    existing.data.datasets[0].pointRadius = _pointRadius(timeline.length);
+    existing.data.datasets[0].pointRadius = 0;
     existing.update(silent ? 'none' : undefined);
     return existing;
   }

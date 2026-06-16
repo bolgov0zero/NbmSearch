@@ -212,33 +212,24 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(91
   border-bottom:1px solid var(--border);font-family:monospace;letter-spacing:.02em}
 .nbm-tooltip-ip:last-child{border-bottom:none}
 
-/* ── Compact mode toggle (stats page) ──────────────────────────────────────── */
-.compact-toggle{display:flex;align-items:center;gap:8px;font-size:.8rem;
-  color:var(--text-dim);cursor:pointer;user-select:none;white-space:nowrap}
-.compact-toggle input{display:none}
-.compact-toggle .switch{position:relative;width:36px;height:20px;background:var(--surface2);
-  border:1px solid var(--border);border-radius:20px;transition:background .15s,border-color .15s;flex-shrink:0}
-.compact-toggle .switch::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;
-  border-radius:50%;background:var(--text-dim);transition:transform .15s,background .15s}
-.compact-toggle input:checked + .switch{background:var(--accent-bg);border-color:var(--accent)}
-.compact-toggle input:checked + .switch::after{transform:translateX(16px);background:var(--accent)}
-
-/* Compact stats layout: three charts in a row + Users/Files lists, fit to viewport.
-   Same total width as normal mode (container max-width unchanged). */
+/* Stats page layout: three charts in a row + Users/Files lists, fit to viewport.
+   Uniform 16px spacing between all blocks — horizontally and vertically. */
 .stats-charts{display:block}
 .stats-bottom{display:none}
 
-body.compact .container{display:flex;flex-direction:column;height:calc(100vh - 52px);
-  padding-bottom:16px;overflow:hidden}
-body.compact .stats-charts{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;flex:0 0 auto}
+body.view-stats .container{display:flex;flex-direction:column;gap:16px;
+  height:calc(100vh - 52px);padding:16px 24px;overflow:hidden}
+body.view-stats .detail-header{margin-bottom:0}
+body.view-stats .stats-strip{margin-bottom:0}
+body.view-stats .stats-charts{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;flex:0 0 auto}
 /* min-width:0 lets grid items shrink below the canvas's intrinsic size */
-body.compact .stats-charts .card{margin-bottom:0;min-width:0}
-body.compact .stats-charts .card-body{padding:10px;min-width:0}
-body.compact .stats-charts .chart-wrap{height:150px;min-width:0}
+body.view-stats .stats-charts .card{margin-bottom:0;min-width:0}
+body.view-stats .stats-charts .card-body{padding:10px;min-width:0}
+body.view-stats .stats-charts .chart-wrap{height:150px;min-width:0}
 
 /* Bottom row: Users + Files, fills remaining height, scrolls inside */
-body.compact .stats-bottom{display:grid;grid-template-columns:1fr 1fr;gap:14px;
-  flex:1 1 auto;min-height:0;margin-top:14px}
+body.view-stats .stats-bottom{display:grid;grid-template-columns:1fr 1fr;gap:16px;
+  flex:1 1 auto;min-height:0;margin-top:0}
 .stats-list-card{display:flex;flex-direction:column;min-height:0;margin-bottom:0}
 .stats-list-card .card-head{flex:0 0 auto}
 .list-count{font-size:.72rem;font-weight:700;color:var(--text-dim);
