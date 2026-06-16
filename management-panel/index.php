@@ -314,7 +314,7 @@ else:
   </div>
 </div>
 
-<div class="stats-strip" style="margin-bottom:16px">
+<div class="stats-strip">
   <div class="stat-box"><div class="stat-label">Файлов всего</div><div class="stat-value white" id="stFiles">—</div></div>
   <div class="stat-box"><div class="stat-label">Запросов сегодня</div><div class="stat-value" id="stSearchToday">—</div></div>
   <div class="stat-box"><div class="stat-label">Запросов за месяц</div><div class="stat-value" id="stSearchMonth">—</div></div>
