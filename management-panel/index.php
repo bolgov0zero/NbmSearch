@@ -983,7 +983,13 @@ window._renderFileLog = function() {
   log = log.filter(x => x && x.day === t);
   const cnt = document.getElementById('filesListCount'); if (cnt) cnt.textContent = log.length || '';
   el.innerHTML = log.length
-    ? log.map(f => `<div class="list-row"><div class="lr-left"><div class="lr-srv2">${escS(f.server)}</div><div class="lr-idx">${escS(f.index)}</div></div><div class="lr-count">+${f.count}</div></div>`).join('')
+    ? log.map(f => {
+        const tm = f.ts ? new Date(f.ts).toLocaleTimeString('ru-RU') : '';
+        return `<div class="list-row"><div class="lr-left">`
+          + `<div class="lr-line1"><span class="lr-srv2">${escS(f.server)}</span><span class="lr-idx-badge">${escS(f.index)}</span></div>`
+          + `<div class="lr-time">${tm}</div></div>`
+          + `<div class="lr-count">+${f.count}</div></div>`;
+      }).join('')
     : '<div class="list-empty">Сегодня новых файлов не добавлялось</div>';
 };
 window._renderFileLog();
