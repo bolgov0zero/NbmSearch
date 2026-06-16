@@ -322,19 +322,19 @@ else:
 </div>
 
 <div class="stats-charts">
-  <div class="card" style="margin-bottom:16px">
+  <div class="card">
     <div class="card-head"><div class="card-title">Файлов добавлено</div></div>
     <div class="card-body"><div class="chart-wrap"><canvas id="filesChart"></canvas>
       <div id="filesLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:.83rem">Загрузка…</div></div></div>
   </div>
 
-  <div class="card" style="margin-bottom:16px">
+  <div class="card">
     <div class="card-head"><div class="card-title">Запросы</div></div>
     <div class="card-body"><div class="chart-wrap"><canvas id="searchAllChart"></canvas>
       <div id="searchAllLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:.83rem">Загрузка…</div></div></div>
   </div>
 
-  <div class="card" style="margin-bottom:16px">
+  <div class="card">
     <div class="card-head"><div class="card-title">Активные пользователи</div></div>
     <div class="card-body"><div class="chart-wrap"><canvas id="usersAllChart"></canvas>
       <div id="usersAllLoading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:.83rem">Загрузка…</div></div></div>
