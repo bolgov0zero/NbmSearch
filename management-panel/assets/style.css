@@ -249,7 +249,7 @@ body.view-stats .stats-bottom{display:grid;grid-template-columns:1fr 1fr;gap:16p
 .lr-idx-badge{flex-shrink:0;font-size:.68rem;font-weight:600;color:var(--accent);
   background:var(--accent-bg);border:1px solid rgba(91,106,240,.2);border-radius:6px;padding:1px 7px;white-space:nowrap}
 .lr-time{font-size:.72rem;color:var(--text-muted);font-family:monospace;margin-top:3px;letter-spacing:.02em}
-.lr-count{font-size:1rem;font-weight:800;color:var(--green);flex-shrink:0}
+.lr-count{font-size:.85rem;font-weight:400;color:var(--green);flex-shrink:0}
 .list-empty{padding:16px;text-align:center;color:var(--text-muted);font-size:.8rem}
 
 /* ── New-files toast notifications ──────────────────────────────────────────── */
@@ -265,4 +265,4 @@ body.view-stats .stats-bottom{display:grid;grid-template-columns:1fr 1fr;gap:16p
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .toast-idx{font-size:.76rem;color:var(--text-dim);margin-top:2px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.toast-count{font-size:1.25rem;font-weight:800;color:var(--green);flex-shrink:0;white-space:nowrap}
+.toast-count{font-size:1.05rem;font-weight:400;color:var(--green);flex-shrink:0;white-space:nowrap}
