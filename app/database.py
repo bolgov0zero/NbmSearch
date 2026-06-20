@@ -393,7 +393,8 @@ def delete_folder(folder_id: int) -> str | None:
 # ── Files (per-folder DB) ─────────────────────────────────────────────────────
 
 def upsert_file(folder_id: int, path: str, name: str, size: int,
-                modified_at: float, content: str, indexed_at: float):
+                modified_at: float, content: str, indexed_at: float) -> bool:
+    """Returns True if the file was newly inserted, False if updated."""
     compressed = _compress(content)
     with _folder_lock(folder_id):
         conn = _get_folder_conn(folder_id)
@@ -411,14 +412,17 @@ def upsert_file(folder_id: int, path: str, name: str, size: int,
                     "UPDATE files SET name=?,size=?,modified_at=?,indexed_at=?,content=? WHERE id=?",
                     (name, size, modified_at, indexed_at, compressed, fid),
                 )
+                is_new = False
             else:
                 cur = conn.execute(
                     "INSERT INTO files (path,name,size,modified_at,indexed_at,created_at,content) VALUES (?,?,?,?,?,?,?)",
                     (path, name, size, modified_at, indexed_at, indexed_at, compressed),
                 )
                 fid = cur.lastrowid
+                is_new = True
             conn.execute("INSERT INTO fts_index(rowid, content) VALUES (?,?)", (fid, content))
             conn.commit()
+            return is_new
         except Exception:
             conn.rollback()
             raise

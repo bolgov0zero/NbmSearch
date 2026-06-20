@@ -178,23 +178,24 @@ def _extract_doc(path: str) -> str:
 
 # ── Indexing ──────────────────────────────────────────────────────────────────
 
-def index_file(folder_id: int, path: str):
+def index_file(folder_id: int, path: str) -> bool:
+    """Returns True if the file was newly added to the index, False otherwise."""
     ext = os.path.splitext(path)[1].lower()
     if ext not in SUPPORTED_EXTENSIONS:
-        return
+        return False
     if os.path.basename(path).startswith("~$"):
-        return
+        return False
     try:
         stat = os.stat(path)
         if stat.st_size == 0:
-            return  # skip empty files (being written / temp placeholders)
+            return False  # skip empty files (being written / temp placeholders)
         if ext in _HEAVY_EXTENSIONS:
             with _heavy_sem:
                 content = extract_text(path)
         else:
             content = extract_text(path)
         name = os.path.basename(path)
-        db.upsert_file(
+        is_new = db.upsert_file(
             folder_id=folder_id,
             path=path,
             name=name,
@@ -204,10 +205,12 @@ def index_file(folder_id: int, path: str):
             indexed_at=time.time(),
         )
         logger.debug("Indexed: %s", path)
+        return is_new
     except FileNotFoundError:
-        pass
+        return False
     except Exception as e:
         logger.error("Error indexing %s: %s", path, e)
+        return False
 
 
 def index_folder(folder: dict, full: bool = False, update_last_reindex: bool = True):
@@ -330,8 +333,10 @@ class FileEventHandler(FileSystemEventHandler):
             if abs(stat.st_mtime - db_mtime) < 1.0 and stat.st_size == db_size:
                 logger.debug("Watchdog: skipping unchanged file %s", path)
                 return
-        index_file(self.folder_id, path)
+        is_new = index_file(self.folder_id, path)
         db.update_folder_file_count(self.folder_id)
+        if event_type == "created" and not is_new:
+            event_type = "modified"
         _log_event(self.folder_id, event_type, path)
 
     @staticmethod
