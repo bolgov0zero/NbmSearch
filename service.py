@@ -13,8 +13,10 @@ from pathlib import Path
 _log_path = (
     Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
 ) / "nbmsearch.log"
+# Пишем через общий поток с обрезкой по возрасту (в exe он уже установлен launcher.py)
+from app import logsetup
 logging.basicConfig(
-    filename=str(_log_path), level=logging.INFO,
+    stream=logsetup.install(_log_path), level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )

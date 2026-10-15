@@ -10,6 +10,7 @@ Per-folder DB (data/folder_{id}.db):
   - fts_index — contentless FTS5 (inverted index only, no text duplication)
 """
 import re
+import json
 import zlib
 import sqlite3
 import threading
@@ -94,6 +95,11 @@ def init_db():
             CREATE TABLE IF NOT EXISTS sessions (
                 token      TEXT PRIMARY KEY,
                 created_at REAL NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key        TEXT PRIMARY KEY,
+                value      TEXT NOT NULL,
+                updated_at REAL NOT NULL
             );
         """)
         # migrations — keep old columns harmless
@@ -364,6 +370,38 @@ def update_schedule_run(schedule_id: int, reindex_minutes: int):
         conn.close()
 
 
+# ── App settings (key → JSON value) ───────────────────────────────────────────
+
+def get_setting(key: str, default=None):
+    """Читает настройку из основной БД. При любой ошибке возвращает default."""
+    try:
+        conn = _get_main_conn()
+        try:
+            row = conn.execute("SELECT value FROM app_settings WHERE key=?", (key,)).fetchone()
+        finally:
+            conn.close()
+        return json.loads(row["value"]) if row else default
+    except Exception:
+        return default
+
+
+def set_setting(key: str, value) -> None:
+    with _main_lock:
+        conn = _get_main_conn()
+        try:
+            conn.execute(
+                "INSERT INTO app_settings (key, value, updated_at) VALUES (?,?,?) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
+                (key, json.dumps(value, ensure_ascii=False), time.time()),
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+
 def delete_folder(folder_id: int) -> str | None:
     with _main_lock:
         conn = _get_main_conn()
@@ -433,25 +471,32 @@ def upsert_file(folder_id: int, path: str, name: str, size: int,
 def delete_file_from_folder(folder_id: int, path: str):
     with _folder_lock(folder_id):
         conn = _get_folder_conn(folder_id)
-        row = conn.execute("SELECT id, content FROM files WHERE path=?", (path,)).fetchone()
-        if row:
-            conn.execute(
-                "INSERT INTO fts_index(fts_index, rowid, content) VALUES ('delete',?,?)",
-                (row["id"], _decompress(row["content"])),
-            )
-            conn.execute("DELETE FROM files WHERE id=?", (row["id"],))
-            conn.commit()
-        conn.close()
+        try:
+            row = conn.execute("SELECT id, content FROM files WHERE path=?", (path,)).fetchone()
+            if row:
+                conn.execute(
+                    "INSERT INTO fts_index(fts_index, rowid, content) VALUES ('delete',?,?)",
+                    (row["id"], _decompress(row["content"])),
+                )
+                conn.execute("DELETE FROM files WHERE id=?", (row["id"],))
+                conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
 
 def get_file_meta(folder_id: int, path: str) -> tuple[float, int] | None:
     """Return (modified_at, size) for a file already in the index, or None."""
     try:
         conn = _get_folder_conn(folder_id)
-        row = conn.execute(
-            "SELECT modified_at, size FROM files WHERE path=?", (path,)
-        ).fetchone()
-        conn.close()
+        try:
+            row = conn.execute(
+                "SELECT modified_at, size FROM files WHERE path=?", (path,)
+            ).fetchone()
+        finally:
+            conn.close()
         return (row["modified_at"], row["size"]) if row else None
     except Exception:
         return None
@@ -460,9 +505,10 @@ def get_file_meta(folder_id: int, path: str) -> tuple[float, int] | None:
 def get_file_count(folder_id: int) -> int:
     try:
         conn = _get_folder_conn(folder_id)
-        n = conn.execute("SELECT COUNT(*) FROM files").fetchone()[0]
-        conn.close()
-        return n
+        try:
+            return conn.execute("SELECT COUNT(*) FROM files").fetchone()[0]
+        finally:
+            conn.close()
     except Exception:
         return 0
 
@@ -490,9 +536,10 @@ def path_in_index(path: str) -> bool:
 def get_all_paths_in_folder(folder_id: int) -> set[str]:
     try:
         conn = _get_folder_conn(folder_id)
-        rows = conn.execute("SELECT path FROM files").fetchall()
-        conn.close()
-        return {r[0] for r in rows}
+        try:
+            return {r[0] for r in conn.execute("SELECT path FROM files")}
+        finally:
+            conn.close()
     except Exception:
         return set()
 
@@ -612,15 +659,17 @@ def search(query: str, folder_names: list[str] | None = None,
             continue
         try:
             conn = _get_folder_conn(fid)
-            rows = conn.execute(
-                """SELECT f.path, f.name, f.modified_at
-                   FROM fts_index
-                   JOIN files f ON fts_index.rowid = f.id
-                   WHERE fts_index MATCH ?
-                   ORDER BY rank""",
-                (fts_q,),
-            ).fetchall()
-            conn.close()
+            try:
+                rows = conn.execute(
+                    """SELECT f.path, f.name, f.modified_at
+                       FROM fts_index
+                       JOIN files f ON fts_index.rowid = f.id
+                       WHERE fts_index MATCH ?
+                       ORDER BY rank""",
+                    (fts_q,),
+                ).fetchall()
+            finally:
+                conn.close()
         except Exception:
             continue
         if rows:
@@ -662,15 +711,19 @@ def update_folder_file_count(folder_id: int) -> None:
     """Recount files in folder DB and cache the result in the main DB."""
     try:
         fconn = _get_folder_conn(folder_id)
-        cnt = fconn.execute("SELECT COUNT(*) FROM files").fetchone()[0]
-        fconn.close()
+        try:
+            cnt = fconn.execute("SELECT COUNT(*) FROM files").fetchone()[0]
+        finally:
+            fconn.close()
     except Exception:
         cnt = 0
     with _main_lock:
         conn = _get_main_conn()
-        conn.execute("UPDATE folders SET file_count=? WHERE id=?", (cnt, folder_id))
-        conn.commit()
-        conn.close()
+        try:
+            conn.execute("UPDATE folders SET file_count=? WHERE id=?", (cnt, folder_id))
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def get_folder_index_size(folder_id: int) -> int:

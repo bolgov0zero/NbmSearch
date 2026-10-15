@@ -18,12 +18,11 @@ import ctypes
 import time
 from pathlib import Path
 
-# Redirect stdout/stderr BEFORE any other imports (windowed PyInstaller mode)
+# Redirect stdout/stderr BEFORE any other imports (windowed PyInstaller mode).
+# Лог хранится не дольше 30 суток: при старте (и раз в сутки) старые записи обрезаются.
 if getattr(sys, "frozen", False):
-    _log_path = Path(sys.executable).parent / "nbmsearch.log"
-    _log_file = open(_log_path, "a", encoding="utf-8", buffering=1)
-    sys.stdout = _log_file
-    sys.stderr = _log_file
+    from app import logsetup
+    logsetup.install(Path(sys.executable).parent / "nbmsearch.log")
 
 import tkinter as tk
 from tkinter import messagebox

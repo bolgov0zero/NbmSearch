@@ -37,6 +37,8 @@ from app.settings import PORT, verify_password, VERSION, GITHUB_REPO
 import app.settings as settings
 from app import database as db
 from app import indexer
+from app import instance_lock
+from app import restart_manager
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -64,14 +66,20 @@ def _get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def _current_rss_mb():
+    try:
+        return round(_psutil_proc.memory_info().rss / 1024**2, 1) if _psutil_proc else None
+    except Exception:
+        return None
+
+
+restart_manager.configure(is_indexing=indexer.is_indexing, current_rss_mb=_current_rss_mb)
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     db.init_db()
     threading.Thread(target=_startup, daemon=True).start()
-    try:
-        indexer.restart_watchdog()
-    except Exception as e:
-        logger.error("Watchdog failed: %s", e)
     yield
 
 
@@ -89,7 +97,17 @@ def _active_sampler():
 
 
 def _startup():
+    """Фоновые задачи (статистика, переиндексация, watchdog, автоперезапуск).
+
+    Выполняются только в процессе-владельце блокировки: если по ошибке запущено два
+    экземпляра, второй не должен параллельно индексировать и писать в те же БД."""
+    instance_lock.acquire(BASE_DIR / "nbmsearch.lock")   # ждёт, пока другой экземпляр не завершится
     threading.Thread(target=_active_sampler, daemon=True).start()
+    threading.Thread(target=restart_manager.scheduler_loop, daemon=True).start()
+    try:
+        indexer.restart_watchdog()
+    except Exception as e:
+        logger.error("Watchdog failed: %s", e)
     indexer.reindex_scheduler()
 
 
@@ -134,6 +152,8 @@ async def search(
 ):
     if not q.strip():
         return {"results": [], "total": 0, "counts": {}, "has_more": False}
+    offset = max(0, offset)
+    limit = max(1, min(limit, 200))   # страница результатов не больше 200 записей
     # Log only the initial query, not "load more" pages
     if offset == 0:
         threading.Thread(target=db.log_search, args=(q.strip(),), daemon=True).start()
@@ -324,6 +344,8 @@ async def trigger_reindex(folder_id: int, request: Request):
     folder = next((f for f in folders if f["id"] == folder_id), None)
     if not folder:
         return JSONResponse({"error": "not found"}, status_code=404)
+    if indexer.is_indexing(folder_id):
+        return {"status": "already_running"}
     threading.Thread(target=indexer.index_folder, args=(folder,), daemon=True).start()
     return {"status": "started"}
 
@@ -336,6 +358,8 @@ async def trigger_full_reindex(folder_id: int, request: Request):
     folder = next((f for f in folders if f["id"] == folder_id), None)
     if not folder:
         return JSONResponse({"error": "not found"}, status_code=404)
+    if indexer.is_indexing(folder_id):
+        return {"status": "already_running"}
     threading.Thread(target=indexer.index_folder, args=(folder,), kwargs={"full": True}, daemon=True).start()
     return {"status": "started"}
 
@@ -590,7 +614,7 @@ async def api_mgmt_info(request: Request):
         ],
         "search_summary": summary,
         "is_service": _running_as_service(),
-        "memory_mb": round(_psutil_proc.memory_info().rss / 1024**2, 1) if _psutil_proc else None,
+        "memory_mb": _current_rss_mb(),
         "active_users": _get_active_count(),
     }
 
@@ -748,24 +772,44 @@ async def api_mgmt_all_stats(request: Request, period: str = "day"):
 async def api_mgmt_restart(request: Request):
     if not _check_mgmt_token(request):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
+    restart_manager.request_restart("manual", "вручную (панель управления)", _current_rss_mb(),
+                                    delay=1.0, legacy=True)
+    return {"status": "restarting"}
 
-    def _do_restart():
-        time.sleep(1)
-        if getattr(sys, "frozen", False):
-            import subprocess as _sp
-            exe_path     = str(Path(sys.executable))
-            updater_path = str(Path(sys.executable).parent / "NbmSearchUpdater.exe")
-            pid = os.getpid()
-            if os.path.exists(updater_path):
-                _sp.Popen(
-                    [updater_path, '--restart', str(pid), exe_path, str(PORT)],
-                    creationflags=_sp.DETACHED_PROCESS | _sp.CREATE_NEW_PROCESS_GROUP,
-                )
-        # In service mode the updater handles stop+start via sc;
-        # os._exit stops the service process so SCM marks it stopped.
-        os._exit(0)
 
-    threading.Thread(target=_do_restart, daemon=True).start()
+# ── Restart settings (админка) ────────────────────────────────────────────────
+
+@app.get("/api/restart/settings")
+async def api_restart_settings(request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, restart_manager.get_status)
+
+
+@app.post("/api/restart/settings")
+async def api_restart_settings_save(request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    try:
+        body = await request.json()
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, restart_manager.save_settings, body)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    except Exception as e:
+        logger.error("Cannot save restart settings: %s", e)
+        return JSONResponse({"error": "Не удалось сохранить настройки"}, status_code=500)
+    return await loop.run_in_executor(None, restart_manager.get_status)
+
+
+@app.post("/api/restart/now")
+async def api_restart_now(request: Request):
+    if not _is_auth(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+    ok, why = restart_manager.request_restart("manual", "вручную (админка)", _current_rss_mb())
+    if not ok:
+        return JSONResponse({"error": why}, status_code=400)
     return {"status": "restarting"}
 
 

@@ -285,6 +285,34 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
 .item-row.dragging{opacity:.35;background:var(--surface2)}
 .item-row.drag-over-top{box-shadow:inset 0 2px 0 0 var(--accent)}
 .item-row.drag-over-bottom{box-shadow:inset 0 -2px 0 0 var(--accent)}
+
+/* ── Server restart ── */
+input[type=time]{color-scheme:dark}
+.chk{display:inline-flex;position:relative;cursor:pointer;user-select:none}
+.chk input{position:absolute;opacity:0;width:0;height:0;padding:0;border:0;pointer-events:none}
+.chk span{display:inline-flex;align-items:center;padding:7px 13px;border:1px solid var(--border);
+  border-radius:var(--radius-sm);font-size:.8rem;font-weight:600;color:var(--text-dim);
+  background:var(--surface2);transition:border-color .15s,background .15s,color .15s}
+.chk:hover span{border-color:#3d4168}
+.chk input:checked+span{background:var(--accent-bg);border-color:var(--accent);color:var(--text)}
+.chk input:focus-visible+span{box-shadow:0 0 0 3px rgba(91,106,240,.25)}
+.chk.rs-main span{font-size:.85rem;padding:8px 15px}
+.rs-section{padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid var(--border)}
+.rs-fields{margin-top:12px;display:flex;flex-direction:column;gap:12px;transition:opacity .2s}
+.rs-fields.rs-off{opacity:.5}
+.rs-days{display:flex;flex-wrap:wrap;gap:6px}
+.rs-row{display:flex;gap:10px;flex-wrap:wrap}
+.rs-narrow{width:170px}
+.rs-hint{font-size:.74rem;color:var(--text-muted);line-height:1.5}
+.rs-mem{font-size:.78rem;color:var(--text-dim)}
+.rs-mem b{color:var(--text);font-weight:600}
+.btn-sec{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.btn-sec:hover{border-color:var(--accent)}
+.btn-sec:disabled{opacity:.45;cursor:not-allowed}
+.rs-status{margin-top:16px;font-size:.78rem;color:var(--text-dim);display:flex;flex-direction:column;gap:5px}
+.rs-status b{color:var(--text);font-weight:600}
+.rs-warn{color:#f39c12}
+.rs-hist{margin-top:4px;display:flex;flex-direction:column;gap:2px;color:var(--text-muted);font-size:.74rem}
 </style>
 </head>
 <body>
@@ -490,6 +518,54 @@ code{background:var(--bg);border:1px solid var(--border);padding:1px 7px;
       {% else %}
         <div class="empty" id="emptySchedules">Расписания не настроены</div>
       {% endif %}
+    </div>
+  </div>
+
+  <!-- Server restart -->
+  <div class="card" id="restartCard">
+    <div class="card-head">
+      <div class="card-title">Перезапуск сервера</div>
+      <div class="rs-mem" id="rsMem">Память: <b>—</b></div>
+    </div>
+    <div class="card-body">
+      <div class="rs-section">
+        <label class="chk rs-main"><input type="checkbox" id="rsSchedEnabled"><span>По расписанию</span></label>
+        <div class="rs-fields" id="rsSchedFields">
+          <div class="rs-days" id="rsDays">
+            {% for d in ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'] %}
+            <label class="chk"><input type="checkbox" value="{{ loop.index0 }}"><span>{{ d }}</span></label>
+            {% endfor %}
+          </div>
+          <div class="rs-row">
+            <div class="field rs-narrow"><label>Время</label><input type="time" id="rsTime" value="03:00"></div>
+            <div class="field rs-narrow"><label>Ждать индексацию, мин</label><input type="number" id="rsWait" min="0" max="720" value="60"></div>
+          </div>
+          <div class="rs-hint">Время сервера. Если в этот момент идёт индексация, перезапуск дождётся её окончания, но не дольше указанного срока (0 — не ждать).</div>
+        </div>
+      </div>
+
+      <div class="rs-section">
+        <label class="chk rs-main"><input type="checkbox" id="rsMemEnabled"><span>По потреблению памяти</span></label>
+        <div class="rs-fields" id="rsMemFields">
+          <div class="rs-row">
+            <div class="field rs-narrow"><label>Порог, МБ</label><input type="number" id="rsMemLimit" min="100" value="400"></div>
+            <div class="field rs-narrow"><label>Аварийный порог, МБ</label><input type="number" id="rsMemHard" min="0" value="1000"></div>
+          </div>
+          <div><label class="chk"><input type="checkbox" id="rsWinEnabled"><span>Перезапускать по порогу только в окне времени</span></label></div>
+          <div class="rs-row" id="rsWinRow">
+            <div class="field rs-narrow"><label>С</label><input type="time" id="rsWinFrom" value="01:00"></div>
+            <div class="field rs-narrow"><label>До</label><input type="time" id="rsWinTo" value="06:00"></div>
+          </div>
+          <div class="rs-hint">Порог: перезапуск, когда память выше порога около минуты, нет индексации и (если включено) сейчас идёт разрешённое окно. Аварийный порог: перезапуск сразу, без ожидания окна и индексации (0 — выключен). Не чаще одного автоматического перезапуска в 15 минут.</div>
+        </div>
+      </div>
+
+      <div class="form-actions" style="margin-top:0">
+        <button class="btn btn-primary" id="rsSave" onclick="rsSave()">Сохранить</button>
+        <button class="btn btn-sec" id="rsNow" onclick="rsNow()">Перезапустить сейчас</button>
+        <span class="form-msg" id="rsMsg"></span>
+      </div>
+      <div class="rs-status" id="rsStatus"></div>
     </div>
   </div>
 
@@ -1638,6 +1714,125 @@ function fallbackCopy(text, cb) {
   try { document.execCommand('copy'); cb(); } catch(e) {}
   document.body.removeChild(ta);
 }
+
+// ── Restart settings ─────────────────────────────────────────────────────────
+const RS_MEM_STATE = {
+  over_limit: 'Память выше порога — ждём подтверждения (около минуты)',
+  waiting_window: 'Память выше порога — ждём разрешённого окна времени',
+  waiting_indexing: 'Память выше порога — ждём окончания индексации',
+  cooldown: 'Память выше порога, но перезапуск был совсем недавно',
+  loop_guard: 'Автоперезапуск по памяти приостановлен: слишком частые перезапуски. Проверьте порог'
+};
+let _rsDirty = false, _rsLoaded = false;
+
+const _rs = id => document.getElementById(id);
+
+function rsFill(cfg) {
+  _rs('rsSchedEnabled').checked = cfg.schedule_enabled;
+  document.querySelectorAll('#rsDays input').forEach(i => i.checked = cfg.days.includes(parseInt(i.value)));
+  _rs('rsTime').value = cfg.time;
+  _rs('rsWait').value = cfg.wait_indexing_min;
+  _rs('rsMemEnabled').checked = cfg.memory_enabled;
+  _rs('rsMemLimit').value = cfg.memory_limit_mb;
+  _rs('rsMemHard').value = cfg.memory_hard_mb;
+  _rs('rsWinEnabled').checked = cfg.memory_window_enabled;
+  _rs('rsWinFrom').value = cfg.memory_window_from;
+  _rs('rsWinTo').value = cfg.memory_window_to;
+  rsToggleDim();
+}
+
+function rsToggleDim() {
+  _rs('rsSchedFields').classList.toggle('rs-off', !_rs('rsSchedEnabled').checked);
+  _rs('rsMemFields').classList.toggle('rs-off', !_rs('rsMemEnabled').checked);
+  _rs('rsWinRow').style.display = _rs('rsWinEnabled').checked ? '' : 'none';
+}
+
+function rsCollect() {
+  return {
+    schedule_enabled: _rs('rsSchedEnabled').checked,
+    days: [...document.querySelectorAll('#rsDays input:checked')].map(i => parseInt(i.value)),
+    time: _rs('rsTime').value,
+    wait_indexing_min: parseInt(_rs('rsWait').value),
+    memory_enabled: _rs('rsMemEnabled').checked,
+    memory_limit_mb: parseInt(_rs('rsMemLimit').value),
+    memory_hard_mb: parseInt(_rs('rsMemHard').value),
+    memory_window_enabled: _rs('rsWinEnabled').checked,
+    memory_window_from: _rs('rsWinFrom').value,
+    memory_window_to: _rs('rsWinTo').value,
+  };
+}
+
+function rsRenderStatus(st) {
+  _rs('rsMem').innerHTML = 'Память: <b>' + (st.memory_mb != null ? Math.round(st.memory_mb) + ' МБ' : 'н/д') + '</b>';
+  const lines = [];
+  if (!st.can_restart)
+    lines.push('<span class="rs-warn">Автоперезапуск недоступен: ' + esc(st.can_restart_reason) + '</span>');
+  if (st.settings.memory_enabled && st.memory_mb == null)
+    lines.push('<span class="rs-warn">Не удаётся измерить память (нет модуля psutil) — перезапуск по памяти не работает</span>');
+  if (st.settings.schedule_enabled)
+    lines.push('Следующий по расписанию: <b>' + esc(st.pending ? 'ожидает окончания индексации' : (st.next_scheduled || '—')) + '</b>');
+  if (st.settings.memory_enabled && RS_MEM_STATE[st.memory_state])
+    lines.push('<span class="rs-warn">' + RS_MEM_STATE[st.memory_state] + '</span>');
+  lines.push('Последний перезапуск: <b>' + esc(st.last_restart || '—') + '</b>');
+  if (st.history.length) {
+    lines.push('<div class="rs-hist">' + st.history.map(h =>
+      esc(h.at) + ' — ' + esc(h.reason) + (h.rss_mb != null ? ' (' + Math.round(h.rss_mb) + ' МБ)' : '')).join('<br>') + '</div>');
+  }
+  _rs('rsStatus').innerHTML = lines.map(l => l.startsWith('<div') ? l : '<div>' + l + '</div>').join('');
+  _rs('rsNow').disabled = !st.can_restart;
+}
+
+async function rsLoad() {
+  try {
+    const st = await fetch('/api/restart/settings').then(r => r.json());
+    if (st.settings && (!_rsLoaded || !_rsDirty)) rsFill(st.settings);
+    if (st.settings) { _rsLoaded = true; rsRenderStatus(st); }
+  } catch(e) {}
+}
+
+async function rsSave() {
+  const btn = _rs('rsSave'), msg = _rs('rsMsg');
+  msg.textContent = ''; msg.className = 'form-msg';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/restart/settings', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(rsCollect()),
+    });
+    const data = await res.json();
+    if (!res.ok) { msg.textContent = data.error || 'Ошибка'; msg.className = 'form-msg form-error'; return; }
+    _rsDirty = false;
+    rsFill(data.settings); rsRenderStatus(data);
+    msg.textContent = 'Сохранено'; msg.className = 'form-msg form-ok';
+    setTimeout(() => msg.textContent = '', 3000);
+  } catch(e) { msg.textContent = 'Ошибка соединения'; msg.className = 'form-msg form-error'; }
+  finally { btn.disabled = false; }
+}
+
+function rsNow() {
+  showDialog('Перезапустить сервер?',
+    'Сервер будет недоступен на 10–30 секунд. Идущая индексация продолжится после запуска.',
+    async () => {
+      const msg = _rs('rsMsg');
+      const res = await fetch('/api/restart/now', {method: 'POST'}).catch(() => null);
+      if (!res || !res.ok) {
+        const d = res ? await res.json().catch(() => ({})) : {};
+        msg.textContent = d.error || 'Не удалось перезапустить'; msg.className = 'form-msg form-error';
+        return;
+      }
+      msg.textContent = 'Перезапуск…'; msg.className = 'form-msg form-ok';
+      const t0 = Date.now();
+      const wait = setInterval(async () => {
+        const ok = await fetch('/api/restart/settings').then(r => r.ok).catch(() => false);
+        if (ok && Date.now() - t0 > 6000) { clearInterval(wait); location.reload(); }
+        else if (Date.now() - t0 > 120000) { clearInterval(wait); msg.textContent = 'Сервер не отвечает'; msg.className = 'form-msg form-error'; }
+      }, 2000);
+    });
+}
+
+document.querySelectorAll('#restartCard input').forEach(el => el.addEventListener('input', () => { _rsDirty = true; rsToggleDim(); }));
+rsLoad();
+setInterval(rsLoad, 30000);
 </script>
 </body>
 </html>

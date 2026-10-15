@@ -23,6 +23,8 @@ _DEFAULTS: dict = {
     "port": 8080,
     "max_workers": 4,
     "heavy_workers": 1,   # concurrent limit for memory-heavy formats (pdf, xls, xlsx)
+    "max_file_mb": 64,    # файлы больше (кроме txt/csv) индексируются только по имени; 0 — без лимита
+    "max_text_chars": 20_000_000,  # предел извлекаемого текста из одного файла
     "admin_password_hash": hashlib.sha256(b"Gjgeufq4hfpf!").hexdigest(),
 }
 
@@ -55,6 +57,8 @@ _s = load()
 PORT: int         = int(_s.get("port", 8080))
 MAX_WORKERS: int  = int(_s.get("max_workers", 4))
 HEAVY_WORKERS: int = int(_s.get("heavy_workers", 1))
+MAX_FILE_BYTES: int = max(0, int(_s.get("max_file_mb", 64))) * 1024 * 1024
+MAX_TEXT_CHARS: int = max(100_000, int(_s.get("max_text_chars", 20_000_000)))
 
-VERSION = "1.5.86"
+VERSION = "1.5.87"
 GITHUB_REPO = "bolgov0zero/NbmSearch"
