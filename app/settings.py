@@ -60,5 +60,5 @@ HEAVY_WORKERS: int = int(_s.get("heavy_workers", 1))
 MAX_FILE_BYTES: int = max(0, int(_s.get("max_file_mb", 64))) * 1024 * 1024
 MAX_TEXT_CHARS: int = max(100_000, int(_s.get("max_text_chars", 20_000_000)))
 
-VERSION = "1.5.87"
+VERSION = "1.5.88"
 GITHUB_REPO = "bolgov0zero/NbmSearch"

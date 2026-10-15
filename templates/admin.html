@@ -301,8 +301,9 @@ input[type=time]{color-scheme:dark}
 .rs-fields{margin-top:12px;display:flex;flex-direction:column;gap:12px;transition:opacity .2s}
 .rs-fields.rs-off{opacity:.5}
 .rs-days{display:flex;flex-wrap:wrap;gap:6px}
-.rs-row{display:flex;gap:10px;flex-wrap:wrap}
+.rs-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
 .rs-narrow{width:170px}
+.rs-wide{width:220px}
 .rs-hint{font-size:.74rem;color:var(--text-muted);line-height:1.5}
 .rs-mem{font-size:.78rem;color:var(--text-dim)}
 .rs-mem b{color:var(--text);font-weight:600}
@@ -538,7 +539,7 @@ input[type=time]{color-scheme:dark}
           </div>
           <div class="rs-row">
             <div class="field rs-narrow"><label>Время</label><input type="time" id="rsTime" value="03:00"></div>
-            <div class="field rs-narrow"><label>Ждать индексацию, мин</label><input type="number" id="rsWait" min="0" max="720" value="60"></div>
+            <div class="field rs-wide"><label>Ждать индексацию, мин</label><input type="number" id="rsWait" min="0" max="720" value="60"></div>
           </div>
           <div class="rs-hint">Время сервера. Если в этот момент идёт индексация, перезапуск дождётся её окончания, но не дольше указанного срока (0 — не ждать).</div>
         </div>
